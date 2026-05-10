@@ -1,0 +1,22 @@
+{
+  "name": "daffodil-intelligence",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@10.33.0"
+}
