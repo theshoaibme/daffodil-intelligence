@@ -1,4 +1,6 @@
 {
   "name": "shared",
+  "title": "Shared",
+  "path": "apps/shared",
   "private": true
 }
