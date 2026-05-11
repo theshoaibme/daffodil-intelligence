@@ -2,5 +2,7 @@
   "name": "shared",
   "title": "Shared",
   "path": "apps/shared",
+  "root": true,
+  
   "private": true
 }
