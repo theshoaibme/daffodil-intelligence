@@ -1,0 +1,8 @@
+{
+  "name": "daffodil-worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "/Users/ratulhasan/Library/Python/3.9/bin/celery -A app.tasks worker --loglevel=info"
+  }
+}

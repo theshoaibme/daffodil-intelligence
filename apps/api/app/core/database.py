@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy import exc
+from contextlib import asynccontextmanager
 from .config import get_settings
-import warnings
-warnings.filterwarnings("ignore")
 
 settings = get_settings()
 Base = declarative_base()
@@ -15,7 +15,13 @@ def get_engine():
     if _engine is None:
         try:
             async_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-            _engine = create_async_engine(async_url, echo=False, pool_pre_ping=True)
+            _engine = create_async_engine(
+                async_url, 
+                echo=False, 
+                pool_pre_ping=True,
+                pool_size=5,
+                max_overflow=10
+            )
         except Exception as e:
             print(f"Database engine error: {e}")
             _engine = None
@@ -31,11 +37,17 @@ def get_session_maker():
 
 async def get_db():
     session_maker = get_session_maker()
-    if session_maker:
-        async with session_maker() as session:
+    if session_maker is None:
+        raise Exception("Database not initialized")
+    
+    async with session_maker() as session:
+        try:
             yield session
-    else:
-        yield None
+        except exc.SQLAlchemyError:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 async def init_db():
@@ -46,3 +58,11 @@ async def init_db():
                 await conn.run_sync(Base.metadata.create_all)
         except Exception as e:
             print(f"Table creation: {e}")
+
+
+async def close_db():
+    global _engine, _async_session
+    if _engine:
+        await _engine.dispose()
+        _engine = None
+        _async_session = None

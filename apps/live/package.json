@@ -1,0 +1,8 @@
+{
+  "name": "daffodil-live",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "/usr/bin/python3 app/server.py"
+  }
+}

@@ -6,7 +6,13 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+   "dev": "turbo dev --ui=tui",
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:api": "cd apps/api && python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+    "dev:mcp": "cd apps/mcp && python3 app/server.py",
+    "dev:live": "cd apps/live && python3 app/server.py",
+    "dev:messaging": "cd apps/messaging && python3 app/main.py",
+    "dev:worker": "cd apps/worker && celery -A app.tasks worker --loglevel=info",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",

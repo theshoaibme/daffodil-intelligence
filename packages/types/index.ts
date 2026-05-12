@@ -16,12 +16,19 @@ export interface Chat {
   created_at: string;
 }
 
+export interface MessageMetadata {
+  agent?: string;
+  tools_used?: string[];
+  sources?: string[];
+  [key: string]: unknown;
+}
+
 export interface Message {
   id: number;
   chat_id: number;
   role: 'user' | 'assistant';
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: MessageMetadata;
   created_at: string;
 }
 
@@ -33,9 +40,17 @@ export interface Agent {
   tools: string[];
 }
 
+export type ToolResultData = 
+  | string 
+  | number 
+  | boolean 
+  | Record<string, unknown>
+  | unknown[]
+  | null;
+
 export interface ToolResult {
   success: boolean;
-  data?: any;
+  data?: ToolResultData;
   error?: string;
 }
 
@@ -69,4 +84,16 @@ export interface AgentResponse {
   agent: string;
   tools_used: string[];
   sources: string[];
+}
+
+export interface AuthResponse {
+  status: 'success' | 'error';
+  message: string;
+  user?: User;
+  access_token?: string;
+}
+
+export interface ApiError {
+  detail: string;
+  code?: string;
 }

@@ -1,8 +1,17 @@
 import { Box, Grid, Card, CardContent, Typography, ListItem, ListItemText, ListItemIcon, Chip, LinearProgress } from '@mui/material'
 import { School, LibraryBooks, Work, AttachMoney, CalendarMonth, DirectionsBus, Psychology } from '@mui/icons-material'
 
+const colors = {
+  surface: '#131314',
+  surfaceContainer: '#201f20',
+  surfaceContainerHigh: '#2a2a2b',
+  onSurface: '#e5e2e3',
+  onSurfaceVariant: '#c3c6d1',
+  primary: '#8ab4f8',
+}
+
 const stats = [
-  { label: 'Current CGPA', value: '3.75', icon: <School />, color: '#6366f1' },
+  { label: 'Current CGPA', value: '3.75', icon: <School />, color: '#8ab4f8' },
   { label: 'Books Borrowed', value: '12', icon: <LibraryBooks />, color: '#ec4899' },
   { label: 'Applications', value: '5', icon: <Work />, color: '#22c55e' },
   { label: 'Pending Dues', value: '৳10,000', icon: <AttachMoney />, color: '#f59e0b' },
@@ -21,7 +30,7 @@ const upcoming = [
 ]
 
 const agents = [
-  { name: 'Academic', icon: <Psychology />, status: 'Active', color: '#6366f1' },
+  { name: 'Academic', icon: <Psychology />, status: 'Active', color: '#8ab4f8' },
   { name: 'Library', icon: <LibraryBooks />, status: 'Ready', color: '#ec4899' },
   { name: 'Career', icon: <Work />, status: 'Ready', color: '#22c55e' },
   { name: 'Campus', icon: <DirectionsBus />, status: 'Ready', color: '#f59e0b' },
@@ -30,18 +39,43 @@ const agents = [
 export default function Dashboard() {
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 3, fontWeight: 700 }}>Dashboard</Typography>
+      <Typography sx={{ 
+        mb: 3, 
+        fontSize: '28px',
+        fontWeight: 500,
+        color: colors.onSurface,
+        fontFamily: '"Roboto Flex", Roboto, sans-serif'
+      }}>
+        Dashboard
+      </Typography>
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {stats.map((stat, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card sx={{ bgcolor: 'background.paper', border: '1px solid #334155' }}>
+            <Card sx={{ 
+              bgcolor: '#191A1F', 
+              border: '1px solid #444746',
+              borderRadius: '28px'
+            }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: `${stat.color}20`, color: stat.color }}>{stat.icon}</Box>
+                  <Box sx={{ p: 1.5, borderRadius: '16px', bgcolor: `${stat.color}20`, color: stat.color }}>{stat.icon}</Box>
                   <Box>
-                    <Typography variant="body2" sx={{ color: '#94a3b8' }}>{stat.label}</Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>{stat.value}</Typography>
+                    <Typography sx={{ 
+                      fontSize: '12px', 
+                      color: colors.onSurfaceVariant,
+                      fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                    }}>
+                      {stat.label}
+                    </Typography>
+                    <Typography sx={{ 
+                      fontSize: '22px', 
+                      fontWeight: 500,
+                      color: colors.onSurface,
+                      fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                    }}>
+                      {stat.value}
+                    </Typography>
                   </Box>
                 </Box>
               </CardContent>
@@ -52,17 +86,55 @@ export default function Dashboard() {
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
-          <Card sx={{ bgcolor: 'background.paper', border: '1px solid #334155' }}>
+          <Card sx={{ 
+            bgcolor: '#191A1F', 
+            border: '1px solid #444746',
+            borderRadius: '28px'
+          }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>Agent Status</Typography>
+              <Typography sx={{ 
+                mb: 2,
+                fontSize: '16px',
+                fontWeight: 500,
+                color: colors.onSurface,
+                fontFamily: '"Roboto Flex", Roboto, sans-serif'
+              }}>
+                Agent Status
+              </Typography>
               {agents.map((a, i) => (
                 <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                   <Box sx={{ color: a.color }}>{a.icon}</Box>
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography>{a.name}</Typography>
-                    <LinearProgress variant="determinate" value={a.status === 'Active' ? 100 : 80} sx={{ height: 4, borderRadius: 2, mt: 0.5 }} />
+                    <Typography sx={{ 
+                      color: colors.onSurface,
+                      fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                      fontSize: '14px'
+                    }}>
+                      {a.name}
+                    </Typography>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={a.status === 'Active' ? 100 : 80} 
+                      sx={{ 
+                        height: 4, 
+                        borderRadius: '16px', 
+                        mt: 0.5,
+                        bgcolor: 'rgba(255,255,255,0.04)',
+                        '& .MuiLinearProgress-bar': { bgcolor: a.color }
+                      }} 
+                    />
                   </Box>
-                  <Chip label={a.status} size="small" sx={{ bgcolor: `${a.color}20`, color: a.color }} />
+                  <Chip 
+                    label={a.status} 
+                    size="small" 
+                    sx={{ 
+                      bgcolor: `${a.color}20`, 
+                      color: a.color,
+                      borderRadius: '9999px',
+                      fontSize: '11px',
+                      fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                    }} 
+                  />
                 </Box>
               ))}
             </CardContent>
@@ -70,14 +142,48 @@ export default function Dashboard() {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card sx={{ bgcolor: 'background.paper', border: '1px solid #334155' }}>
+          <Card sx={{ 
+            bgcolor: '#191A1F', 
+            border: '1px solid #444746',
+            borderRadius: '28px'
+          }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>Notices</Typography>
+              <Typography sx={{ 
+                mb: 2,
+                fontSize: '16px',
+                fontWeight: 500,
+                color: colors.onSurface,
+                fontFamily: '"Roboto Flex", Roboto, sans-serif'
+              }}>
+                Notices
+              </Typography>
               {notices.map((n, i) => (
                 <ListItem key={i} sx={{ px: 0 }}>
-                  <ListItemIcon><CalendarMonth sx={{ color: n.priority === 'high' ? '#ef4444' : '#94a3b8' }} /></ListItemIcon>
-                  <ListItemText primary={n.title} secondary={n.date} />
-                  <Chip label={n.priority} size="small" color={n.priority === 'high' ? 'error' : 'default'} />
+                  <ListItemIcon>
+                    <CalendarMonth sx={{ color: n.priority === 'high' ? '#ef4444' : colors.onSurfaceVariant }} />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={n.title} 
+                    secondary={n.date}
+                    primaryTypographyProps={{
+                      sx: { color: colors.onSurface, fontFamily: '"Roboto Flex", Roboto, sans-serif', fontSize: '14px' }
+                    }}
+                    secondaryTypographyProps={{
+                      sx: { color: colors.onSurfaceVariant, fontFamily: '"Roboto Flex", Roboto, sans-serif', fontSize: '12px' }
+                    }}
+                  />
+                  <Chip 
+                    label={n.priority} 
+                    size="small" 
+                    color={n.priority === 'high' ? 'error' : 'default'}
+                    sx={{
+                      borderRadius: '9999px',
+                      fontSize: '11px',
+                      fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                      bgcolor: n.priority === 'high' ? 'rgba(255, 180, 171, 0.12)' : 'rgba(255,255,255,0.04)',
+                      color: n.priority === 'high' ? '#ffb4ab' : colors.onSurfaceVariant
+                    }}
+                  />
                 </ListItem>
               ))}
             </CardContent>
@@ -85,13 +191,38 @@ export default function Dashboard() {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card sx={{ bgcolor: 'background.paper', border: '1px solid #334155' }}>
+          <Card sx={{ 
+            bgcolor: '#191A1F', 
+            border: '1px solid #444746',
+            borderRadius: '28px'
+          }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>Upcoming Events</Typography>
+              <Typography sx={{ 
+                mb: 2,
+                fontSize: '16px',
+                fontWeight: 500,
+                color: colors.onSurface,
+                fontFamily: '"Roboto Flex", Roboto, sans-serif'
+              }}>
+                Upcoming Events
+              </Typography>
               {upcoming.map((u, i) => (
-                <Box key={i} sx={{ mb: 2, p: 2, borderRadius: 2, bgcolor: 'rgba(99,102,241,0.1)' }}>
-                  <Typography sx={{ fontWeight: 600 }}>{u.title}</Typography>
-                  <Typography variant="body2" sx={{ color: '#94a3b8' }}>{u.date} at {u.time}</Typography>
+                <Box key={i} sx={{ mb: 2, p: 2, borderRadius: '16px', bgcolor: 'rgba(138, 180, 248, 0.08)' }}>
+                  <Typography sx={{ 
+                    fontWeight: 500,
+                    color: colors.onSurface,
+                    fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                    fontSize: '14px'
+                  }}>
+                    {u.title}
+                  </Typography>
+                  <Typography sx={{ 
+                    fontSize: '12px',
+                    color: colors.onSurfaceVariant,
+                    fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                  }}>
+                    {u.date} at {u.time}
+                  </Typography>
                 </Box>
               ))}
             </CardContent>

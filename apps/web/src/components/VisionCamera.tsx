@@ -1,13 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 interface VisionCameraProps {
   onFrameCapture?: (frame: string) => void;
-  apiEndpoint?: string;
 }
 
 const VisionCamera: React.FC<VisionCameraProps> = ({ 
-  onFrameCapture,
-  apiEndpoint = 'http://localhost:8000'
+  onFrameCapture
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,6 +23,10 @@ const VisionCamera: React.FC<VisionCameraProps> = ({
   }, []);
 
   const startCamera = async () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+    }
+    
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -77,7 +80,7 @@ const VisionCamera: React.FC<VisionCameraProps> = ({
     setIsAnalyzing(true);
     
     try {
-      const response = await fetch(`${apiEndpoint}/api/agents/vision/analyze`, {
+      const response = await fetch(`${api.getBaseUrl()}/api/agents/vision/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: frameData })
@@ -85,12 +88,18 @@ const VisionCamera: React.FC<VisionCameraProps> = ({
       
       if (response.ok) {
         const data = await response.json();
-        setAnalysis(data.analysis || 'Analysis complete');
+        if (data.error) {
+          setAnalysis(`Error: ${data.error}`);
+        } else {
+          setAnalysis(data.analysis || 'Analysis complete');
+        }
       } else {
-        setAnalysis('Analysis unavailable - API not connected');
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        setAnalysis(`Server error: ${errorData.detail || response.statusText}`);
       }
     } catch (err) {
-      setAnalysis('Network error during analysis');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setAnalysis(`Network error: ${errorMessage}`);
     } finally {
       setIsAnalyzing(false);
     }

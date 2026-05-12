@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 
 interface User {
-  id: number
-  email: string
-  full_name: string
-  student_id: string
-  department: string
-  semester: number
+  id?: number
+  email?: string
+  full_name?: string
+  student_id?: string
+  department?: string
+  semester?: number
+  role?: string
+  cgpa?: number
 }
 
 interface Message {

@@ -15,12 +15,20 @@ class BaseAgent(ABC):
     tools: list[str] = []
 
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4-turbo-preview",
-            temperature=0.7,
-            api_key=settings.OPENAI_API_KEY
-        )
+        self._llm = None
         self.history: list = []
+
+    @property
+    def llm(self):
+        if self._llm is None:
+            if not settings.OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY is not set. Please configure it in .env")
+            self._llm = ChatOpenAI(
+                model="gpt-4-turbo-preview",
+                temperature=0.7,
+                api_key=settings.OPENAI_API_KEY
+            )
+        return self._llm
 
     @abstractmethod
     async def process(self, message: str, context: Optional[dict] = None) -> str:

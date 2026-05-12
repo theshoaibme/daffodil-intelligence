@@ -3,33 +3,53 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..core.database import get_db
 from ..core.security import get_password_hash, verify_password, create_access_token, get_current_user
+from ..core.config import get_settings
 from ..models.user import User
-from ..schemas.user import UserCreate, UserResponse, Token, LoginRequest, OAuthRequest
+from ..schemas.user import UserCreate, UserResponse, Token, LoginRequest, OAuthRequest, SimpleRegisterRequest, SimpleLoginRequest
 from ..auth_engine import auth_engine
 import httpx
 
+settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register-simple")
-async def register_simple(name: str, email: str, password: str):
-    result = auth_engine.register_email(name, email, password, password)
-    return {"status": result.status, "message": result.message, "user": result.user, "token": result.access_token}
+async def register_simple(data: SimpleRegisterRequest, db: AsyncSession = Depends(get_db)):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    result = await db.execute(select(User).where(User.email == data.email))
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user_obj = User(
+        email=data.email,
+        password_hash=get_password_hash(data.password),
+        full_name=data.name,
+        role="student"
+    )
+    db.add(user_obj)
+    await db.commit()
+    await db.refresh(user_obj)
+    
+    token = create_access_token({"sub": str(user_obj.id), "email": user_obj.email})
+    return {"status": "success", "message": "Registration successful", "user": user_obj, "access_token": token, "token": token}
 
 
 @router.post("/login-simple")
-async def login_simple(email: str, password: str):
-    result = auth_engine.login_email(email, password)
-    return {"status": result.status, "message": result.message, "user": result.user, "token": result.access_token}
+async def login_simple(data: SimpleLoginRequest, db: AsyncSession = Depends(get_db)):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
 
-GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
-GOOGLE_CLIENT_SECRET = "YOUR_GOOGLE_CLIENT_SECRET"
-MICROSOFT_CLIENT_ID = "YOUR_MICROSOFT_CLIENT_ID"
-MICROSOFT_CLIENT_SECRET = "YOUR_MICROSOFT_CLIENT_SECRET"
-APPLE_CLIENT_ID = "YOUR_APPLE_CLIENT_ID"
-APPLE_CLIENT_SECRET = "YOUR_APPLE_CLIENT_SECRET"
-GITHUB_CLIENT_ID = "YOUR_GITHUB_CLIENT_ID"
-GITHUB_CLIENT_SECRET = "YOUR_GITHUB_CLIENT_SECRET"
+    if not user or not verify_password(data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_access_token({"sub": str(user.id), "email": user.email})
+    return {"status": "success", "message": "Login successful", "user": user, "access_token": token, "token": token}
 
 
 @router.post("/register", response_model=UserResponse)
@@ -102,7 +122,7 @@ async def oauth_google(oauth_req: OAuthRequest):
         )
         user_info = user_resp.json()
     
-    result = auth_engine.login_google(oauth_req.code, user_info)
+    result = auth_engine.login_google(user_info)
     if result.status != "success":
         raise HTTPException(status_code=400, detail=result.message)
     
@@ -133,7 +153,7 @@ async def oauth_microsoft(oauth_req: OAuthRequest):
         )
         user_info = user_resp.json()
     
-    result = auth_engine.login_microsoft(access_token, user_info)
+    result = auth_engine.login_microsoft(user_info)
     if result.status != "success":
         raise HTTPException(status_code=400, detail=result.message)
     
@@ -159,7 +179,7 @@ async def oauth_apple(oauth_req: OAuthRequest):
         import jwt
         user_info = jwt.decode(id_token, options={"verify_signature": False})
     
-    result = auth_engine.login_apple(id_token, user_info)
+    result = auth_engine.login_apple(user_info)
     if result.status != "success":
         raise HTTPException(status_code=400, detail=result.message)
     
@@ -198,7 +218,7 @@ async def oauth_github(oauth_req: OAuthRequest):
         if primary_email:
             user_info["email"] = primary_email
     
-    result = auth_engine.login_github(access_token, user_info)
+    result = auth_engine.login_github(user_info)
     if result.status != "success":
         raise HTTPException(status_code=400, detail=result.message)
     

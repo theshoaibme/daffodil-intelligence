@@ -1,327 +1,354 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react'
+import { Box, Typography, Button, Card, CardContent, Grid } from '@mui/material'
+import { api } from '../../services/api'
+
+const colors = {
+  surface: '#131314',
+  onSurface: '#e5e2e3',
+  onSurfaceVariant: '#c3c6d1',
+  primary: '#8ab4f8',
+  primaryContainer: '#8ab4f8',
+}
 
 const Vision: React.FC = () => {
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [analysis, setAnalysis] = useState<string>('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [analysis, setAnalysis] = useState<string>('')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   const startCamera = async () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: 1280, height: 720 }
-      });
-      streamRef.current = stream;
+      })
+      streamRef.current = stream
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setIsStreaming(true);
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+        setIsStreaming(true)
       }
     } catch (err) {
-      console.error('Camera error:', err);
+      console.error('Camera error:', err)
     }
-  };
+  }
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
     }
-    setIsStreaming(false);
-  };
+    setIsStreaming(false)
+  }
 
   const captureAndAnalyze = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) return
     
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx?.drawImage(video, 0, 0);
+    if (!ctx) {
+      setAnalysis('Error: Could not initialize canvas context')
+      return
+    }
     
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-    setCapturedImage(imageData);
-    setIsAnalyzing(true);
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    ctx.drawImage(video, 0, 0)
+    
+    const imageData = canvas.toDataURL('image/jpeg', 0.8)
+    setCapturedImage(imageData)
+    setIsAnalyzing(true)
     
     try {
-      const response = await fetch('http://localhost:8000/api/agents/vision/analyze', {
+      const response = await fetch(`${api.getBaseUrl()}/api/agents/vision/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: imageData.split(',')[1] })
-      });
+      })
       
-      const data = await response.json();
-      setAnalysis(data.analysis || 'Analysis complete');
+      if (response.ok) {
+        const data = await response.json()
+        if (data.error) {
+          setAnalysis(`Analysis error: ${data.error}`)
+        } else {
+          setAnalysis(data.analysis || 'Analysis complete')
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+        setAnalysis(`Server error: ${errorData.detail || response.statusText}`)
+      }
     } catch (err) {
-      setAnalysis('Analysis: Objects detected - person, book, desk, window');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setAnalysis(`Network error: ${errorMessage}`)
     } finally {
-      setIsAnalyzing(false);
+      setIsAnalyzing(false)
     }
-  };
+  }
 
   return (
-    <div className="vision-page">
-      <div className="vision-header">
-        <h1>📹 Real-Time Vision Camera</h1>
-        <p>Point your camera at objects, documents, or text for AI analysis</p>
-      </div>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 900, mx: 'auto' }}>
+      <Box sx={{ textAlign: 'center', mb: 3 }}>
+        <Typography sx={{ 
+          mb: 1, 
+          fontSize: '28px',
+          fontWeight: 500,
+          color: colors.primary,
+          fontFamily: '"Roboto Flex", Roboto, sans-serif'
+        }}>
+          Real-Time Vision Camera
+        </Typography>
+        <Typography sx={{ 
+          color: colors.onSurfaceVariant,
+          fontFamily: '"Roboto Flex", Roboto, sans-serif',
+          fontSize: '14px'
+        }}>
+          Point your camera at objects, documents, or text for AI analysis
+        </Typography>
+      </Box>
 
-      <div className="camera-container">
-        <video 
-          ref={videoRef}
-          className="camera-feed"
-          playsInline
-          muted
-          style={{ display: isStreaming ? 'block' : 'none' }}
-        />
-        
-        {!isStreaming && !capturedImage && (
-          <div className="camera-placeholder">
-            <div className="placeholder-icon">📷</div>
-            <p>Click "Start Camera" to begin</p>
-          </div>
-        )}
-        
-        {capturedImage && (
-          <img src={capturedImage} alt="Captured" className="captured-image" />
-        )}
-        
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-        
-        {isStreaming && (
-          <div className="live-indicator">
-            <span className="dot"></span> LIVE
-          </div>
-        )}
-      </div>
+      <Card sx={{ 
+        bgcolor: '#191A1F', 
+        border: '1px solid #444746',
+        borderRadius: '28px',
+        overflow: 'hidden',
+        mb: 3
+      }}>
+        <Box sx={{ 
+          position: 'relative',
+          aspectRatio: '16/9',
+          bgcolor: '#0e0e0f',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <video 
+            ref={videoRef}
+            playsInline
+            muted
+            style={{ 
+              display: isStreaming ? 'block' : 'none',
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
+          
+          {!isStreaming && !capturedImage && (
+            <Box sx={{ textAlign: 'center', color: colors.onSurfaceVariant }}>
+              <Typography sx={{ fontSize: '64px', mb: 2 }}>📷</Typography>
+              <Typography sx={{ fontFamily: '"Roboto Flex", Roboto, sans-serif', fontSize: '14px' }}>
+                Click "Start Camera" to begin
+              </Typography>
+            </Box>
+          )}
+          
+          {capturedImage && (
+            <img 
+              src={capturedImage} 
+              alt="Captured" 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'cover' 
+              }} 
+            />
+          )}
+          
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          
+          {isStreaming && (
+            <Box sx={{ 
+              position: 'absolute',
+              top: 16,
+              left: 16,
+              bgcolor: '#ef4444',
+              color: 'white',
+              px: 2,
+              py: 0.75,
+              borderRadius: '9999px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              fontWeight: 600,
+              fontSize: '12px',
+              fontFamily: '"Roboto Flex", Roboto, sans-serif'
+            }}>
+              <Box sx={{ 
+                width: 8, 
+                height: 8, 
+                bgcolor: 'white', 
+                borderRadius: '50%',
+                animation: 'pulse 1s infinite'
+              }} />
+              LIVE
+            </Box>
+          )}
+        </Box>
+      </Card>
 
-      <div className="controls">
+      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mb: 3 }}>
         {!isStreaming ? (
-          <button className="btn-start" onClick={startCamera}>
-            🚀 Start Camera
-          </button>
+          <Button 
+            variant="contained"
+            onClick={startCamera}
+            sx={{
+              bgcolor: colors.primary,
+              color: '#131314',
+              borderRadius: '16px',
+              px: 4,
+              py: 1.5,
+              fontWeight: 500,
+              fontSize: '14px',
+              fontFamily: '"Roboto Flex", Roboto, sans-serif',
+              textTransform: 'none',
+              '&:hover': { bgcolor: '#a8c8ff' }
+            }}
+          >
+            Start Camera
+          </Button>
         ) : (
           <>
-            <button className="btn-capture" onClick={captureAndAnalyze} disabled={isAnalyzing}>
-              {isAnalyzing ? '🔄 Analyzing...' : '📸 Capture & Analyze'}
-            </button>
-            <button className="btn-stop" onClick={stopCamera}>
-              ⏹️ Stop
-            </button>
+            <Button 
+              variant="contained"
+              onClick={captureAndAnalyze}
+              disabled={isAnalyzing}
+              sx={{
+                bgcolor: '#22c55e',
+                color: 'white',
+                borderRadius: '16px',
+                px: 3,
+                py: 1.5,
+                fontWeight: 500,
+                fontSize: '14px',
+                fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                textTransform: 'none',
+                '&:hover': { bgcolor: '#16a34a' },
+                '&:disabled': { bgcolor: '#444746', color: '#8d919b' }
+              }}
+            >
+              {isAnalyzing ? 'Analyzing...' : 'Capture & Analyze'}
+            </Button>
+            <Button 
+              variant="contained"
+              onClick={stopCamera}
+              sx={{
+                bgcolor: '#ef4444',
+                color: 'white',
+                borderRadius: '16px',
+                px: 3,
+                py: 1.5,
+                fontWeight: 500,
+                fontSize: '14px',
+                fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                textTransform: 'none',
+                '&:hover': { bgcolor: '#dc2626' }
+              }}
+            >
+              Stop
+            </Button>
           </>
         )}
-      </div>
+      </Box>
 
       {analysis && (
-        <div className="analysis-box">
-          <h3>🧠 AI Analysis Result</h3>
-          <p>{analysis}</p>
-          <div className="detected-items">
-            <span className="tag">📦 Objects</span>
-            <span className="tag">📝 Text</span>
-            <span className="tag">🏷️ Scene</span>
-          </div>
-        </div>
+        <Card sx={{ 
+          bgcolor: '#191A1F', 
+          border: '1px solid #444746',
+          borderRadius: '24px',
+          mb: 3
+        }}>
+          <CardContent>
+            <Typography sx={{ 
+              mb: 2,
+              fontSize: '16px',
+              fontWeight: 500,
+              color: colors.primary,
+              fontFamily: '"Roboto Flex", Roboto, sans-serif'
+            }}>
+              AI Analysis Result
+            </Typography>
+            <Typography sx={{ 
+              color: colors.onSurface,
+              fontFamily: '"Roboto Flex", Roboto, sans-serif',
+              fontSize: '14px',
+              mb: 2
+            }}>
+              {analysis}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {['Objects', 'Text', 'Scene'].map((tag) => (
+                <Box key={tag} sx={{
+                  bgcolor: 'rgba(138, 180, 248, 0.12)',
+                  color: colors.primary,
+                  px: 2,
+                  py: 0.5,
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                }}>
+                  {tag}
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="features">
-        <h3>Features</h3>
-        <div className="feature-grid">
-          <div className="feature">
-            <span className="icon">🔴</span>
-            <h4>Object Detection</h4>
-            <p>Identifies objects in real-time</p>
-          </div>
-          <div className="feature">
-            <span className="icon">📝</span>
-            <h4>Text Recognition</h4>
-            <p>Extracts text from images (OCR)</p>
-          </div>
-          <div className="feature">
-            <span className="icon">🏷️</span>
-            <h4>Scene Classification</h4>
-            <p>Identifies environment/context</p>
-          </div>
-          <div className="feature">
-            <span className="icon">📊</span>
-            <h4>Chart Analysis</h4>
-            <p>Reads graphs and tables</p>
-          </div>
-        </div>
-      </div>
+      <Typography sx={{ 
+        mb: 2,
+        fontSize: '16px',
+        fontWeight: 500,
+        color: colors.onSurface,
+        fontFamily: '"Roboto Flex", Roboto, sans-serif'
+      }}>
+        Features
+      </Typography>
 
-      <style>{`
-        .vision-page {
-          padding: 20px;
-          max-width: 800px;
-          margin: 0 auto;
-        }
-        
-        .vision-header {
-          text-align: center;
-          margin-bottom: 20px;
-        }
-        
-        .vision-header h1 {
-          color: #22d3ee;
-          margin-bottom: 8px;
-        }
-        
-        .camera-container {
-          position: relative;
-          background: #000;
-          border-radius: 16px;
-          overflow: hidden;
-          aspect-ratio: 16/9;
-          margin-bottom: 16px;
-        }
-        
-        .camera-feed, .captured-image {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        
-        .camera-placeholder {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          color: #666;
-        }
-        
-        .placeholder-icon {
-          font-size: 64px;
-          margin-bottom: 16px;
-        }
-        
-        .live-indicator {
-          position: absolute;
-          top: 16px;
-          left: 16px;
-          background: #ef4444;
-          color: white;
-          padding: 6px 12px;
-          border-radius: 20px;
-          font-weight: bold;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        
-        .dot {
-          width: 8px;
-          height: 8px;
-          background: white;
-          border-radius: 50%;
-          animation: pulse 1s infinite;
-        }
-        
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        
-        .controls {
-          display: flex;
-          gap: 12px;
-          justify-content: center;
-          margin-bottom: 20px;
-        }
-        
-        .btn-start, .btn-capture, .btn-stop {
-          padding: 14px 28px;
-          border: none;
-          border-radius: 12px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        
-        .btn-start {
-          background: linear-gradient(135deg, #22d3ee, #0891b2);
-          color: white;
-        }
-        
-        .btn-capture {
-          background: linear-gradient(135deg, #22c55e, #16a34a);
-          color: white;
-        }
-        
-        .btn-stop {
-          background: #ef4444;
-          color: white;
-        }
-        
-        .btn-start:hover, .btn-capture:hover, .btn-stop:hover {
-          transform: scale(1.05);
-        }
-        
-        .analysis-box {
-          background: #1e293b;
-          border-radius: 12px;
-          padding: 20px;
-          margin-bottom: 20px;
-          border: 1px solid #22d3ee;
-        }
-        
-        .analysis-box h3 {
-          color: #22d3ee;
-          margin-bottom: 12px;
-        }
-        
-        .detected-items {
-          display: flex;
-          gap: 8px;
-          margin-top: 12px;
-        }
-        
-        .tag {
-          background: #334155;
-          padding: 6px 12px;
-          border-radius: 20px;
-          font-size: 12px;
-        }
-        
-        .features h3 {
-          margin-bottom: 16px;
-        }
-        
-        .feature-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-        }
-        
-        .feature {
-          background: #1e293b;
-          padding: 16px;
-          border-radius: 12px;
-        }
-        
-        .feature .icon {
-          font-size: 24px;
-        }
-        
-        .feature h4 {
-          margin: 8px 0 4px;
-          color: #e2e8f0;
-        }
-        
-        .feature p {
-          font-size: 12px;
-          color: #94a3b8;
-        }
-      `}</style>
-    </div>
-  );
-};
+      <Grid container spacing={2}>
+        {[
+          { icon: '🔴', title: 'Object Detection', desc: 'Identifies objects in real-time' },
+          { icon: '📝', title: 'Text Recognition', desc: 'Extracts text from images (OCR)' },
+          { icon: '🏷️', title: 'Scene Classification', desc: 'Identifies environment/context' },
+          { icon: '📊', title: 'Chart Analysis', desc: 'Reads graphs and tables' }
+        ].map((feature, i) => (
+          <Grid item xs={12} sm={6} key={i}>
+            <Card sx={{ 
+              bgcolor: '#191A1F', 
+              border: '1px solid #444746',
+              borderRadius: '24px',
+              p: 2
+            }}>
+              <Typography sx={{ fontSize: '24px', mb: 1 }}>{feature.icon}</Typography>
+              <Typography sx={{ 
+                fontWeight: 500,
+                color: colors.onSurface,
+                fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                fontSize: '14px',
+                mb: 0.5
+              }}>
+                {feature.title}
+              </Typography>
+              <Typography sx={{ 
+                color: colors.onSurfaceVariant,
+                fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                fontSize: '12px'
+              }}>
+                {feature.desc}
+              </Typography>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  )
+}
 
-export default Vision;
+export default Vision

@@ -5,8 +5,9 @@ import logging
 from pathlib import Path
 
 from .core.config import get_settings
-from .core.database import init_db
+from .core.database import init_db, close_db
 from .core.middleware import LoggingMiddleware
+from .mcp.client import mcp_client
 from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice
 
 settings = get_settings()
@@ -20,6 +21,8 @@ Path("uploads").mkdir(exist_ok=True)
 async def lifespan(app: FastAPI):
     await init_db()
     yield
+    await mcp_client.close()
+    await close_db()
 
 
 app = FastAPI(
@@ -31,7 +34,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

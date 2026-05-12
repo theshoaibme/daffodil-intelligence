@@ -5,15 +5,23 @@ from functools import lru_cache
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/daffodil"
     REDIS_URL: str = "redis://localhost:6379"
-    QDRANT_URL: str = "http://localhost:6333"
+    
+    OPENAI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
 
-    OPENAI_API_KEY: str = "sk-test-key"
-    GEMINI_API_KEY: str = "test-key"
-    ANTHROPIC_API_KEY: str = "test-key"
-
-    JWT_SECRET: str = "test-secret-key"
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRY_MINUTES: int = 30
+
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    MICROSOFT_CLIENT_ID: str = ""
+    MICROSOFT_CLIENT_SECRET: str = ""
+    APPLE_CLIENT_ID: str = ""
+    APPLE_CLIENT_SECRET: str = ""
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
 
     TELEGRAM_BOT_TOKEN: str = ""
     WHATSAPP_PHONE_ID: str = ""
@@ -30,6 +38,8 @@ class Settings(BaseSettings):
 
     USE_MOCK_DATA: bool = True
 
+    CORS_ORIGINS: str = "http://localhost:3000"
+
     UNIV_SIS_API_URL: str = "https://sis.daffodiluniversity.edu.bd/api"
     UNIV_SIS_API_KEY: str = ""
     UNIV_LIBRARY_API_URL: str = "https://library.daffodiluniversity.edu.bd/api"
@@ -43,6 +53,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "allow"
 
 
 @lru_cache

@@ -12,6 +12,14 @@ importers:
         specifier: ^2.0.0
         version: 2.9.12
 
+  apps/api: {}
+
+  apps/live: {}
+
+  apps/mcp: {}
+
+  apps/messaging: {}
+
   apps/web:
     dependencies:
       '@emotion/react':
@@ -64,7 +72,13 @@ importers:
         specifier: ^5.0.0
         version: 5.4.21
 
+  apps/worker: {}
+
+  packages/config: {}
+
   packages/core: {}
+
+  packages/types: {}
 
 packages:
 

@@ -49,7 +49,7 @@ class SecureHasher:
             salt, pwd_hash = stored_hash.split('$')
             new_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
             return new_hash.hex() == pwd_hash
-        except:
+        except (ValueError, AttributeError):
             return False
 
 
@@ -81,7 +81,7 @@ class JWTManager:
                 "email": email,
                 "provider": provider
             }
-        except:
+        except (ValueError, AttributeError, IndexError):
             return None
 
 
@@ -145,10 +145,10 @@ class AuthenticationEngine:
                 message="Email already registered"
             )
             
-        if len(password) < 8:
+        if len(password) < 6:
             return AuthResponse(
                 status="error",
-                message="Password must be at least 8 characters"
+                message="Password must be at least 6 characters"
             )
             
         user = self.user_store.create_user(
@@ -209,7 +209,7 @@ class AuthenticationEngine:
             }
         )
     
-    def login_google(self, google_token: str, user_info: Dict) -> AuthResponse:
+    def login_google(self, user_info: Dict) -> AuthResponse:
         email = user_info.get("email")
         name = user_info.get("name", "Google User")
         
@@ -249,7 +249,7 @@ class AuthenticationEngine:
             }
         )
     
-    def login_microsoft(self, access_token: str, user_info: Dict) -> AuthResponse:
+    def login_microsoft(self, user_info: Dict) -> AuthResponse:
         email = user_info.get("mail") or user_info.get("userPrincipalName")
         name = user_info.get("displayName", "Microsoft User")
         
@@ -289,7 +289,7 @@ class AuthenticationEngine:
             }
         )
     
-    def login_apple(self, id_token: str, user_info: Dict) -> AuthResponse:
+    def login_apple(self, user_info: Dict) -> AuthResponse:
         email = user_info.get("email")
         name = user_info.get("name", {}).get("fullName", "Apple User")
         
@@ -329,7 +329,7 @@ class AuthenticationEngine:
             }
         )
     
-    def login_github(self, access_token: str, user_info: Dict) -> AuthResponse:
+    def login_github(self, user_info: Dict) -> AuthResponse:
         email = user_info.get("email")
         name = user_info.get("login", "GitHub User")
         

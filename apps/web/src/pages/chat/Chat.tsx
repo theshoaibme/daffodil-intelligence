@@ -1,18 +1,47 @@
 import { useState, useRef, useEffect } from 'react'
-import { Box, Card, CardContent, TextField, IconButton, Typography, Chip, Avatar, List, ListItem, ListItemAvatar, ListItemText, Divider, Grid } from '@mui/material'
-import { Send, Psychology, School, LibraryBooks, Work, Code, AttachMoney, Visibility, Mic } from '@mui/icons-material'
+import { Box, Card, CardContent, TextField, IconButton, Typography, Avatar, Grid, Chip, Divider, ListItemButton } from '@mui/material'
+import { Send, Psychology } from '@mui/icons-material'
 import { useChatStore } from '../../store'
 import { api } from '../../services/api'
 
+let messageIdCounter = Date.now();
+
+function generateMessageId(): number {
+  return ++messageIdCounter;
+}
+
+const colors = {
+  surface: '#131314',
+  surfaceContainer: '#201f20',
+  surfaceContainerHigh: '#2a2a2b',
+  surfaceContainerHighest: '#353436',
+  onSurface: '#e5e2e3',
+  onSurfaceVariant: '#c3c6d1',
+  outline: '#8d919b',
+  outlineVariant: '#424750',
+  primary: '#8ab4f8',
+  primaryContainer: '#8ab4f8',
+  secondary: '#c5c7c5',
+}
+
 const agents = [
-  { id: 'supervisor', name: 'Supervisor', icon: <Psychology />, color: '#6366f1' },
-  { id: 'academic', name: 'Academic', icon: <School />, color: '#ec4899' },
-  { id: 'library', name: 'Library', icon: <LibraryBooks />, color: '#22c55e' },
-  { id: 'career', name: 'Career', icon: <Work />, color: '#f59e0b' },
-  { id: 'coding', name: 'Coding', icon: <Code />, color: '#3b82f6' },
-  { id: 'finance', name: 'Finance', icon: <AttachMoney />, color: '#8b5cf6' },
-  { id: 'vision', name: 'Vision', icon: <Visibility />, color: '#06b6d4' },
-  { id: 'voice', name: 'Voice', icon: <Mic />, color: '#ef4444' },
+  { id: 'supervisor', name: 'Supervisor', color: '#8ab4f8', emoji: '🎯' },
+  { id: 'academic', name: 'Academic', color: '#ec4899', emoji: '📚' },
+  { id: 'library', name: 'Library', color: '#22c55e', emoji: '📖' },
+  { id: 'career', name: 'Career', color: '#f59e0b', emoji: '💼' },
+  { id: 'coding', name: 'Coding', color: '#3b82f6', emoji: '💻' },
+  { id: 'finance', name: 'Finance', color: '#8b5cf6', emoji: '💰' },
+  { id: 'vision', name: 'Vision', color: '#06b6d4', emoji: '👁️' },
+  { id: 'voice', name: 'Voice', color: '#ef4444', emoji: '🎤' },
+  { id: 'exam', name: 'Exam', color: '#14b8a6', emoji: '📅' },
+  { id: 'hostel', name: 'Hostel', color: '#f97316', emoji: '🏠' },
+  { id: 'transport', name: 'Transport', color: '#84cc16', emoji: '🚌' },
+  { id: 'event', name: 'Events', color: '#d946ef', emoji: '🎉' },
+  { id: 'complaint', name: 'Complaint', color: '#dc2626', emoji: '📝' },
+  { id: 'notification', name: 'Notification', color: '#0ea5e9', emoji: '🔔' },
+  { id: 'fee', name: 'Fee', color: '#0891b2', emoji: '💵' },
+  { id: 'research', name: 'Research', color: '#7c3aed', emoji: '🔬' },
+  { id: 'wellness', name: 'Wellness', color: '#10b981', emoji: '🧘' },
 ]
 
 export default function Chat() {
@@ -27,20 +56,21 @@ export default function Chat() {
   const handleSend = async () => {
     if (!input.trim()) return
 
-    addMessage({ id: Date.now(), role: 'user', content: input })
+    addMessage({ id: generateMessageId(), role: 'user', content: input })
     setLoading(true)
     setInput('')
 
     try {
       const response = await api.chat(input, currentAgent)
       addMessage({
-        id: Date.now() + 1,
+        id: generateMessageId(),
         role: 'assistant',
         content: response.response,
         agent: response.agent
       })
     } catch (err) {
-      addMessage({ id: Date.now() + 1, role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' })
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      addMessage({ id: generateMessageId(), role: 'assistant', content: `Error: ${errorMessage}. Please try again.` })
     }
 
     setLoading(false)
@@ -57,70 +87,138 @@ export default function Chat() {
     <Box sx={{ height: 'calc(100vh - 120px)' }}>
       <Grid container spacing={3} sx={{ height: '100%' }}>
         <Grid item xs={12} md={3}>
-          <Card sx={{ bgcolor: 'background.paper', border: '1px solid #334155', height: '100%' }}>
+          <Card sx={{ 
+            bgcolor: '#191A1F', 
+            border: '1px solid #444746', 
+            height: '100%',
+            borderRadius: '32px'
+          }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>Select Agent</Typography>
-              <List>
+              <Typography sx={{ 
+                mb: 2, 
+                fontSize: '18px',
+                fontWeight: 500,
+                color: colors.onSurface,
+                fontFamily: '"Roboto Flex", Roboto, sans-serif'
+              }}>
+                Select Agent
+              </Typography>
+              <Grid container spacing={1}>
                 {agents.map((agent) => (
-                  <ListItem
-                    button
-                    key={agent.id}
-                    onClick={() => setAgent(agent.id)}
-                    sx={{
-                      mb: 1,
-                      borderRadius: 2,
-                      bgcolor: currentAgent === agent.id ? `${agent.color}20` : 'transparent',
-                      border: currentAgent === agent.id ? `1px solid ${agent.color}` : '1px solid transparent'
-                    }}
-                  >
-                    <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: agent.color }}>{agent.icon}</Avatar>
-                    </ListItemAvatar>
-                    <ListItemText primary={agent.name} />
-                  </ListItem>
+                  <Grid item xs={6} key={agent.id}>
+                    <ListItemButton
+                      onClick={() => setAgent(agent.id)}
+                      sx={{
+                        borderRadius: '28px',
+                        bgcolor: currentAgent === agent.id ? 'rgba(138, 180, 248, 0.12)' : 'rgba(255,255,255,0.04)',
+                        border: currentAgent === agent.id ? `2px solid ${agent.color}` : '1px solid transparent',
+                        flexDirection: 'column',
+                        py: 1.5,
+                        '&:hover': { bgcolor: 'rgba(138, 180, 248, 0.08)' }
+                      }}
+                    >
+                      <Typography sx={{ fontSize: '1.5rem', mb: 0.5 }}>{agent.emoji}</Typography>
+                      <Typography sx={{ 
+                        fontSize: '12px',
+                        fontWeight: currentAgent === agent.id ? 500 : 400,
+                        color: colors.onSurface,
+                        fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                      }}>
+                        {agent.name}
+                      </Typography>
+                    </ListItemButton>
+                  </Grid>
                 ))}
-              </List>
+              </Grid>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} md={9}>
-          <Card sx={{ bgcolor: 'background.paper', border: '1px solid #334155', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Card sx={{ 
+            bgcolor: '#191A1F', 
+            border: '1px solid #444746', 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            borderRadius: '32px'
+          }}>
             <CardContent sx={{ flexGrow: 1, overflow: 'auto', pb: 2 }}>
               {messages.length === 0 ? (
                 <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                  <Psychology sx={{ fontSize: 60, color: '#6366f1', mb: 2 }} />
-                  <Typography variant="h5" sx={{ color: '#94a3b8' }}>How can I help you today?</Typography>
-                  <Typography variant="body2" sx={{ color: '#64748b', mt: 1 }}>Ask about courses, books, jobs, or anything!</Typography>
+                  <Psychology sx={{ fontSize: 60, color: colors.primary, mb: 2 }} />
+                  <Typography sx={{ 
+                    fontSize: '22px',
+                    fontWeight: 500,
+                    color: colors.onSurfaceVariant,
+                    fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                  }}>
+                    How can I help you today?
+                  </Typography>
+                  <Typography sx={{ 
+                    fontSize: '14px',
+                    color: colors.onSurfaceVariant,
+                    fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                    mt: 1
+                  }}>
+                    Ask about courses, books, jobs, or anything!
+                  </Typography>
                 </Box>
               ) : (
                 messages.map((msg) => (
                   <Box key={msg.id} sx={{ mb: 3, display: 'flex', gap: 2 }}>
-                    <Avatar sx={{ bgcolor: msg.role === 'user' ? '#6366f1' : '#22c55e' }}>
+                    <Avatar sx={{ bgcolor: msg.role === 'user' ? colors.primary : '#22c55e', color: '#131314' }}>
                       {msg.role === 'user' ? 'U' : 'AI'}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        <Typography sx={{ 
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color: colors.onSurface,
+                          fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                        }}>
                           {msg.role === 'user' ? 'You' : 'Daffodil Intelligence'}
                         </Typography>
-                        {msg.agent && <Chip label={msg.agent} size="small" sx={{ bgcolor: '#6366f120', color: '#6366f1' }} />}
+                        {msg.agent && (
+                          <Chip 
+                            label={msg.agent} 
+                            size="small" 
+                            sx={{ 
+                              bgcolor: 'rgba(138, 180, 248, 0.12)', 
+                              color: colors.primary,
+                              borderRadius: '9999px',
+                              fontSize: '11px',
+                              fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                            }} 
+                          />
+                        )}
                       </Box>
-                      <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{msg.content}</Typography>
+                      <Typography sx={{ 
+                        whiteSpace: 'pre-wrap', 
+                        lineHeight: 1.7,
+                        color: colors.onSurface,
+                        fontFamily: '"Roboto Flex", Roboto, sans-serif',
+                        fontSize: '14px'
+                      }}>
+                        {msg.content}
+                      </Typography>
                     </Box>
                   </Box>
                 ))
               )}
               {isLoading && (
                 <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-                  <Avatar sx={{ bgcolor: '#22c55e' }}>AI</Avatar>
-                  <Typography sx={{ color: '#94a3b8' }}>Thinking...</Typography>
+                  <Avatar sx={{ bgcolor: '#22c55e', color: '#131314' }}>AI</Avatar>
+                  <Typography sx={{ color: colors.onSurfaceVariant }}>
+                    Thinking...
+                  </Typography>
                 </Box>
               )}
               <div ref={messagesEndRef} />
             </CardContent>
 
-            <Divider />
+            <Divider sx={{ borderColor: '#444746' }} />
             <Box sx={{ p: 2, display: 'flex', gap: 2 }}>
               <TextField
                 fullWidth
@@ -131,8 +229,34 @@ export default function Chat() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 disabled={isLoading}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '28px',
+                    bgcolor: 'transparent',
+                    '& fieldset': { borderColor: '#444746' },
+                    '&:hover fieldset': { borderColor: '#8d919b' },
+                    '&.Mui-focused fieldset': { borderColor: '#8ab4f8', borderWidth: '2px' },
+                  },
+                  '& input': { 
+                    color: colors.onSurface,
+                    fontSize: '14px',
+                    fontFamily: '"Roboto Flex", Roboto, sans-serif'
+                  },
+                }}
               />
-              <IconButton color="primary" onClick={handleSend} disabled={isLoading || !input.trim()} sx={{ bgcolor: '#6366f1', color: 'white', '&:hover': { bgcolor: '#4f46e5' } }}>
+              <IconButton 
+                onClick={handleSend} 
+                disabled={isLoading || !input.trim()} 
+                sx={{ 
+                  bgcolor: colors.primary, 
+                  color: '#131314', 
+                  borderRadius: '28px',
+                  width: 48,
+                  height: 48,
+                  '&:hover': { bgcolor: '#a8c8ff' },
+                  '&:disabled': { bgcolor: '#444746', color: '#8d919b' }
+                }}
+              >
                 <Send />
               </IconButton>
             </Box>

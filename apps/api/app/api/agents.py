@@ -1,23 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
+import logging
+
 from ..core.database import get_db
 from ..core.security import get_current_user
 from ..schemas.user import AgentRequest, AgentResponse
 from ..agents.supervisor import detect_intent, process_with_agents, synthesize_response
 from ..graph.orchestrator import di_graph
-import logging
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 logger = logging.getLogger(__name__)
 
 
 @router.post("/test-chat")
-async def test_chat(data: dict):
+async def test_chat(data: dict, user: dict = Depends(get_current_user)):
     message = data.get("message", "")
-    from ..agents.supervisor import detect_intent, process_with_agents, synthesize_response
+    user_id = int(user.get("sub"))
     
     agents = detect_intent(message)
-    results = await process_with_agents(message, agents, {"user_id": 1})
+    results = await process_with_agents(message, agents, {"user_id": user_id})
     response = await synthesize_response(results, message)
     
     return {
@@ -59,7 +62,6 @@ async def execute_tool(data: dict):
 
 @router.post("/vision/analyze")
 async def analyze_vision(data: dict):
-    import base64
     from ..agents.vision import analyze_image
     
     image_data = data.get("image", "")
@@ -101,13 +103,35 @@ async def chat(
 async def chat_stream(request: AgentRequest, user: dict = Depends(get_current_user)):
     user_id = int(user.get("sub"))
     agents = detect_intent(request.message)
+    logger.info(f"Stream request from user {user_id}: {request.message[:100]}...")
 
     async def generate():
-        async for event in di_graph.astream({
-            "message": request.message,
-            "user_id": user_id
-        }):
-            if "synthesize" in event:
-                yield f"data: {event['synthesize'].get('final_response', '')}\n\n"
+        try:
+            async for event in di_graph.astream({
+                "message": request.message,
+                "user_id": user_id,
+                "agents": agents
+            }):
+                if "synthesize" in event:
+                    response_text = event['synthesize'].get('final_response', '')
+                    if response_text:
+                        yield f"data: {response_text}\n\n"
+                elif "error" in event:
+                    yield f"data: [ERROR] {event['error']}\n\n"
+                    break
+        except asyncio.CancelledError:
+            logger.info(f"Stream cancelled for user {user_id}")
+            raise
+        except Exception as e:
+            logger.error(f"Stream error for user {user_id}: {str(e)}")
+            yield f"data: [ERROR] An error occurred: {str(e)}\n\n"
 
-    return generate()
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )

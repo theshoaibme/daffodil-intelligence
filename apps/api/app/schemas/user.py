@@ -88,3 +88,14 @@ class StreamResponse(BaseModel):
 class OAuthRequest(BaseModel):
     code: str
     redirect_uri: str
+
+
+class SimpleRegisterRequest(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+
+
+class SimpleLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
