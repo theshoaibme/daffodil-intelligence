@@ -9,6 +9,8 @@ from .core.database import init_db, close_db
 from .core.middleware import LoggingMiddleware
 from .mcp.client import mcp_client
 from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice
+from .live_broadcaster import live_router
+from .messaging_gateway import messaging_router
 
 settings = get_settings()
 logging.basicConfig(level=settings.LOG_LEVEL, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -49,6 +51,8 @@ app.include_router(upload.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(agent_builder.router, prefix="/api")
 app.include_router(voice.router, prefix="/api")
+app.include_router(live_router)
+app.include_router(messaging_router)
 app.websocket("/ws/{user_id}")(websocket.websocket_endpoint)
 app.websocket("/voice/ws/{user_id}")(voice.voice_websocket)
 
@@ -59,13 +63,13 @@ async def root():
         "message": "Welcome to Daffodil Intelligence",
         "version": "1.0.0",
         "docs": "/docs",
-        "agents": 12
+        "services": ["api", "mcp", "live", "messaging"]
     }
 
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "di-api"}
+    return {"status": "healthy", "service": "di-api", "tools": len(mcp_client.registry) if hasattr(mcp_client, 'registry') else 0}
 
 
 @app.get("/api/agents/list")

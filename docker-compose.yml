@@ -1,5 +1,4 @@
 services:
-  # PostgreSQL Database (using existing local)
   postgres:
     image: postgres:15-alpine
     environment:
@@ -11,7 +10,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # Redis (using existing local on 6379)
   redis:
     image: redis:7-alpine
     ports:
@@ -19,7 +17,6 @@ services:
     volumes:
       - redis_data:/data
 
-  # Qdrant Vector Database
   qdrant:
     image: qdrant/qdrant:latest
     ports:
@@ -28,7 +25,6 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
-  # API Backend
   api:
     build:
       context: ./apps/api
@@ -43,9 +39,8 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./apps/api:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: /usr/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-  # Frontend
   web:
     build:
       context: ./apps/web
@@ -54,44 +49,6 @@ services:
       - "3000:3000"
     depends_on:
       - api
-
-  # MCP Server
-  mcp:
-    build:
-      context: ./apps/mcp
-      dockerfile: Dockerfile
-    ports:
-      - "8001:8001"
-
-  # Messaging Gateway
-  messaging:
-    build:
-      context: ./apps/messaging
-      dockerfile: Dockerfile
-    ports:
-      - "8002:8002"
-    environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - WHATSAPP_PHONE_ID=${WHATSAPP_PHONE_ID}
-      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
-
-  # Live Voice Server
-  live:
-    build:
-      context: ./apps/live
-      dockerfile: Dockerfile
-    ports:
-      - "8003:8003"
-
-  # Celery Worker
-  worker:
-    build:
-      context: ./apps/worker
-      dockerfile: Dockerfile
-    environment:
-      - REDIS_URL=redis://host.docker.internal:6379
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:

@@ -40,7 +40,7 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false)
   const [success, setSuccess] = useState('')
   const navigate = useNavigate()
-  const { setUser } = useAuthStore()
+  const { setUser, setToken } = useAuthStore()
 
   useEffect(() => {
     const token = localStorage.getItem('di_token')
@@ -75,16 +75,22 @@ export default function Home() {
 
     try {
       if (isRegister) {
-        const data = await api.register(name, email, password) as { user?: User }
+        const data = await api.register(name, email, password) as { user?: User; access_token?: string }
         if (data.user) {
           setUser(data.user)
+        }
+        if (data.access_token) {
+          setToken(data.access_token)
         }
         setSuccess('Account created successfully! Redirecting...')
         setTimeout(() => navigate('/dashboard'), 1500)
       } else {
-        const data = await api.login(email, password) as { user?: User }
+        const data = await api.login(email, password) as { user?: User; access_token?: string }
         if (data.user) {
           setUser(data.user)
+        }
+        if (data.access_token) {
+          setToken(data.access_token)
         }
         navigate('/dashboard')
       }
