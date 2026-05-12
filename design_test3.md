@@ -1,0 +1,24 @@
+---
+name: Stitch Light System
+---
+## Brand & Style
+
+This design system embodies the "Modern Google" aesthetic: a sophisticated, light-themed interface designed for high-stakes productivity and data-dense environments. The brand personality is clinical, reliable, and unobtrusive, prioritizing content and user workflow over decorative elements. 
+
+The design style is **Corporate / Modern**, heavily influenced by Material Design 3 (Material You) but refined for desktop-class productivity. It leverages large border radii, subtle tonal shifts, and a restrained color palette to create a focused, high-clarity environment. The goal is to evoke a sense of "quiet intelligence"—where the UI recedes and the user's data becomes the primary focus.
+
+## Colors
+
+The color strategy centers on a clean, light foundation to maximize readability and provide a professional, open workspace.
+
+- **Primary (#8ab4f8):** A soft, functional blue used for high-importance actions, active states, and focus indicators. 
+- **Neutral/Background (#fdf8ff):** The core canvas color. It is a crisp, bright surface that ensures maximum contrast for text and data.
+- **Surface/Secondary (#f1edf4):** Used for container backgrounds (cards, sidebars) to create subtle tonal separation from the main background.
+- **Border (#c5c6d0):** A light-grey used for structural lines and separators, ensuring boundaries are visible without being distracting.
+- **Typography:** Primary text uses a deep charcoal (#1b1b1f) for readability, while secondary metadata uses a muted grey (#44474e).
+
+## Typography
+
+This system utilizes **Roboto Flex** (the closest available systematic alternative to Google Sans) to provide a clean, highly legible typographic hierarchy. 
+
+The scale follows a mathematical progression designed for information-dense applications. **Title** and **Label** roles utilize medium weights (500) to ensure clarity against light backgrounds, while **Body** text remains at a regular weight (400) for comfortable long-form reading. For mobile devices, Display and Headline sizes should be reduced by approximately 20% to maintain a balanced layout.
