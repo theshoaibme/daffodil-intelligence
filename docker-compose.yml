@@ -1,67 +1,99 @@
-version: "3.9"
-
 services:
+  # PostgreSQL Database (using existing local)
   postgres:
-    image: postgres:latest
-    container_name: daffodil-postgres
-    restart: unless-stopped
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: daffodil
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-daffodil}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-daffodil}
-      POSTGRES_DB: ${POSTGRES_DB:-daffodil}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-daffodil} -d ${POSTGRES_DB:-daffodil}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
+  # Redis (using existing local on 6379)
   redis:
-    image: redis:latest
-    container_name: daffodil-redis
-    restart: unless-stopped
+    image: redis:7-alpine
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
-  minio:
-    image: minio/minio:latest
-    container_name: daffodil-minio
-    restart: unless-stopped
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-daffodil}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-daffodil123}
+      - "6333:6333"
+      - "6334:6334"
     volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - qdrant_data:/qdrant/storage
 
-  adminer:
-    image: adminer:latest
-    container_name: daffodil-adminer
-    restart: unless-stopped
+  # API Backend
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/daffodil
+      - REDIS_URL=redis://host.docker.internal:6379
+      - QDRANT_URL=http://host.docker.internal:6333
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./apps/api:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
     depends_on:
-      - postgres
+      - api
+
+  # MCP Server
+  mcp:
+    build:
+      context: ./apps/mcp
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+
+  # Messaging Gateway
+  messaging:
+    build:
+      context: ./apps/messaging
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - WHATSAPP_PHONE_ID=${WHATSAPP_PHONE_ID}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+
+  # Live Voice Server
+  live:
+    build:
+      context: ./apps/live
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+
+  # Celery Worker
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://host.docker.internal:6379
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:
   redis_data:
-  minio_data:
+  qdrant_data:

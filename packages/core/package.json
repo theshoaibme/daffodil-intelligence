@@ -1,0 +1,8 @@
+{
+  "name": "@daffodil-intelligence/core",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cmake -B build -S . && cmake --build build"
+  }
+}
