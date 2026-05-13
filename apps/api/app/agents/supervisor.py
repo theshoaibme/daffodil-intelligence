@@ -21,6 +21,14 @@ import re
 
 logger = logging.getLogger(__name__)
 
+BN_CHARS_PATTERN = re.compile(r'[\u0980-\u09FF]')
+
+def detect_language(text: str) -> str:
+    bn_chars = BN_CHARS_PATTERN.findall(text)
+    bn_ratio = len(bn_chars) / len(text) if text else 0
+    if bn_ratio > 0.3:
+        return "bn"
+    return "en"
 
 class SupervisorAgent(BaseAgent):
     name = "Supervisor Agent"
@@ -129,16 +137,73 @@ async def process_with_agents(message: str, agents: list[str], context: dict = N
     return results
 
 
-async def synthesize_response(results: dict, original_message: str) -> str:
+async def synthesize_response(results: dict, original_message: str, language: str = None) -> str:
     if not results:
         return "I'm not sure how to help with that. Can you be more specific?"
 
+    if language is None:
+        language = detect_language(original_message)
+
     if len(results) == 1:
-        return list(results.values())[0]
+        result_text = list(results.values())[0]
+        if isinstance(result_text, str):
+            return format_voice_response(result_text, language)
+        return result_text
 
     response_parts = []
     for agent_name, result in results.items():
         if isinstance(result, str) and not result.startswith("Error"):
-            response_parts.append(f"**{agent_name.title()}**: {result}")
+            response_parts.append(format_voice_response(result, language))
 
-    return "\n\n".join(response_parts) if response_parts else "Here are the results from multiple agents:"
+    return "। ".join(response_parts) if language == "bn" else "\n\n".join(response_parts)
+
+
+def format_voice_response(text: str, language: str = "en") -> str:
+    if not text:
+        return text
+    
+    text = text.strip()
+    
+    text = text.replace("**", "")
+    text = text.replace("*", "")
+    
+    if language == "bn":
+        replacements = {
+            "Hello": "হ্যালো",
+            "Hi": "হাই",
+            "Hey": "হ্যালো",
+            "Thank you": "ধন্যবাদ",
+            "Thanks": "ধন্যবাদ",
+            "Yes": "হ্যাঁ",
+            "No": "না",
+            "Sorry": "দুঃখিত",
+            "Error": "ত্রুটি",
+            "Success": "সফল",
+            "Result": "ফলাফল",
+            "Available": "উপলব্ধ",
+            "Not found": "পাওয়া যায়নি",
+            "CGPA": "সিজিপিএ",
+            "GPA": "জিপিএ",
+            "PDF": "পিডিএফ",
+            "API": "এপিআই",
+            "URL": "ইউআরএল",
+            "ID": "আইডি",
+            "OK": "ঠিক আছে",
+            "Sure": "অবশ্যই",
+        }
+        
+        for en_word, bn_word in replacements.items():
+            text = text.replace(en_word, bn_word)
+        
+        if not text.endswith("।") and not text.endswith("?") and not text.endswith("!"):
+            if "?" in text:
+                pass
+            else:
+                text = text + "।"
+    
+    text = re.sub(r'\n+', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    
+    text = text.strip()
+    
+    return text

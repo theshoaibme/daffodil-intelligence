@@ -28,7 +28,12 @@ class Settings(BaseSettings):
     WHATSAPP_ACCESS_TOKEN: str = ""
 
     GEMINI_MODEL_NAME: str = "gemini-2.0-flash-exp"
-    GEMINI_VOICE: str = "Aoede"
+    GEMINI_VOICE: str = "Charon"
+
+    TTS_PROSODY_RATE: str = "fast"
+    TTS_PROSODY_PITCH: str = "+0%"
+    TTS_STREAMING_ENABLED: bool = True
+    TTS_INTERRUPT_ENABLED: bool = True
 
     QDRANT_URL: str = "http://localhost:6333"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
