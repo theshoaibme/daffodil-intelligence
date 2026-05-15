@@ -32,6 +32,7 @@ class ToolCategory(Enum):
     VOICE = "voice"
     REALTIME = "realtime"
     SYSTEM = "system"
+    MEMORY = "memory"
 
 
 class Permission(Enum):
@@ -402,6 +403,25 @@ class VisionTools:
         return {"type": "flowchart", "nodes": 5, "edges": 4, "description": "System architecture diagram"}
 
 
+class ScreenpipeTools:
+    @staticmethod
+    async def search_memory(query: str, limit: int = 10, content_type: str = "all") -> Dict:
+        import httpx
+        import os
+        
+        base_url = os.getenv("SCREENPIPE_API_URL", "http://localhost:3030")
+        url = f"{base_url}/search"
+        params = {"q": query, "limit": limit, "content_type": content_type}
+        
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                return {"error": f"Failed to query Screenpipe: {str(e)}"}
+
+
 # ============================================================================
 # MCP SERVER
 # ============================================================================
@@ -643,6 +663,24 @@ class MCPServer:
             },
             permissions=[Permission.STUDENT],
             execute=VisionTools.extract_text
+        ))
+        
+        # Memory Tools
+        self.registry.register(ToolDefinition(
+            name="search_memory",
+            description="Search recorded screen and audio memory",
+            category=ToolCategory.MEMORY,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+                    "content_type": {"type": "string", "enum": ["all", "vision", "audio"]}
+                },
+                "required": ["query"]
+            },
+            permissions=[Permission.STUDENT],
+            execute=ScreenpipeTools.search_memory
         ))
         
         logger.info(f"Registered {len(self.registry.tools)} tools")
