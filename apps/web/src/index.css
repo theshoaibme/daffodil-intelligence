@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Roboto+Flex:opsz,wght@8..144,400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light Theme Variables (Stitch Light System) */
+  --color-primary: #315f9d;
+  --color-on-primary: #ffffff;
+  --color-surface: #fcf8f9;
+  --color-on-surface: #1c1b1c;
+  --color-background: #fcf8f9;
+  --color-brand-outline: #737781;
+  --color-secondary: #5c5f5e;
+  --color-error: #ba1a1a;
+  
+  --font-sans: 'Roboto Flex';
+  --font-mono: 'JetBrains Mono';
+
+  --rounded-sm: 0.25rem;
+  --rounded-default: 0.5rem;
+  --rounded-md: 0.75rem;
+  --rounded-lg: 1rem;
+  --rounded-xl: 1.5rem;
+  --rounded-full: 9999px;
+
+  color-scheme: light;
+}
+
+.dark {
+  /* Dark Theme Variables (Professional Dark Design System) */
+  --color-primary: #ffffff;
+  --color-on-primary: #2f3131;
+  --color-surface: #141313;
+  --color-on-surface: #e5e2e1;
+  --color-background: #141313;
+  --color-brand-outline: #8e9192;
+  --color-secondary: #c4c7ca;
+  --color-error: #ffb4ab;
+  
+  --font-sans: 'Hanken Grotesk';
+  --font-mono: 'JetBrains Mono';
+
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-background text-on-surface font-sans antialiased transition-colors duration-300;
+  margin: 0;
+  min-height: 100vh;
+}
+
+* {
+  border-color: color-mix(in srgb, var(--color-brand-outline), transparent 80%);
+}
+
+/* Custom Scrollbar for Dark Mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  @apply bg-surface;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--color-brand-outline), transparent 80%);
+  @apply rounded-full;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-brand-outline), transparent 60%);
+}

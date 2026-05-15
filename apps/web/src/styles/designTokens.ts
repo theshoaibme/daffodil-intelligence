@@ -1,0 +1,111 @@
+/**
+ * Design system tokens based on dark and light mode specifications.
+ * These tokens are used by both Tailwind CSS and Material UI.
+ */
+
+export const designTokens = {
+  dark: {
+    colors: {
+      surface: '#141313',
+      surfaceDim: '#141313',
+      surfaceBright: '#3a3939',
+      surfaceContainerLowest: '#0e0e0e',
+      surfaceContainerLow: '#1c1b1b',
+      surfaceContainer: '#201f1f',
+      surfaceContainerHigh: '#2a2a2a',
+      surfaceContainerHighest: '#353434',
+      onSurface: '#e5e2e1',
+      onSurfaceVariant: '#c4c7c8',
+      inverseSurface: '#e5e2e1',
+      inverseOnSurface: '#313030',
+      outline: '#8e9192',
+      outlineVariant: '#444748',
+      surfaceTint: '#c6c6c7',
+      primary: '#ffffff',
+      onPrimary: '#2f3131',
+      primaryContainer: '#e2e2e2',
+      onPrimaryContainer: '#636565',
+      inversePrimary: '#5d5f5f',
+      secondary: '#c4c7ca',
+      onSecondary: '#2d3134',
+      secondaryContainer: '#464a4d',
+      onSecondaryContainer: '#b5b9bc',
+      tertiary: '#ffffff',
+      onTertiary: '#313032',
+      tertiaryContainer: '#e5e1e4',
+      onTertiaryContainer: '#656466',
+      error: '#ffb4ab',
+      onError: '#690005',
+      errorContainer: '#93000a',
+      onErrorContainer: '#ffdad6',
+      background: '#141313',
+      onBackground: '#e5e2e1',
+      surfaceVariant: '#353434',
+    },
+    typography: {
+      fontFamily: 'Hanken Grotesk, sans-serif',
+      monoFontFamily: 'JetBrains Mono, monospace',
+    },
+  },
+  light: {
+    colors: {
+      surface: '#fcf8f9',
+      surfaceDim: '#dcd9da',
+      surfaceBright: '#fcf8f9',
+      surfaceContainerLowest: '#ffffff',
+      surfaceContainerLow: '#f6f3f4',
+      surfaceContainer: '#f0edee',
+      surfaceContainerHigh: '#eae7e8',
+      surfaceContainerHighest: '#e5e2e3',
+      onSurface: '#1c1b1c',
+      onSurfaceVariant: '#424750',
+      inverseSurface: '#313031',
+      inverseOnSurface: '#f3f0f1',
+      outline: '#737781',
+      outlineVariant: '#c3c6d1',
+      surfaceTint: '#315f9d',
+      primary: '#315f9d',
+      onPrimary: '#ffffff',
+      primaryContainer: '#8ab4f8',
+      onPrimaryContainer: '#0d4582',
+      inversePrimary: '#a8c8ff',
+      secondary: '#5c5f5e',
+      onSecondary: '#ffffff',
+      secondaryContainer: '#e1e3e1',
+      onSecondaryContainer: '#626564',
+      tertiary: '#5e5e64',
+      onTertiary: '#ffffff',
+      tertiaryContainer: '#b3b2b9',
+      onTertiaryContainer: '#44454a',
+      error: '#ba1a1a',
+      onError: '#ffffff',
+      errorContainer: '#ffdad6',
+      onErrorContainer: '#93000a',
+      background: '#fcf8f9',
+      onBackground: '#1c1b1c',
+      surfaceVariant: '#e5e2e3',
+    },
+    typography: {
+      fontFamily: 'Roboto Flex, sans-serif',
+      monoFontFamily: 'JetBrains Mono, monospace',
+    },
+  },
+  common: {
+    rounded: {
+      sm: '0.25rem',      // 4px
+      default: '0.5rem',  // 8px
+      md: '0.75rem',      // 12px
+      lg: '1rem',         // 16px
+      xl: '1.5rem',       // 24px
+      full: '9999px',
+    },
+    spacing: {
+      unit: '4px',
+      xs: '4px',
+      sm: '8px',
+      md: '16px',
+      lg: '24px',
+      xl: '40px',
+    },
+  },
+};
