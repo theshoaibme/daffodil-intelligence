@@ -46,6 +46,9 @@ pnpm install
 # Start all services
 pnpm dev
 
+# Or start with Docker
+docker compose up --build
+
 # Or start individually:
 # API: cd apps/api && uvicorn app.main:app --reload
 # Web: cd apps/web && npm run dev

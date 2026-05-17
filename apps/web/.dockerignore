@@ -1,0 +1,14 @@
+node_modules
+dist
+.cache
+.env
+.env.*
+.git
+.gitignore
+.vscode
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-lock.yaml
+.DS_Store

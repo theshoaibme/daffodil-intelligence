@@ -1,4 +1,5 @@
 import { Box, Typography } from '@mui/material'
+import ChatBot from './ChatBot'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Typography sx={{ color: '#888888' }}>
         Backend services ready. See API documentation for endpoints.
       </Typography>
+      <ChatBot />
     </Box>
   )
 }
