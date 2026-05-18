@@ -71,7 +71,7 @@ export function TaskPanel({
 
   return (
     <div 
-      className="fixed bottom-4 left-4 right-4 sm:right-auto sm:bottom-6 sm:left-6 w-auto sm:w-[320px] bg-surface-container-high/90 backdrop-blur-xl border border-outline-variant/40 shadow-md z-30 flex flex-col overflow-hidden rounded-3xl" 
+      className="fixed bottom-4 left-4 right-4 sm:right-auto sm:bottom-6 sm:left-6 w-auto sm:w-[320px] bg-surface-container-high border border-outline-variant/40 shadow-md z-30 flex flex-col overflow-hidden rounded-3xl" 
       id="agent-log-panel"
     >
       {/* Smooth Spring Panel Body */}

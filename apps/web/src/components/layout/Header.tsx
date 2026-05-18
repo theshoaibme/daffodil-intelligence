@@ -71,7 +71,7 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute right-0 mt-2 w-64 bg-surface-container-highest/95 backdrop-blur-xl border border-outline-variant/40 rounded-2xl shadow-xl z-50 overflow-hidden p-3"
+                className="absolute right-0 mt-2 w-64 bg-surface-container-highest border border-outline-variant/40 rounded-2xl shadow-xl z-50 overflow-hidden p-3"
               >
                 {/* User Profile Card */}
                 <div className="flex items-center gap-3 p-2 pb-3 border-b border-outline-variant/20">
@@ -89,15 +89,17 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
                 </div>
 
                 {/* Theme Settings Mode */}
-                <div className="flex items-center justify-between p-2.5 my-1.5 hover:bg-surface-container/30 rounded-lg transition-colors">
+                <div 
+                  onClick={toggleTheme}
+                  className="flex items-center justify-between p-2.5 my-1.5 hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer select-none"
+                >
                   <div className="flex items-center gap-2.5 text-on-surface">
                     {mode === 'dark' ? <Moon size={16} className="text-primary" /> : <Sun size={16} className="text-primary" />}
                     <span className="text-sm font-medium">Dark Theme</span>
                   </div>
                   {/* Google Switch */}
                   <div 
-                    onClick={toggleTheme}
-                    className={`w-11 h-6 rounded-full p-0.5 flex items-center cursor-pointer border transition-colors ${
+                    className={`w-11 h-6 rounded-full p-0.5 flex items-center border transition-colors ${
                       mode === 'dark' 
                         ? 'bg-primary/20 border-primary/40 justify-end' 
                         : 'bg-surface-container border-outline-variant/40 justify-start'
