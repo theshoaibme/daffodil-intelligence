@@ -33,49 +33,53 @@ export const Button: React.FC<ButtonProps> = ({
   let variantStyles = '';
   if (variant === 'contained') {
     if (color === 'secondary') {
-      variantStyles = 'bg-secondary text-white hover:opacity-90 active:opacity-80 disabled:opacity-50';
+      variantStyles = 'bg-secondary text-white hover:opacity-90 active:opacity-80';
     } else if (color === 'error') {
-      variantStyles = 'bg-error text-white hover:opacity-90 active:opacity-80 disabled:opacity-50';
+      variantStyles = 'bg-error text-white hover:opacity-90 active:opacity-80';
     } else {
-      variantStyles = 'bg-primary text-on-primary hover:opacity-90 active:opacity-80 disabled:opacity-50';
+      variantStyles = 'bg-primary text-on-primary hover:opacity-90 active:opacity-80';
     }
   } else if (variant === 'outlined') {
     if (color === 'secondary') {
-      variantStyles = 'bg-transparent text-secondary border border-secondary/30 hover:bg-secondary/10 disabled:opacity-50';
+      variantStyles = 'bg-transparent text-secondary border border-secondary/30 hover:bg-secondary/10';
     } else if (color === 'error') {
-      variantStyles = 'bg-transparent text-error border border-error/30 hover:bg-error/10 disabled:opacity-50';
+      variantStyles = 'bg-transparent text-error border border-error/30 hover:bg-error/10';
     } else {
-      variantStyles = 'bg-transparent text-primary border border-primary/30 hover:bg-primary/10 disabled:opacity-50';
+      variantStyles = 'bg-transparent text-primary border border-primary/30 hover:bg-primary/10';
     }
   } else if (variant === 'tonal') {
     if (color === 'secondary') {
-      variantStyles = 'bg-secondary/15 text-secondary hover:bg-secondary/25 disabled:opacity-50';
+      variantStyles = 'bg-secondary/15 text-secondary hover:bg-secondary/25';
     } else if (color === 'error') {
-      variantStyles = 'bg-error/15 text-error hover:bg-error/25 disabled:opacity-50';
+      variantStyles = 'bg-error/15 text-error hover:bg-error/25';
     } else {
-      variantStyles = 'bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50';
+      variantStyles = 'bg-primary/15 text-primary hover:bg-primary/25';
     }
   } else {
     if (color === 'secondary') {
-      variantStyles = 'bg-transparent text-secondary hover:bg-secondary/10 disabled:opacity-50';
+      variantStyles = 'bg-transparent text-secondary hover:bg-secondary/10';
     } else if (color === 'error') {
-      variantStyles = 'bg-transparent text-error hover:bg-error/10 disabled:opacity-50';
+      variantStyles = 'bg-transparent text-error hover:bg-error/10';
     } else {
-      variantStyles = 'bg-transparent text-primary hover:bg-primary/10 disabled:opacity-50';
+      variantStyles = 'bg-transparent text-primary hover:bg-primary/10';
     }
   }
+
+  const disabledStyles = (disabled && !loading) ? 'opacity-50 pointer-events-none' : '';
 
   // Calculate spinner size dynamically based on the button size
   const loaderDiameter = size === 'sm' ? 24 : size === 'lg' ? 36 : 30;
   const strokeWidth = size === 'sm' ? 2.5 : size === 'lg' ? 3.5 : 3;
 
+  const showLoader = loading && (variant === 'contained' || variant === 'outlined' || variant === 'tonal');
+
   return (
     <button 
-      className={`${baseStyles} ${sizeStyles} ${variantStyles} ${className}`} 
+      className={`${baseStyles} ${sizeStyles} ${variantStyles} ${disabledStyles} ${className}`} 
       disabled={disabled || loading}
       {...props}
     >
-      {loading && (
+      {showLoader && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Loader 
             variant="spinner" 
@@ -86,7 +90,7 @@ export const Button: React.FC<ButtonProps> = ({
         </div>
       )}
       {/* Hide text while loading, but keep it in the DOM to preserve dimensions */}
-      <span className={loading ? 'invisible' : 'flex items-center justify-center'}>
+      <span className={showLoader ? 'invisible' : 'flex items-center justify-center'}>
         {children}
       </span>
     </button>

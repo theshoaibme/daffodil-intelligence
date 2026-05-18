@@ -31,8 +31,8 @@
 
 .dark {
   /* Professional Dark Design System CSS variables */
-  --color-primary: #ffffff;
-  --color-on-primary: #0E0E10;
+  --color-primary: #4259ff;
+  --color-on-primary: #ffffff;
   --color-surface: #161618;
   --color-on-surface: #e5e2e1;
   --color-background: #0E0E10;
@@ -64,15 +64,34 @@ body {
   min-height: 100vh;
 }
 
-/* Custom Scrollbar */
+/* Apple UI Premium Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-surface);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-secondary);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Dark mode Apple UI scrollbar overrides */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
