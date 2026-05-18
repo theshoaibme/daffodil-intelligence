@@ -8,6 +8,9 @@ const config: Config = {
   darkMode: 'class',
   theme: {
     extend: {
+      borderColor: {
+        DEFAULT: 'var(--color-outline-variant)',
+      },
       colors: {
         primary: 'var(--color-primary)',
         'on-primary': 'var(--color-on-primary)',
