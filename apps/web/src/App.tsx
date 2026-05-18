@@ -7,8 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import { Monitor } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SuggestionChip } from "./components/ui";
-import { Sidebar, Header, PromptBar, TaskPanel } from "./components/layout";
-import { AiResponseCard } from "./components/layout/AiResponseCard";
+import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,7 +35,7 @@ export default function App() {
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
       {/* Sidebar Hover Zone - Invisible hover trigger on the left edge */}
-      <div 
+      <div
         className="fixed inset-y-0 left-0 w-2 z-[60] group cursor-pointer lg:hidden"
         onMouseEnter={() => setSidebarOpen(true)}
       />
@@ -65,22 +64,22 @@ export default function App() {
 
               {/* Suggestions */}
               <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
-                <SuggestionChip 
-                  text="Mood-based movie picker" 
+                <SuggestionChip
+                  text="Mood-based movie picker"
                   onClick={() => {
                     setPrompt("Mood-based movie picker");
                     setIsSent(true);
                   }}
                 />
-                <SuggestionChip 
-                  text="Trip packing checklist" 
+                <SuggestionChip
+                  text="Trip packing checklist"
                   onClick={() => {
                     setPrompt("Trip packing checklist");
                     setIsSent(true);
                   }}
                 />
-                <SuggestionChip 
-                  text="E-commerce platform mockup" 
+                <SuggestionChip
+                  text="E-commerce platform mockup"
                   onClick={() => {
                     setPrompt("E-commerce platform mockup");
                     setIsSent(true);
@@ -121,7 +120,7 @@ export default function App() {
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 className="pointer-events-auto flex-shrink-0"
               >
-                <AiResponseCard />
+                <AiResponseCard prompt={prompt} />
               </motion.div>
             )}
           </AnimatePresence>

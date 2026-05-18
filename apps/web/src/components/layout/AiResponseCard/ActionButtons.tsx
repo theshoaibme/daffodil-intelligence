@@ -1,0 +1,67 @@
+import { useState } from "react";
+import { Copy, Check, Share2, Maximize2 } from "lucide-react";
+
+interface ActionButtonsProps {
+  textToCopy: string;
+  onFullView?: () => void;
+}
+
+export function ActionButtons({ textToCopy, onFullView }: ActionButtonsProps) {
+  const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+    }
+  };
+
+  const handleShare = () => {
+    setShared(true);
+    setTimeout(() => setShared(false), 2500);
+    alert("Share link copied to clipboard!");
+  };
+
+  return (
+    <div className="flex items-center justify-between border-t border-outline-variant/20 pt-4 mt-auto flex-shrink-0 select-none">
+      {/* Dynamic Action Buttons Group on the Left */}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={handleCopy}
+          title="Copy response"
+          className="p-2 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-on-surface-variant flex items-center justify-center border border-transparent hover:border-outline-variant/30 outline-none"
+        >
+          {copied ? (
+            <Check size={14} className="text-primary stroke-[3.5]" />
+          ) : (
+            <Copy size={14} />
+          )}
+        </button>
+        <button
+          onClick={handleShare}
+          title="Share action link"
+          className="p-2 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-on-surface-variant flex items-center justify-center border border-transparent hover:border-outline-variant/30 outline-none relative"
+        >
+          {shared ? (
+            <Check size={14} className="text-primary stroke-[3.5]" />
+          ) : (
+            <Share2 size={14} />
+          )}
+        </button>
+      </div>
+
+      {/* Full View Actions on the Right */}
+      <button
+        onClick={onFullView || (() => alert("Opening full system viewport..."))}
+        className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-xs font-semibold text-on-surface-variant border border-outline-variant/20 hover:border-outline-variant/40 outline-none shadow-sm"
+      >
+        <Maximize2 size={12} />
+        <span>Full View</span>
+      </button>
+    </div>
+  );
+}

@@ -72,7 +72,7 @@ export function TaskPanel({
     >
       {/* Smooth Spring Panel Body */}
       <motion.div
-        animate={{ height: tasksCollapsed ? 56 : 196 }}
+        animate={{ height: tasksCollapsed ? 56 : 200 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="overflow-hidden flex flex-col justify-end"
       >
