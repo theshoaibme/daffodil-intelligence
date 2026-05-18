@@ -17,7 +17,6 @@ interface PromptBarProps {
 export function PromptBar({
   prompt,
   setPrompt,
-  isSent,
   handleSend,
   plusMenuOpen,
   setPlusMenuOpen,
@@ -26,9 +25,9 @@ export function PromptBar({
   return (
     <motion.div 
       layout
-      className={`fixed transition-all z-50 transform flex justify-center w-full px-4 pointer-events-none ${isSent ? 'bottom-6 left-6 max-w-[480px] justify-start' : 'bottom-6 left-0'}`}
+      className="fixed bottom-6 left-0 right-0 transition-all z-50 transform flex justify-center w-full px-4 pointer-events-none"
     >
-      <div className="w-full max-w-xl bg-surface-container-high border border-outline-variant/40 flex flex-col gap-2 rounded-3xl p-3 relative shadow-md pointer-events-auto">
+      <div className="w-full max-w-xl bg-panel-bg border border-outline-variant/40 flex flex-col gap-2 rounded-3xl p-3 relative shadow-md pointer-events-auto">
         <textarea 
           ref={textareaRef}
           rows={1}
@@ -48,7 +47,7 @@ export function PromptBar({
             <GeminiSelector />
             <ModelSelector modelName="3 Flash" />
             <SparklesButton />
-            <SendButton onClick={handleSend} />
+            <SendButton onClick={handleSend} disabled={!prompt.trim()} />
           </div>
         </div>
       </div>

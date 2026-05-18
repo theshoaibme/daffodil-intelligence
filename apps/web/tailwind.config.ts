@@ -32,6 +32,7 @@ const config: Config = {
         'surface-container-highest': 'var(--color-surface-container-highest)',
         'outline-variant': 'var(--color-outline-variant)',
         'on-surface-variant': 'var(--color-on-surface-variant)',
+        'panel-bg': 'var(--color-panel-bg)',
       },
       borderRadius: {
         sm: '0.5rem',

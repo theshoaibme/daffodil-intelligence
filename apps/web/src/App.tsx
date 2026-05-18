@@ -5,9 +5,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Monitor } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel } from "./components/layout";
+import { AiResponseCard } from "./components/layout/AiResponseCard";
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,22 +53,49 @@ export default function App() {
         {/* Header */}
         <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-        <div className="flex-1 flex flex-col items-center px-6 h-full pt-12">
-          <div className="max-w-3xl w-full flex flex-col items-center gap-10">
-            {/* Hero */}
-            <div className="text-center">
-              <h1 className="text-[56px] leading-[1.1] font-medium tracking-tight text-on-surface mb-4">
-                Welcome to Daffodil <br /> Intelligence
-              </h1>
-            </div>
+        <div className="flex-1 flex flex-col items-center px-6 h-full pt-12 overflow-y-auto custom-scrollbar pb-32">
+          {!isSent ? (
+            <div className="max-w-3xl w-full flex flex-col items-center gap-10">
+              {/* Hero */}
+              <div className="text-center">
+                <h1 className="text-[56px] leading-[1.1] font-medium tracking-tight text-on-surface mb-4">
+                  Welcome to Daffodil <br /> Intelligence
+                </h1>
+              </div>
 
-            {/* Suggestions */}
-            <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
-              <SuggestionChip text="Mood-based movie picker" />
-              <SuggestionChip text="Trip packing checklist" />
-              <SuggestionChip text="E-commerce platform mockup" />
+              {/* Suggestions */}
+              <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
+                <SuggestionChip 
+                  text="Mood-based movie picker" 
+                  onClick={() => {
+                    setPrompt("Mood-based movie picker");
+                    setIsSent(true);
+                  }}
+                />
+                <SuggestionChip 
+                  text="Trip packing checklist" 
+                  onClick={() => {
+                    setPrompt("Trip packing checklist");
+                    setIsSent(true);
+                  }}
+                />
+                <SuggestionChip 
+                  text="E-commerce platform mockup" 
+                  onClick={() => {
+                    setPrompt("E-commerce platform mockup");
+                    setIsSent(true);
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="w-full max-w-7xl h-full relative flex flex-col md:flex-row gap-6">
+              {/* Left/Center Canvas: Open workspace canvas with dot pattern */}
+              <div className="flex-1 flex items-center justify-center md:pr-[420px] min-h-[300px]">
+                {/* Clean workspace area */}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Prompt Bar Overlay */}
@@ -81,15 +109,34 @@ export default function App() {
           textareaRef={textareaRef}
         />
 
-        {/* Task Panel (Bottom Left) */}
-        <TaskPanel
-          isSent={isSent}
-          tasksCollapsed={tasksCollapsed}
-          setTasksCollapsed={setTasksCollapsed}
-        />
+        {/* Right Sidebar Panel: AI Response Card on top, Task Panel at the bottom */}
+        <div className="fixed top-20 right-6 bottom-6 w-[calc(100%-48px)] sm:w-[360px] flex flex-col gap-4 z-30 pointer-events-none">
+          {/* AI Response Card (only shows when isSent is true) */}
+          <AnimatePresence>
+            {isSent && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="pointer-events-auto flex-shrink-0"
+              >
+                <AiResponseCard />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Task Panel (always sits at the bottom) */}
+          <div className="pointer-events-auto mt-auto">
+            <TaskPanel
+              tasksCollapsed={tasksCollapsed}
+              setTasksCollapsed={setTasksCollapsed}
+            />
+          </div>
+        </div>
 
         {/* Desktop Indicator */}
-        <div className="absolute bottom-6 right-8">
+        <div className="absolute bottom-6 left-8 z-20">
           <button className="p-2 text-on-surface-variant/50 hover:text-on-surface-variant transition-all">
             <Monitor size={20} />
           </button>

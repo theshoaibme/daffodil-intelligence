@@ -22,6 +22,7 @@
   --color-surface-container-highest: #e2e1ef;
   --color-on-surface-variant: #444656;
   --color-outline-variant: #c5c5d9;
+  --color-panel-bg: #e8e7f5;
 
   /* Premium Google Sans & Bangla Hind Siliguri font stack */
   --font-sans: 'Google Sans', 'Product Sans', 'Roboto Flex', 'Hind Siliguri', sans-serif;
@@ -48,6 +49,7 @@
   --color-surface-container-highest: #353434;
   --color-on-surface-variant: #c4c7c8;
   --color-outline-variant: #444746;
+  --color-panel-bg: #18191b;
 
   /* Dark theme with Google Sans & Hind Siliguri stack */
   --font-sans: 'Google Sans', 'Product Sans', 'Hanken Grotesk', 'Hind Siliguri', sans-serif;

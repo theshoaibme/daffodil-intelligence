@@ -22,11 +22,16 @@ export function SparklesButton({ onSparklesClick }: { onSparklesClick?: () => vo
   );
 }
 
-export function SendButton({ onClick }: { onClick?: () => void }) {
+export function SendButton({ onClick, disabled }: { onClick?: () => void; disabled?: boolean }) {
   return (
     <button 
-      onClick={onClick}
-      className="w-10 h-10 flex items-center justify-center bg-primary text-on-primary rounded-full hover:opacity-90 transition-all font-bold cursor-pointer border-0 outline-none"
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`w-10 h-10 flex items-center justify-center rounded-full transition-all font-bold border-0 outline-none ${
+        disabled 
+          ? "bg-surface-container-highest text-on-surface-variant/30 cursor-not-allowed" 
+          : "bg-primary text-on-primary hover:opacity-90 cursor-pointer"
+      }`}
     >
       <ArrowUp size={22} strokeWidth={3} />
     </button>
