@@ -1,7 +1,6 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useThemeMode } from './ThemeProvider';
-import { Tooltip } from '@ui';
 
 const Header: React.FC = () => {
   const { mode, toggleTheme } = useThemeMode();
@@ -16,14 +15,12 @@ const Header: React.FC = () => {
           A high-fidelity, dynamic setup aligned strictly with Google default rules.
         </p>
       </div>
-      <Tooltip title={mode === 'dark' ? "Switch to Light Theme" : "Switch to Dark Theme"}>
-        <button 
-          onClick={toggleTheme} 
-          className="p-3 rounded-full bg-surface-lowest hover:bg-surface-highest/30 text-on-surface flex items-center justify-center outline-none border-0 shadow-none transform-none transition-none"
-        >
-          {mode === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
-        </button>
-      </Tooltip>
+      <button 
+        onClick={toggleTheme} 
+        className="p-3 rounded-full bg-surface-lowest hover:bg-surface-highest/30 text-on-surface flex items-center justify-center outline-none border-0 shadow-none transform-none transition-none"
+      >
+        {mode === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
+      </button>
     </div>
   );
 };

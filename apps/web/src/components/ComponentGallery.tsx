@@ -19,13 +19,13 @@ const ComponentGallery: React.FC = () => {
             Buttons
           </h3>
           <div className="space-y-4 flex flex-col border-0 shadow-none">
-            <Button variant="contained" tooltipTitle="Primary action button">
+            <Button variant="contained">
               Primary Action
             </Button>
-            <Button variant="outlined" tooltipTitle="Secondary action button">
+            <Button variant="outlined">
               Secondary Action
             </Button>
-            <Button variant="text" tooltipTitle="Tertiary action button">
+            <Button variant="text">
               Tertiary Action
             </Button>
           </div>

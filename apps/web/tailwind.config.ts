@@ -52,11 +52,16 @@ const config: Config = {
           '0%': { strokeDasharray: '1, 200', strokeDashoffset: '0' },
           '50%': { strokeDasharray: '89, 200', strokeDashoffset: '-35px' },
           '100%': { strokeDasharray: '89, 200', strokeDashoffset: '-124px' },
+        },
+        'linear-loader': {
+          '0%': { left: '-40%' },
+          '100%': { left: '100%' },
         }
       },
       animation: {
         'google-rotate': 'google-rotate 2s linear infinite',
         'google-dash': 'google-dash 1.5s ease-in-out infinite',
+        'linear-loader': 'linear-loader 1.5s infinite linear',
       }
     },
   },
