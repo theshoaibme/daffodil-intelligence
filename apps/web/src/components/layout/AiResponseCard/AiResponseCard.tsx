@@ -73,10 +73,6 @@ export function AiResponseCard({ prompt, onEdit }: AiResponseCardProps) {
         desc: "Implements 20px frosted backdrop blurs that dynamically scatter moving dot pattern canvas vectors.",
       },
     ],
-    specialCta: {
-      text: "Apply System Changes",
-      actionLabel: "Glassmorphic Theme Customizer Overlay",
-    },
   };
 
   const textToCopy = `${responseData.paragraphs.join("\n\n")}\n\n${responseData.bulletPoints

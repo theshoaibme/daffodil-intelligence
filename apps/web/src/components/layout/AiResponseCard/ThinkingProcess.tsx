@@ -42,7 +42,7 @@ export function ThinkingProcess({
       <div className="flex items-center justify-between w-full relative">
         <button
           onClick={onToggleExpand}
-          className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 rounded-full pl-2 pr-4 py-1.5 cursor-pointer transition-all duration-200 w-fit text-left outline-none text-xs font-semibold text-on-surface-variant shadow-sm"
+          className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest rounded-full pl-2 pr-4 py-1.5 cursor-pointer transition-all duration-200 w-fit text-left outline-none text-xs font-semibold text-on-surface-variant shadow-sm"
         >
           {isThinking ? (
             <Loader2 size={13} className="animate-spin text-primary flex-shrink-0" />
@@ -80,10 +80,27 @@ export function ThinkingProcess({
             animate={{ opacity: 1, height: "auto", marginTop: 8 }}
             exit={{ opacity: 0, height: 0, marginTop: 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="w-full bg-surface-container-highest/65 border border-outline-variant/30 rounded-2xl shadow-md overflow-hidden p-3 flex flex-col gap-2"
+            className="w-full bg-surface-container-highest/65 rounded-2xl shadow-md overflow-hidden p-3 flex flex-col gap-2"
           >
-            <div className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-wider px-1">
-              Thinking Timeline
+            <div className="text-[10px] font-bold text-on-surface-variant/60 tracking-wider px-1 flex items-center h-4">
+              <span>Thinking</span>
+              <span className="flex items-center gap-[3px] ml-1 h-full pt-[3px]">
+                <motion.span
+                  className="w-[3px] h-[3px] rounded-full bg-on-surface-variant/60 flex-shrink-0"
+                  animate={{ y: [0, -2.5, 0], opacity: [0.35, 1, 0.35] }}
+                  transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+                />
+                <motion.span
+                  className="w-[3px] h-[3px] rounded-full bg-on-surface-variant/60 flex-shrink-0"
+                  animate={{ y: [0, -2.5, 0], opacity: [0.35, 1, 0.35] }}
+                  transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: 0.15 }}
+                />
+                <motion.span
+                  className="w-[3px] h-[3px] rounded-full bg-on-surface-variant/60 flex-shrink-0"
+                  animate={{ y: [0, -2.5, 0], opacity: [0.35, 1, 0.35] }}
+                  transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                />
+              </span>
             </div>
             <div className="flex flex-col gap-1.5">
               {steps.map((step) => (
