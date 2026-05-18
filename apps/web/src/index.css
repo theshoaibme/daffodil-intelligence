@@ -21,6 +21,7 @@
   --color-surface-container-high: #e8e7f5;
   --color-surface-container-highest: #e2e1ef;
   --color-on-surface-variant: #444656;
+  --color-outline-variant: #c5c5d9;
 
   /* Premium Google Sans & Bangla Hind Siliguri font stack */
   --font-sans: 'Google Sans', 'Product Sans', 'Roboto Flex', 'Hind Siliguri', sans-serif;
@@ -46,6 +47,7 @@
   --color-surface-container-high: #2a2a2a;
   --color-surface-container-highest: #353434;
   --color-on-surface-variant: #c4c7c8;
+  --color-outline-variant: #444746;
 
   /* Dark theme with Google Sans & Hind Siliguri stack */
   --font-sans: 'Google Sans', 'Product Sans', 'Hanken Grotesk', 'Hind Siliguri', sans-serif;
@@ -66,7 +68,7 @@ body {
 
 /* Apple UI Premium Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
@@ -95,3 +97,26 @@ body {
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
+@layer utilities {
+  .dot-pattern {
+    background-image: radial-gradient(var(--color-surface-container-highest) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  
+  .glass-panel {
+    background-color: color-mix(in srgb, var(--color-background) 70%, transparent);
+    @apply backdrop-blur-2xl;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-surface-container-highest rounded-full;
+  }
+}
+

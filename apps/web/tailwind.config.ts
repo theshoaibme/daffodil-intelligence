@@ -24,6 +24,10 @@ const config: Config = {
         'surface-container': 'var(--color-surface-container)',
         'surface-high': 'var(--color-surface-container-high)',
         'surface-highest': 'var(--color-surface-container-highest)',
+        'surface-container-low': 'var(--color-surface-container-low)',
+        'surface-container-high': 'var(--color-surface-container-high)',
+        'surface-container-highest': 'var(--color-surface-container-highest)',
+        'outline-variant': 'var(--color-outline-variant)',
         'on-surface-variant': 'var(--color-on-surface-variant)',
       },
       borderRadius: {
