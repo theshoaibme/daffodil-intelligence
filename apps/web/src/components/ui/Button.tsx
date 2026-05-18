@@ -66,8 +66,8 @@ export const Button: React.FC<ButtonProps> = ({
   }
 
   // Calculate spinner size dynamically based on the button size
-  const loaderDiameter = size === 'sm' ? 16 : size === 'lg' ? 22 : 18;
-  const strokeWidth = size === 'sm' ? 2.5 : size === 'lg' ? 3 : 2.5;
+  const loaderDiameter = size === 'sm' ? 24 : size === 'lg' ? 36 : 30;
+  const strokeWidth = size === 'sm' ? 2.5 : size === 'lg' ? 3.5 : 3;
 
   return (
     <button 

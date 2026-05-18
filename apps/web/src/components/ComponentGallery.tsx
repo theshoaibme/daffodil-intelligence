@@ -5,15 +5,8 @@ import { Layout, Box as BoxIcon, Search } from 'lucide-react';
 import { Button, Input, Badge, Loader } from '@ui';
 
 const ComponentGallery: React.FC = () => {
-  // Add state for the interactive loading button demo
+  // Add state for the interactive loading button toggle control (No hardcoded mock timeouts)
   const [btnLoading, setBtnLoading] = useState(false);
-
-  const handleButtonClick = () => {
-    setBtnLoading(true);
-    setTimeout(() => {
-      setBtnLoading(false);
-    }, 3000);
-  };
 
   return (
     <div className="bg-surface-container rounded-lg p-8 border-0 shadow-none">
@@ -25,36 +18,48 @@ const ComponentGallery: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12 border-0 shadow-none">
         {/* Buttons section */}
         <div className="flex flex-col border-0 shadow-none">
-          <h3 className="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant/60 mb-4">
-            Button Variants & Colors
-          </h3>
+          <div className="flex flex-row justify-between items-center mb-4 border-0 shadow-none">
+            <h3 className="text-[12px] font-bold uppercase tracking-wider text-on-surface-variant/60">
+              Button Variants & Colors
+            </h3>
+            
+            {/* Real-time Toggle for testing dynamic Loading (No hardcoded mock timing) */}
+            <label className="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                checked={btnLoading}
+                onChange={(e) => setBtnLoading(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-surface-highest/80 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-on-surface-variant dark:after:bg-on-surface after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary peer-checked:after:bg-on-primary" />
+              <span className="ms-2 text-[11px] font-semibold text-on-surface-variant/80">
+                Mock Load
+              </span>
+            </label>
+          </div>
+
           <div className="space-y-4 flex flex-col border-0 shadow-none">
-            {/* Interactive Loading Button Demo */}
-            <Button 
-              variant="contained" 
-              loading={btnLoading} 
-              onClick={handleButtonClick}
-            >
-              {btnLoading ? "Processing" : "Click to Load Spinner"}
+            <Button variant="contained" loading={btnLoading}>
+              Primary Contained
             </Button>
 
-            <Button variant="tonal">
+            <Button variant="tonal" loading={btnLoading}>
               Tonal Accent
             </Button>
             
-            <Button variant="outlined">
+            <Button variant="outlined" loading={btnLoading}>
               Outlined Border
             </Button>
             
-            <Button variant="text">
+            <Button variant="text" loading={btnLoading}>
               Text Standard
             </Button>
             
             <div className="pt-4 border-t border-surface-highest/20 flex flex-row space-x-2">
-              <Button size="sm" color="error">
+              <Button size="sm" color="error" loading={btnLoading}>
                 Small Error
               </Button>
-              <Button size="sm" variant="tonal" color="secondary">
+              <Button size="sm" variant="tonal" color="secondary" loading={btnLoading}>
                 Small Secondary
               </Button>
             </div>

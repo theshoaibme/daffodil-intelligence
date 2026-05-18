@@ -53,7 +53,7 @@ export const Loader: React.FC<LoaderProps> = ({
               cy={diameter / 2}
               r={(diameter - strokeWidth) / 2}
               fill="none"
-              stroke={color === 'inherit' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(33, 59, 231, 0.08)'}
+              stroke="transparent"
               strokeWidth={strokeWidth}
               className="border-0"
             />
