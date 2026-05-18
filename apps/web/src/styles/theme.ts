@@ -14,9 +14,11 @@ export const getTheme = (mode: 'light' | 'dark') => {
       },
       secondary: {
         main: tokens.colors.secondary,
+        contrastText: tokens.colors.onSecondary,
       },
       error: {
         main: tokens.colors.error,
+        contrastText: tokens.colors.onError,
       },
       background: {
         default: tokens.colors.background,
@@ -26,7 +28,7 @@ export const getTheme = (mode: 'light' | 'dark') => {
         primary: tokens.colors.onSurface,
         secondary: tokens.colors.onSurfaceVariant,
       },
-      divider: tokens.colors.outlineVariant || tokens.colors.outline,
+      divider: 'transparent', // NO BORDERS RULE
     },
     typography: {
       fontFamily: tokens.typography.fontFamily,
@@ -36,31 +38,56 @@ export const getTheme = (mode: 'light' | 'dark') => {
       button: { textTransform: 'none', fontWeight: 600 },
     },
     shape: {
-      borderRadius: parseInt(common.rounded.default.replace('rem', '')) * 16, // Default (matches common.rounded.default)
+      borderRadius: parseInt(common.rounded.default.replace('px', '')) || 16,
+    },
+    transitions: {
+      create: () => 'none !important',
+      duration: {
+        shortest: 0,
+        shorter: 0,
+        short: 0,
+        standard: 0,
+        complex: 0,
+        enteringScreen: 0,
+        leavingScreen: 0,
+      },
     },
     components: {
+      MuiButtonBase: {
+        defaultProps: {
+          disableRipple: true,
+        },
+      },
       MuiButton: {
+        defaultProps: {
+          disableElevation: true,
+          disableRipple: true,
+        },
         styleOverrides: {
           root: {
             borderRadius: common.rounded.full,
             padding: '10px 24px',
-            boxShadow: 'none',
+            boxShadow: 'none !important',
+            border: 'none !important',
+            textTransform: 'none',
+            transition: 'none !important',
             '&:hover': {
-              boxShadow: 'none',
+              boxShadow: 'none !important',
+              border: 'none !important',
             },
           },
           containedPrimary: {
             backgroundColor: tokens.colors.primary,
             color: tokens.colors.onPrimary,
             '&:hover': {
-              backgroundColor: alpha(tokens.colors.primary, 0.9),
+              backgroundColor: alpha(tokens.colors.primary, 0.8),
             },
           },
           outlined: {
-            borderColor: tokens.colors.outline,
+            border: 'none !important',
+            backgroundColor: mode === 'light' ? '#f4f2ff' : '#201f1f',
             '&:hover': {
-              backgroundColor: alpha(tokens.colors.primary, 0.04),
-              borderColor: tokens.colors.primary,
+              backgroundColor: alpha(tokens.colors.primary, 0.1),
             },
           },
         },
@@ -69,26 +96,110 @@ export const getTheme = (mode: 'light' | 'dark') => {
         styleOverrides: {
           root: {
             backgroundImage: 'none',
-            borderRadius: common.rounded.lg, // 32px
-            border: `1px solid ${alpha(tokens.colors.outline, 0.1)}`,
-            boxShadow: 'none',
+            borderRadius: common.rounded.lg,
+            border: 'none !important',
+            boxShadow: 'none !important',
+            transition: 'none !important',
+            backgroundColor: tokens.colors.surfaceContainer,
           },
         },
       },
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: common.rounded.lg, // 32px
-            boxShadow: 'none',
+            borderRadius: common.rounded.lg,
+            border: 'none !important',
+            boxShadow: 'none !important',
+            transition: 'none !important',
+            backgroundColor: tokens.colors.surfaceContainer,
           },
         },
       },
       MuiTextField: {
+        defaultProps: {
+          InputLabelProps: {
+            shrink: true, // Google/Shadcn style: force label above
+          },
+        },
         styleOverrides: {
           root: {
-            '& .MuiOutlinedInput-root': {
-              borderRadius: common.rounded.default, // 16px
+            border: 'none !important',
+            '& .MuiInputLabel-root': {
+              position: 'relative',
+              transform: 'none !important',
+              fontSize: '14px',
+              fontWeight: 500,
+              marginBottom: '6px',
+              color: `${tokens.colors.onSurface} !important`,
+              transition: 'none !important',
             },
+            '& .MuiOutlinedInput-root': {
+              height: 40,
+              fontSize: '14px',
+              borderRadius: common.rounded.full, // Styled with Google's iconic 100% pill-shaped rounding
+              backgroundColor: mode === 'light' ? '#f4f2ff' : '#141313', // Harmonized neutral backgrounds
+              border: 'none !important',
+              transition: 'none !important',
+              paddingLeft: '16px',
+              paddingRight: '16px',
+              '& fieldset': {
+                border: 'none !important',
+              },
+              '&:hover fieldset': {
+                border: 'none !important',
+              },
+              '&.Mui-focused fieldset': {
+                border: 'none !important',
+              },
+              '&.Mui-focused': {
+                backgroundColor: mode === 'light' ? '#f4f2ff' : '#141313',
+              },
+              '& input': {
+                padding: '8px 0px',
+                height: 'auto',
+                color: tokens.colors.onSurface,
+                '&::placeholder': {
+                  color: tokens.colors.onSurfaceVariant,
+                  opacity: 0.5,
+                },
+              },
+            },
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            borderRadius: common.rounded.full,
+            border: 'none !important',
+            transition: 'none !important',
+            backgroundColor: tokens.colors.surfaceContainerHighest,
+          },
+        },
+      },
+      MuiList: {
+        styleOverrides: {
+          root: {
+            padding: 0,
+            border: 'none !important',
+          },
+        },
+      },
+      MuiListItem: {
+        styleOverrides: {
+          root: {
+            border: 'none !important',
+            transition: 'none !important',
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            border: 'none !important',
+            boxShadow: 'none !important',
+            borderRadius: common.rounded.lg,
+            transition: 'none !important',
           },
         },
       },

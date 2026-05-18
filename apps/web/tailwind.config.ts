@@ -17,6 +17,14 @@ const config: Config = {
         outline: 'var(--color-brand-outline)',
         secondary: 'var(--color-secondary)',
         error: 'var(--color-error)',
+        
+        // Comprehensive Stitch Light & Dark System surface levels
+        'surface-lowest': 'var(--color-surface-container-lowest)',
+        'surface-low': 'var(--color-surface-container-low)',
+        'surface-container': 'var(--color-surface-container)',
+        'surface-high': 'var(--color-surface-container-high)',
+        'surface-highest': 'var(--color-surface-container-highest)',
+        'on-surface-variant': 'var(--color-on-surface-variant)',
       },
       borderRadius: {
         sm: '0.5rem',
@@ -36,9 +44,43 @@ const config: Config = {
         lg: '24px',
         xl: '40px',
       },
+      keyframes: {
+        'google-rotate': {
+          '100%': { transform: 'rotate(360deg)' },
+        },
+        'google-dash': {
+          '0%': { strokeDasharray: '1, 200', strokeDashoffset: '0' },
+          '50%': { strokeDasharray: '89, 200', strokeDashoffset: '-35px' },
+          '100%': { strokeDasharray: '89, 200', strokeDashoffset: '-124px' },
+        }
+      },
+      animation: {
+        'google-rotate': 'google-rotate 2s linear infinite',
+        'google-dash': 'google-dash 1.5s ease-in-out infinite',
+      }
     },
   },
-  plugins: [],
+  plugins: [
+    // Clean browser autofill Tailwind utility plugin
+    function ({ addUtilities }: any) {
+      addUtilities({
+        '.autofill-light': {
+          '&:-webkit-autofill': {
+            '-webkit-box-shadow': '0 0 0px 1000px #f4f2ff inset !important', // Cohesive autofill bg
+            '-webkit-text-fill-color': '#1b1b1f !important',
+            'transition': 'background-color 5000s ease-in-out 0s !important',
+          }
+        },
+        '.autofill-dark': {
+          '&:-webkit-autofill': {
+            '-webkit-box-shadow': '0 0 0px 1000px #141313 inset !important', // Cohesive autofill bg
+            '-webkit-text-fill-color': '#e5e2e1 !important',
+            'transition': 'background-color 5000s ease-in-out 0s !important',
+          }
+        }
+      });
+    }
+  ],
 };
 
 export default config;

@@ -1,7 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { ThemeProvider as MUIThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import { StyledEngineProvider } from '@mui/material/styles';
-import { getTheme } from '../styles/theme';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -39,16 +36,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [mode]);
 
-  const theme = useMemo(() => getTheme(mode), [mode]);
-
   return (
     <ThemeContext.Provider value={{ mode, toggleTheme }}>
-      <StyledEngineProvider injectFirst>
-        <MUIThemeProvider theme={theme}>
-          <CssBaseline />
-          {children}
-        </MUIThemeProvider>
-      </StyledEngineProvider>
+      {children}
     </ThemeContext.Provider>
   );
 };

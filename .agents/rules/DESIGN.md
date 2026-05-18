@@ -5,53 +5,53 @@ trigger: always_on
 ---
 name: Stitch Light System
 colors:
-  surface: '#fcf8f9'
-  surface-dim: '#dcd9da'
-  surface-bright: '#fcf8f9'
+  surface: '#fbf8ff'
+  surface-dim: '#dad9e6'
+  surface-bright: '#fbf8ff'
   surface-container-lowest: '#ffffff'
-  surface-container-low: '#f6f3f4'
-  surface-container: '#f0edee'
-  surface-container-high: '#eae7e8'
-  surface-container-highest: '#e5e2e3'
-  on-surface: '#1c1b1c'
-  on-surface-variant: '#424750'
-  inverse-surface: '#313031'
-  inverse-on-surface: '#f3f0f1'
-  outline: '#737781'
-  outline-variant: '#c3c6d1'
-  surface-tint: '#315f9d'
-  primary: '#315f9d'
+  surface-container-low: '#f4f2ff'
+  surface-container: '#eeecfa'
+  surface-container-high: '#e8e7f5'
+  surface-container-highest: '#e2e1ef'
+  on-surface: '#1a1b24'
+  on-surface-variant: '#444656'
+  inverse-surface: '#2f303a'
+  inverse-on-surface: '#f1effd'
+  outline: '#757688'
+  outline-variant: '#c5c5d9'
+  surface-tint: '#2e46ef'
+  primary: '#213be7'
   on-primary: '#ffffff'
-  primary-container: '#8ab4f8'
-  on-primary-container: '#0d4582'
-  inverse-primary: '#a8c8ff'
-  secondary: '#5c5f5e'
+  primary-container: '#4259ff'
+  on-primary-container: '#f1f0ff'
+  inverse-primary: '#bcc2ff'
+  secondary: '#4e58a2'
   on-secondary: '#ffffff'
-  secondary-container: '#e1e3e1'
-  on-secondary-container: '#626564'
-  tertiary: '#5e5e64'
+  secondary-container: '#a4aefe'
+  on-secondary-container: '#343e87'
+  tertiary: '#973500'
   on-tertiary: '#ffffff'
-  tertiary-container: '#b3b2b9'
-  on-tertiary-container: '#44454a'
+  tertiary-container: '#c04500'
+  on-tertiary-container: '#ffeee8'
   error: '#ba1a1a'
   on-error: '#ffffff'
   error-container: '#ffdad6'
   on-error-container: '#93000a'
-  primary-fixed: '#d5e3ff'
-  primary-fixed-dim: '#a8c8ff'
-  on-primary-fixed: '#001b3c'
-  on-primary-fixed-variant: '#114784'
-  secondary-fixed: '#e1e3e1'
-  secondary-fixed-dim: '#c5c7c5'
-  on-secondary-fixed: '#191c1b'
-  on-secondary-fixed-variant: '#444746'
-  tertiary-fixed: '#e3e2e9'
-  tertiary-fixed-dim: '#c7c6cd'
-  on-tertiary-fixed: '#1a1b20'
-  on-tertiary-fixed-variant: '#46464c'
-  background: '#fcf8f9'
-  on-background: '#1c1b1c'
-  surface-variant: '#e5e2e3'
+  primary-fixed: '#dfe0ff'
+  primary-fixed-dim: '#bcc2ff'
+  on-primary-fixed: '#000c62'
+  on-primary-fixed-variant: '#0026d6'
+  secondary-fixed: '#dfe0ff'
+  secondary-fixed-dim: '#bcc2ff'
+  on-secondary-fixed: '#030e5d'
+  on-secondary-fixed-variant: '#364089'
+  tertiary-fixed: '#ffdbce'
+  tertiary-fixed-dim: '#ffb599'
+  on-tertiary-fixed: '#370e00'
+  on-tertiary-fixed-variant: '#7f2b00'
+  background: '#fbf8ff'
+  on-background: '#1a1b24'
+  surface-variant: '#e2e1ef'
 typography:
   display-lg:
     fontFamily: Roboto Flex
@@ -133,11 +133,12 @@ The design style is **Corporate / Modern**, heavily influenced by Material Desig
 
 The color strategy centers on a clean, light foundation to maximize readability and provide a professional, open workspace.
 
-- **Primary (#8ab4f8):** A soft, functional blue used for high-importance actions, active states, and focus indicators. 
-- **Neutral/Background (#fdf8ff):** The core canvas color. It is a crisp, bright surface that ensures maximum contrast for text and data.
-- **Surface/Secondary (#f1edf4):** Used for container backgrounds (cards, sidebars) to create subtle tonal separation from the main background.
-- **Border (#c5c6d0):** A light-grey used for structural lines and separators, ensuring boundaries are visible without being distracting.
-- **Typography:** Primary text uses a deep charcoal (#1b1b1f) for readability, while secondary metadata uses a muted grey (#44474e).
+- **Primary (#4259ff):** A vibrant, functional blue used for high-importance actions, active states, and focus indicators. 
+- **Secondary (#6771bd):** A muted indigo used for secondary actions and tonal accents, providing depth without competing with the primary blue.
+- **Tertiary (#c04500):** A punchy burnt orange used sparingly for call-outs, status changes, or highlighting specific data points.
+- **Neutral/Background (#fcf8f9):** The core canvas color. It is a crisp, bright surface that ensures maximum contrast for text and data.
+- **Border (#767682):** A balanced grey used for structural lines and separators, ensuring boundaries are visible without being distracting.
+- **Typography:** Primary text uses a deep charcoal for readability, while secondary metadata uses a muted grey (#767682).
 
 ## Typography
 
@@ -158,11 +159,11 @@ The layout employs a **Fluid Grid** system that optimizes for both high-density 
 
 Visual hierarchy is achieved through **Tonal Layering** and soft, natural shadows. In this light theme, elevation is represented by subtly darker surface colors or light shadows:
 
-1.  **Level 0 (Base):** Background (#fdf8ff).
-2.  **Level 1 (Cards/Sheets):** Surface (#f1edf4) with a subtle #c5c6d0 border.
-3.  **Level 2 (Modals/Popovers):** Surface (#ffffff) with a soft, diffused ambient shadow (0px 4px 12px rgba(0,0,0,0.08)).
+1.  **Level 0 (Base):** Background (#fcf8f9).
+2.  **Level 1 (Cards/Sheets):** Surface-container (#f0edee) with a subtle #767682 border.
+3.  **Level 2 (Modals/Popovers):** Surface-container-lowest (#ffffff) with a soft, diffused ambient shadow (0px 4px 12px rgba(0,0,0,0.08)).
 
-Interactive elements use a "halo" focus state: a 2px outer stroke of the Primary Blue (#8ab4f8) when focused or active. Avoid heavy blurs; use thin, 1px borders (#c5c6d0) to define boundaries between adjacent containers.
+Interactive elements use a "halo" focus state: a 2px outer stroke of the Primary Blue (#4259ff) when focused or active. Avoid heavy blurs; use thin, 1px borders (#767682) to define boundaries between adjacent containers.
 
 ## Shapes
 
@@ -174,9 +175,10 @@ The shape language is defined by highly organic, **Pill-shaped** forms that soft
 
 ## Components
 
-- **Buttons:** Primary buttons are filled with Primary Blue (#8ab4f8) and dark text (#131314). Secondary buttons use a tonal grey background (#f1edf4) or a simple outline (#c5c6d0) with Primary Blue text.
-- **Input Fields:** Fields are outlined with #c5c6d0 and utilize a highly rounded (16px+) radius. Upon focus, the border transitions to #8ab4f8 with a 2px thickness. Labels sit above the field in `label-sm` style.
-- **Chips:** Used for filtering and tags. They feature a 1px border (#c5c6d0) and a pill-shaped radius. When selected, they fill with a low-opacity Primary Blue (approx. 12% alpha).
-- **Cards:** Background set to #f1edf4 with a 1px border of #c5c6d0. No shadow is required unless the card is draggable or floating.
+- **Buttons:** Primary buttons are filled with Primary Blue (#4259ff) and white text (#ffffff). Secondary buttons use a tonal indigo background (#6771bd) or a simple outline (#767682) with Primary Blue text.
+- **Input Fields:** Fields are outlined with #767682 and utilize a highly rounded (16px+) radius. Upon focus, the border transitions to #4259ff with a 2px thickness. Labels sit above the field in `label-sm` style.
+- **Chips:** Used for filtering and tags. They feature a 1px border (#767682) and a pill-shaped radius. When selected, they fill with a low-opacity Primary Blue.
+- **Cards:** Background set to #f0edee with a 1px border of #767682. No shadow is required unless the card is draggable or floating.
 - **Lists:** High-density list items should have a minimum height of 48px, utilizing `body-md` for primary text and `label-sm` for secondary metadata.
-- **Checkboxes & Radios:** Use the Primary Blue (#8ab4f8) for the "selected" state. The "unselected" state is a simple #c5c6d0 outline.
+- **Checkboxes & Radios:** Use the Primary Blue (#4259ff) for the "selected" state. The "unselected" state is a simple #767682 outline.
+```

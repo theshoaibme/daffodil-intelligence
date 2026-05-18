@@ -1,12 +1,7 @@
-/**
- * Design system tokens based on dark and light mode specifications.
- * These tokens are used by both Tailwind CSS and Material UI.
- */
-
 export const designTokens = {
   dark: {
     colors: {
-      surface: '#141313',
+      surface: '#161618',
       surfaceDim: '#141313',
       surfaceBright: '#3a3939',
       surfaceContainerLowest: '#0e0e0e',
@@ -18,16 +13,16 @@ export const designTokens = {
       onSurfaceVariant: '#c4c7c8',
       inverseSurface: '#e5e2e1',
       inverseOnSurface: '#313030',
-      outline: '#8e9192',
-      outlineVariant: '#444748',
+      outline: 'transparent',
+      outlineVariant: 'transparent',
       surfaceTint: '#c6c6c7',
       primary: '#ffffff',
-      onPrimary: '#2f3131',
+      onPrimary: '#0E0E10',
       primaryContainer: '#e2e2e2',
       onPrimaryContainer: '#636565',
       inversePrimary: '#5d5f5f',
-      secondary: '#c4c7ca',
-      onSecondary: '#2d3134',
+      secondary: '#3C4043',
+      onSecondary: '#ffffff',
       secondaryContainer: '#464a4d',
       onSecondaryContainer: '#b5b9bc',
       tertiary: '#ffffff',
@@ -38,7 +33,7 @@ export const designTokens = {
       onError: '#690005',
       errorContainer: '#93000a',
       onErrorContainer: '#ffdad6',
-      background: '#141313',
+      background: '#0E0E10',
       onBackground: '#e5e2e1',
       surfaceVariant: '#353434',
     },
@@ -49,41 +44,41 @@ export const designTokens = {
   },
   light: {
     colors: {
-      surface: '#fcf8f9',
-      surfaceDim: '#dcd9da',
-      surfaceBright: '#fcf8f9',
+      surface: '#eeecfa', // Stitch Light surface container
+      surfaceDim: '#dad9e6',
+      surfaceBright: '#fbf8ff',
       surfaceContainerLowest: '#ffffff',
-      surfaceContainerLow: '#f6f3f4',
-      surfaceContainer: '#f0edee',
-      surfaceContainerHigh: '#eae7e8',
-      surfaceContainerHighest: '#e5e2e3',
-      onSurface: '#1c1b1c',
-      onSurfaceVariant: '#424750',
-      inverseSurface: '#313031',
-      inverseOnSurface: '#f3f0f1',
-      outline: '#737781',
-      outlineVariant: '#c3c6d1',
-      surfaceTint: '#315f9d',
-      primary: '#315f9d',
+      surfaceContainerLow: '#f4f2ff', // Soft input background
+      surfaceContainer: '#eeecfa', // Card background
+      surfaceContainerHigh: '#e8e7f5',
+      surfaceContainerHighest: '#e2e1ef',
+      onSurface: '#1a1b24',
+      onSurfaceVariant: '#444656',
+      inverseSurface: '#2f303a',
+      inverseOnSurface: '#f1effd',
+      outline: 'transparent',
+      outlineVariant: 'transparent',
+      surfaceTint: '#213be7',
+      primary: '#213be7', // DEEP BLUE PRIMARY BRAND COLOR
       onPrimary: '#ffffff',
-      primaryContainer: '#8ab4f8',
-      onPrimaryContainer: '#0d4582',
-      inversePrimary: '#a8c8ff',
-      secondary: '#5c5f5e',
+      primaryContainer: '#4259ff',
+      onPrimaryContainer: '#f1f0ff',
+      inversePrimary: '#bcc2ff',
+      secondary: '#4e58a2',
       onSecondary: '#ffffff',
-      secondaryContainer: '#e1e3e1',
-      onSecondaryContainer: '#626564',
-      tertiary: '#5e5e64',
+      secondaryContainer: '#a4aefe',
+      onSecondaryContainer: '#343e87',
+      tertiary: '#973500',
       onTertiary: '#ffffff',
-      tertiaryContainer: '#b3b2b9',
-      onTertiaryContainer: '#44454a',
+      tertiaryContainer: '#c04500',
+      onTertiaryContainer: '#ffeee8',
       error: '#ba1a1a',
       onError: '#ffffff',
       errorContainer: '#ffdad6',
       onErrorContainer: '#93000a',
-      background: '#fcf8f9',
-      onBackground: '#1c1b1c',
-      surfaceVariant: '#e5e2e3',
+      background: '#fbf8ff', // Stitch Light background
+      onBackground: '#1a1b24',
+      surfaceVariant: '#e2e1ef',
     },
     typography: {
       fontFamily: 'Roboto Flex, sans-serif',
@@ -92,11 +87,11 @@ export const designTokens = {
   },
   common: {
     rounded: {
-      sm: '0.25rem',      // 4px
-      default: '0.5rem',  // 8px
-      md: '0.75rem',      // 12px
-      lg: '1rem',         // 16px
-      xl: '1.5rem',       // 24px
+      sm: '8px',
+      default: '12px',
+      md: '16px',
+      lg: '24px',
+      xl: '9999px',
       full: '9999px',
     },
     spacing: {
@@ -105,7 +100,7 @@ export const designTokens = {
       sm: '8px',
       md: '16px',
       lg: '24px',
-      xl: '40px',
+      xl: '32px',
     },
   },
 };
