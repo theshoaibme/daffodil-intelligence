@@ -2,7 +2,7 @@ import React from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
-  variant?: 'outlined' | 'filled' | 'standard'; // Outlined pill, Filled tonal with bottom line, or standard underlined
+  variant?: 'outlined' | 'standard'; // Outlined pill or standard underlined input only
   startIcon?: React.ReactNode;
   containerClassName?: string;
 }
@@ -20,9 +20,6 @@ export const Input: React.FC<InputProps> = ({
   if (variant === 'outlined') {
     // Google standard fully pill-shaped search input
     inputStyles = 'h-10 rounded-full bg-surface-low dark:bg-surface-lowest text-on-surface placeholder:text-on-surface-variant/40 outline-none border-0 shadow-none focus:bg-surface-low dark:focus:bg-surface-lowest';
-  } else if (variant === 'filled') {
-    // Google Material Filled variant: square container with soft top-rounding and a bottom active border
-    inputStyles = 'h-11 rounded-t-md rounded-b-none bg-surface-high/30 dark:bg-surface-high/10 text-on-surface placeholder:text-on-surface-variant/40 outline-none border-0 border-b-2 border-surface-highest/50 focus:border-primary focus:bg-surface-high/40 transition-colors duration-150 shadow-none';
   } else {
     // Standard underlined input: no background, simple bottom line, highly compact
     inputStyles = 'h-10 rounded-none bg-transparent text-on-surface placeholder:text-on-surface-variant/40 outline-none border-0 border-b-2 border-surface-highest/40 focus:border-primary transition-colors duration-150 shadow-none px-0';

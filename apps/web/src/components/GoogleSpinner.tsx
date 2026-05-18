@@ -19,13 +19,20 @@ const GoogleSpinner: React.FC<GoogleSpinnerProps> = ({
   fullPage = false,
   overlay = false,
 }) => {
+  // Translate legacy color codes to clean primative equivalents for compilation
+  const loaderColor = React.useMemo(() => {
+    if (color === 'warn') return 'error';
+    if (color === 'accent') return 'secondary';
+    return 'primary';
+  }, [color]);
+
   // Leverage our 100% pure Tailwind Loader primitive to enforce identical premium visuals
   return (
     <Loader
       variant="spinner"
       diameter={diameter}
       strokeWidth={strokeWidth}
-      color={color}
+      color={loaderColor}
       message={message}
       fullPage={fullPage}
       overlay={overlay}

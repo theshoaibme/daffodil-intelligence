@@ -1,10 +1,10 @@
 import React from 'react';
 
 interface LoaderProps {
-  variant?: 'spinner' | 'dots' | 'linear'; // Added 'linear' variant for horizontal sliding progress bar
+  variant?: 'spinner' | 'dots' | 'linear';
   diameter?: number;
   strokeWidth?: number;
-  color?: 'primary' | 'secondary' | 'error'; // Added robust color variants
+  color?: 'primary' | 'secondary' | 'error' | 'inherit'; // Added 'inherit' to dynamically inherit parent text colors
   message?: string;
   fullPage?: boolean;
   overlay?: boolean;
@@ -33,6 +33,7 @@ export const Loader: React.FC<LoaderProps> = ({
 
   // Color mapping utility for SVGs and dots
   const colorHex = React.useMemo(() => {
+    if (color === 'inherit') return 'currentColor'; // Force SVG to inherit the parent text color
     if (color === 'secondary') return 'var(--color-secondary)';
     if (color === 'error') return 'var(--color-error)';
     return 'var(--color-primary)';
@@ -52,7 +53,7 @@ export const Loader: React.FC<LoaderProps> = ({
               cy={diameter / 2}
               r={(diameter - strokeWidth) / 2}
               fill="none"
-              stroke="rgba(33, 59, 231, 0.08)"
+              stroke={color === 'inherit' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(33, 59, 231, 0.08)'}
               strokeWidth={strokeWidth}
               className="border-0"
             />
