@@ -25,9 +25,9 @@ export function PromptBar({
   return (
     <motion.div 
       layout
-      className="fixed bottom-6 left-0 right-0 transition-all z-50 transform flex justify-center w-full px-4 pointer-events-none"
+      className="fixed bottom-6 left-0 right-0 transition-all z-30 transform flex justify-center w-full px-4 pointer-events-none"
     >
-      <div className="w-full max-w-xl bg-panel-bg border border-outline-variant/40 flex flex-col gap-2 rounded-3xl p-3 relative shadow-md pointer-events-auto">
+      <div className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 flex flex-col gap-2 rounded-3xl p-3 relative shadow-md pointer-events-auto">
         <textarea 
           ref={textareaRef}
           rows={1}

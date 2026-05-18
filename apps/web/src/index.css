@@ -111,6 +111,12 @@ body {
     @apply backdrop-blur-2xl;
   }
 
+  .glass-gradient-panel {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-panel-bg) 85%, transparent), color-mix(in srgb, var(--color-background) 70%, transparent));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
   .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: var(--color-surface-container-highest) transparent;
