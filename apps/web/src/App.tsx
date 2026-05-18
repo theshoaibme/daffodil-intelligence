@@ -117,7 +117,19 @@ export default function App() {
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 className="pointer-events-auto flex-shrink-0"
               >
-                <AiResponseCard prompt={sentPrompt} />
+                <AiResponseCard
+                  prompt={sentPrompt}
+                  onEdit={() => {
+                    setPrompt(sentPrompt);
+                    setTimeout(() => {
+                      if (textareaRef.current) {
+                        textareaRef.current.focus();
+                        textareaRef.current.selectionStart = textareaRef.current.value.length;
+                        textareaRef.current.selectionEnd = textareaRef.current.value.length;
+                      }
+                    }, 50);
+                  }}
+                />
               </motion.div>
             )}
           </AnimatePresence>

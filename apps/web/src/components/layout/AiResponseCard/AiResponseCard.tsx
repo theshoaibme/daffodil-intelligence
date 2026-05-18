@@ -6,9 +6,10 @@ import { UserMessageBadge } from "./UserMessageBadge";
 
 interface AiResponseCardProps {
   prompt?: string;
+  onEdit?: () => void;
 }
 
-export function AiResponseCard({ prompt }: AiResponseCardProps) {
+export function AiResponseCard({ prompt, onEdit }: AiResponseCardProps) {
   const [isThinking, setIsThinking] = useState(true);
   const [thinkingExpanded, setThinkingExpanded] = useState(true);
   const [steps, setSteps] = useState<ThinkingStep[]>([
@@ -89,7 +90,7 @@ export function AiResponseCard({ prompt }: AiResponseCardProps) {
     >
       {/* Top Header Row with User Prompt Badge - Full Width */}
       <div className="flex items-center flex-shrink-0 pb-3 border-b border-outline-variant/15 w-full">
-        <UserMessageBadge prompt={prompt} />
+        <UserMessageBadge prompt={prompt} onEdit={onEdit} />
       </div>
 
       {/* Accordion Thinking Process List Drawer (Auto expands on send) */}
