@@ -33,6 +33,12 @@ export function PromptBar({
           rows={1}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
           placeholder="What would you like to change or create?"
           className="w-full bg-transparent border-none outline-none resize-none text-base text-on-surface placeholder-on-surface-variant focus:ring-0 p-2 leading-relaxed max-h-[200px]"
         />

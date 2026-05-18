@@ -12,6 +12,7 @@ import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./compone
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [sentPrompt, setSentPrompt] = useState("");
   const [isSent, setIsSent] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
@@ -25,11 +26,16 @@ export default function App() {
     }
   }, [prompt]);
 
-  const handleSend = () => {
-    if (prompt.trim()) {
+  const sendPrompt = (text: string) => {
+    if (text.trim()) {
+      setSentPrompt(text);
       setIsSent(true);
-      // In a real app, this would trigger the AI response
+      setPrompt("");
     }
+  };
+
+  const handleSend = () => {
+    sendPrompt(prompt);
   };
 
   return (
@@ -66,24 +72,15 @@ export default function App() {
               <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
                 <SuggestionChip
                   text="Mood-based movie picker"
-                  onClick={() => {
-                    setPrompt("Mood-based movie picker");
-                    setIsSent(true);
-                  }}
+                  onClick={() => sendPrompt("Mood-based movie picker")}
                 />
                 <SuggestionChip
                   text="Trip packing checklist"
-                  onClick={() => {
-                    setPrompt("Trip packing checklist");
-                    setIsSent(true);
-                  }}
+                  onClick={() => sendPrompt("Trip packing checklist")}
                 />
                 <SuggestionChip
                   text="E-commerce platform mockup"
-                  onClick={() => {
-                    setPrompt("E-commerce platform mockup");
-                    setIsSent(true);
-                  }}
+                  onClick={() => sendPrompt("E-commerce platform mockup")}
                 />
               </div>
             </div>
@@ -120,7 +117,7 @@ export default function App() {
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 className="pointer-events-auto flex-shrink-0"
               >
-                <AiResponseCard prompt={prompt} />
+                <AiResponseCard prompt={sentPrompt} />
               </motion.div>
             )}
           </AnimatePresence>
