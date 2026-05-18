@@ -36,7 +36,7 @@ export function PromptBar({
       layout
       className={`fixed transition-all z-50 transform flex justify-center w-full px-4 pointer-events-none ${isSent ? 'bottom-6 left-6 max-w-[480px] justify-start' : 'bottom-6 left-0'}`}
     >
-      <div className="w-full max-w-2xl bg-surface-container-high/40 backdrop-blur-xl border border-outline-variant/40 flex flex-col gap-2 rounded-3xl p-3 relative shadow-md pointer-events-auto">
+      <div className="w-full max-w-xl bg-surface-container-high/80 backdrop-blur-xl border border-outline-variant/40 flex flex-col gap-2 rounded-3xl p-3 relative shadow-md pointer-events-auto">
         {/* Plus Menu Popup */}
         <AnimatePresence>
           {plusMenuOpen && (
