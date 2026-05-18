@@ -5,5 +5,5 @@ export * from './Loader';
 export * from './SidebarItem';
 export * from './HeaderIcon';
 export * from './SuggestionChip';
-export * from './LogItem';
+export * from '../layout/TaskPanel';
 export * from './DropdownItem';

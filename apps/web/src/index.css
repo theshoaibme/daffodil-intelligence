@@ -109,6 +109,10 @@ body {
     @apply backdrop-blur-2xl;
   }
 
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-surface-container-highest) transparent;
+  }
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
   }
