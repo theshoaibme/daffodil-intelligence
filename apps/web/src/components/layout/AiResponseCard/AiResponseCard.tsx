@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AlertCircle } from "lucide-react";
 import { ThinkingProcess, ThinkingStep } from "./ThinkingProcess";
 import { ResponseContent, ResponseContentData } from "./ResponseContent";
 import { ActionButtons } from "./ActionButtons";
@@ -6,82 +7,120 @@ import { UserMessageBadge } from "./UserMessageBadge";
 
 interface AiResponseCardProps {
   prompt?: string;
+  response?: string;
+  isStreaming?: boolean;
+  thinkingSteps?: ThinkingStep[];
+  isThinking?: boolean;
   onEdit?: () => void;
+  error?: string | null;
 }
 
-export function AiResponseCard({ prompt, onEdit }: AiResponseCardProps) {
-  const [isThinking, setIsThinking] = useState(true);
+export function AiResponseCard({ 
+  prompt, 
+  response = "",
+  isStreaming = false,
+  thinkingSteps: externalSteps = [],
+  isThinking: externalIsThinking = false,
+  onEdit,
+  error 
+}: AiResponseCardProps) {
   const [thinkingExpanded, setThinkingExpanded] = useState(true);
-  const [steps, setSteps] = useState<ThinkingStep[]>([
-    { id: "1", title: "Analyzing prompt request context", status: "active" },
-    { id: "2", title: "Compiling responsive styling design tokens", status: "pending" },
-    { id: "3", title: "Generating responsive grid coordinates", status: "pending" },
+  
+  const [internalSteps, setInternalSteps] = useState<ThinkingStep[]>([
+    { id: "1", title: "Analyzing request", status: "active" },
+    { id: "2", title: "Processing with AI agent", status: "pending" },
+    { id: "3", title: "Gathering results", status: "pending" },
   ]);
 
-  // Simulate active step-by-step thinking timeline
+  const steps = externalSteps.length > 0 ? externalSteps : internalSteps;
+  const isThinking = externalIsThinking || isStreaming;
+
   useEffect(() => {
-    const timer1 = setTimeout(() => {
-      setSteps((prev) =>
-        prev.map((s) =>
-          s.id === "1"
-            ? { ...s, status: "success" }
-            : s.id === "2"
-              ? { ...s, status: "active" }
-              : s
-        )
-      );
-    }, 1000);
-
-    const timer2 = setTimeout(() => {
-      setSteps((prev) =>
-        prev.map((s) =>
-          s.id === "2"
-            ? { ...s, status: "success" }
-            : s.id === "3"
-              ? { ...s, status: "active" }
-              : s
-        )
-      );
-    }, 2000);
-
-    const timer3 = setTimeout(() => {
-      setSteps((prev) => prev.map((s) => ({ ...s, status: "success" })));
-      setIsThinking(false);
-      // Auto-collapse thinking process details once thinking completes to let scroll content occupy height
+    if (!isStreaming) {
       setThinkingExpanded(false);
-    }, 3000);
+    } else {
+      setThinkingExpanded(true);
+    }
+  }, [isStreaming]);
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-    };
-  }, []);
+  useEffect(() => {
+    if (isStreaming && externalSteps.length === 0) {
+      const timer1 = setTimeout(() => {
+        setInternalSteps((prev) =>
+          prev.map((s) =>
+            s.id === "1"
+              ? { ...s, status: "success" }
+              : s.id === "2"
+                ? { ...s, status: "active" }
+                : s
+          )
+        );
+      }, 1000);
 
-  const responseData: ResponseContentData = {
-    paragraphs: [
-      "I've integrated the glassmorphic gradient panel aesthetic to perfectly wrap all widgets while adhering to your design guidelines.",
-      "The visual system now adapts dynamically to dark/light transitions by computing responsive CSS color mixes."
-    ],
-    bulletPoints: [
-      {
-        title: "Adaptive Color Shifting",
-        desc: "Fuses hex codes with light/dark variables to render high-contrast charcoal text in light theme and light grey elements in dark theme.",
-      },
-      {
-        title: "Frosting Backdrop Filter",
-        desc: "Implements 20px frosted backdrop blurs that dynamically scatter moving dot pattern canvas vectors.",
-      },
-    ],
+      const timer2 = setTimeout(() => {
+        setInternalSteps((prev) =>
+          prev.map((s) =>
+            s.id === "2"
+              ? { ...s, status: "success" }
+              : s.id === "3"
+                ? { ...s, status: "active" }
+                : s
+          )
+        );
+      }, 2000);
+
+      const timer3 = setTimeout(() => {
+        setInternalSteps((prev) => prev.map((s) => ({ ...s, status: "success" })));
+      }, 3000);
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
+    }
+  }, [isStreaming, externalSteps.length]);
+
+  const parseResponse = (text: string): ResponseContentData => {
+    if (!text) {
+      return { paragraphs: [], bulletPoints: [] };
+    }
+
+    const paragraphs: string[] = [];
+    const bulletPoints: Array<{ title: string; desc: string }> = [];
+
+    const blocks = text.split(/\n\n+/);
+    
+    for (const block of blocks) {
+      const trimmed = block.trim();
+      if (!trimmed) continue;
+
+      if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+        const lines = trimmed.split("\n").filter(l => l.trim().startsWith("- ") || l.trim().startsWith("* "));
+        for (const line of lines) {
+          const match = line.match(/^[-*]\s+(.+?):\s*(.+)$/);
+          if (match) {
+            bulletPoints.push({ title: match[1], desc: match[2] });
+          }
+        }
+      } else {
+        paragraphs.push(trimmed);
+      }
+    }
+
+    if (paragraphs.length === 0 && text) {
+      paragraphs.push(text);
+    }
+
+    return { paragraphs, bulletPoints: bulletPoints.length > 0 ? bulletPoints : undefined };
   };
 
-  const textToCopy = `${responseData.paragraphs.join("\n\n")}\n\n${responseData.bulletPoints
-    ?.map((b) => `- ${b.title}: ${b.desc}`)
-    .join("\n")}`;
+  const responseData = parseResponse(response);
+  const textToCopy = response;
 
   return (
     <div
-      className="w-full max-w-md h-[360px] glass-gradient-panel border border-outline-variant/40 rounded-[28px] p-6 shadow-2xl text-left select-none relative overflow-hidden flex flex-col gap-4"
+      className="w-full max-w-md h-[360px] glass-gradient-panel border border-outline-variant/40 rounded-[28px] p-6 shadow-md text-left select-none relative overflow-hidden flex flex-col gap-4"
       id="ai-response-card"
     >
       {/* Top Header Row with User Prompt Badge - Full Width */}
@@ -98,10 +137,19 @@ export function AiResponseCard({ prompt, onEdit }: AiResponseCardProps) {
       />
 
       {/* Main Dynamic Response Content Area (Scrollable to respect size limits) */}
-      <ResponseContent isThinking={isThinking} data={responseData} />
+      {error ? (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="flex items-center gap-2 text-error">
+            <AlertCircle size={20} />
+            <span className="text-sm">{error}</span>
+          </div>
+        </div>
+      ) : (
+        <ResponseContent isThinking={isThinking} data={responseData} />
+      )}
 
       {/* Action Buttons Panel (Copy, Share, Full View) */}
-      {!isThinking && (
+      {!isThinking && !error && response && (
         <ActionButtons textToCopy={textToCopy} />
       )}
     </div>

@@ -14,6 +14,44 @@ interface ResponseContentProps {
   data: ResponseContentData;
 }
 
+function renderFormattedText(text: string) {
+  const lines = text.split("\n");
+  
+  return lines.map((line, lineIdx) => {
+    const isBullet = line.trim().startsWith("- ");
+    const cleanLine = isBullet ? line.trim().substring(2) : line;
+    
+    // Process markdown bolds: **text**
+    const parts = cleanLine.split(/(\*\*.*?\*\*)/g);
+    
+    const elements = parts.map((part, partIdx) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <strong key={partIdx} className="font-semibold text-on-surface">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
+
+    if (isBullet) {
+      return (
+        <div key={lineIdx} className="flex gap-2 pl-3 py-0.5">
+          <span className="text-on-surface-variant/50 flex-shrink-0">•</span>
+          <div className="flex-1 opacity-90">{elements}</div>
+        </div>
+      );
+    }
+
+    return (
+      <div key={lineIdx} className="min-h-[1.25rem]">
+        {elements}
+      </div>
+    );
+  });
+}
+
 export function ResponseContent({ isThinking, data }: ResponseContentProps) {
   // Ultra-polished Gemini-style loading skeleton inside the scroll area
   if (isThinking) {
@@ -37,11 +75,11 @@ export function ResponseContent({ isThinking, data }: ResponseContentProps) {
   }
 
   return (
-    <div className="overflow-y-auto custom-scrollbar flex-1 pr-1.5 flex flex-col gap-4 text-on-surface text-[13.5px] leading-relaxed font-sans select-text">
+    <div className="overflow-y-auto custom-scrollbar flex-1 pr-1.5 flex flex-col gap-3.5 text-on-surface text-[13.5px] leading-relaxed font-sans select-text">
       {data.paragraphs.map((p, idx) => (
-        <p key={idx} className="font-normal opacity-95">
-          {p}
-        </p>
+        <div key={idx} className="font-normal opacity-95 flex flex-col gap-1">
+          {renderFormattedText(p)}
+        </div>
       ))}
 
       {data.bulletPoints && data.bulletPoints.length > 0 && (

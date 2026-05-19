@@ -1,4 +1,4 @@
-import { ImagePlus, Sparkles, ArrowUp } from "lucide-react";
+import { ImagePlus, Sparkles, ArrowUp, Loader2 } from "lucide-react";
 
 export function ImageAttachmentButton({ onImageClick }: { onImageClick?: () => void }) {
   return (
@@ -22,18 +22,22 @@ export function SparklesButton({ onSparklesClick }: { onSparklesClick?: () => vo
   );
 }
 
-export function SendButton({ onClick, disabled }: { onClick?: () => void; disabled?: boolean }) {
+export function SendButton({ onClick, disabled, loading }: { onClick?: () => void; disabled?: boolean; loading?: boolean }) {
   return (
     <button 
-      onClick={disabled ? undefined : onClick}
-      disabled={disabled}
+      onClick={disabled || loading ? undefined : onClick}
+      disabled={disabled || loading}
       className={`w-10 h-10 flex items-center justify-center rounded-full transition-all font-bold border-0 outline-none ${
-        disabled 
+        disabled || loading
           ? "bg-surface-container-highest text-on-surface-variant/30 cursor-not-allowed" 
           : "bg-primary text-on-primary hover:opacity-90 cursor-pointer"
       }`}
     >
-      <ArrowUp size={22} strokeWidth={3} />
+      {loading ? (
+        <Loader2 size={22} className="animate-spin" />
+      ) : (
+        <ArrowUp size={22} strokeWidth={3} />
+      )}
     </button>
   );
 }

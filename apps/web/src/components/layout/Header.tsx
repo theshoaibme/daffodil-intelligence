@@ -26,7 +26,7 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   }, []);
 
   return (
-    <header className="flex justify-between items-center h-16 px-8 w-full z-40">
+    <header className="flex justify-between items-center h-16 px-4 sm:px-8 w-full z-40">
       <div className="flex items-center gap-4">
         <button 
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -37,7 +37,7 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5">
+        <div className="hidden sm:flex items-center gap-1.5">
           <HeaderIcon title="Documentation" icon={<FileText size={22} />} />
           <HeaderIcon title="Feedback" icon={<MessageSquare size={22} />} />
           <HeaderIcon title="What's new" icon={<Gift size={22} />} />
@@ -71,7 +71,7 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute right-0 mt-3 w-[320px] bg-surface-container-highest border border-outline-variant/40 rounded-[28px] shadow-2xl z-50 overflow-hidden p-0 text-on-surface"
+                className="absolute right-0 mt-3 w-[280px] sm:w-[320px] bg-surface-container-highest border border-outline-variant/40 rounded-[28px] shadow-2xl z-50 overflow-hidden p-0 text-on-surface"
               >
                 {/* Top Info Bar & Close Button */}
                 <div className="flex items-center justify-between px-6 pt-5 pb-3">

@@ -8,17 +8,28 @@ import { Monitor } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
+import { useChat } from "./hooks/useChat";
 
 export default function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [prompt, setPrompt] = useState("");
-  const [sentPrompt, setSentPrompt] = useState("");
-  const [isSent, setIsSent] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-grow textarea
+  const { 
+    messages, 
+    isLoading, 
+    isStreaming, 
+    thinkingSteps,
+    error,
+    send,
+  } = useChat();
+
+  const hasMessages = messages.length > 0;
+  const lastUserMessage = messages.filter(m => m.role === "user").pop();
+  const lastAssistantMessage = messages.filter(m => m.role === "assistant").pop();
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -26,11 +37,10 @@ export default function App() {
     }
   }, [prompt]);
 
-  const sendPrompt = (text: string) => {
+  const sendPrompt = async (text: string) => {
     if (text.trim()) {
-      setSentPrompt(text);
-      setIsSent(true);
       setPrompt("");
+      await send(text);
     }
   };
 
@@ -38,18 +48,33 @@ export default function App() {
     sendPrompt(prompt);
   };
 
+  const handleEdit = () => {
+    if (lastUserMessage) {
+      setPrompt(lastUserMessage.content);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 50);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
-      {/* Sidebar Hover Zone - Invisible hover trigger on the left edge */}
-      <div
-        className="fixed inset-y-0 left-0 w-2 z-[60] group cursor-pointer lg:hidden"
-        onMouseEnter={() => setSidebarOpen(true)}
-      />
-
       {/* Sidebar with AnimatePresence */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
-          <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+          <>
+            {/* Backdrop overlay for mobile */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 bg-background/50 backdrop-blur-sm z-45 lg:hidden"
+            />
+            <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+          </>
         )}
       </AnimatePresence>
 
@@ -59,12 +84,12 @@ export default function App() {
         <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
         <div className="flex-1 flex flex-col items-center px-6 h-full pt-12 overflow-y-auto custom-scrollbar pb-32">
-          {!isSent ? (
+          {!hasMessages ? (
             <div className="max-w-3xl w-full flex flex-col items-center gap-10">
               {/* Hero */}
-              <div className="text-center">
-                <h1 className="text-[56px] leading-[1.1] font-medium tracking-tight text-on-surface mb-4">
-                  Welcome to Daffodil <br /> Intelligence
+              <div className="text-center px-4">
+                <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight text-on-surface mb-4">
+                  Welcome to Daffodil <br className="hidden sm:inline" /> Intelligence
                 </h1>
               </div>
 
@@ -85,10 +110,27 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div className="w-full max-w-7xl h-full relative flex flex-col md:flex-row gap-6">
+            <div className="w-full max-w-7xl relative flex flex-col md:flex-row gap-6 items-center md:items-start justify-center">
               {/* Left/Center Canvas: Open workspace canvas with dot pattern */}
-              <div className="flex-1 flex items-center justify-center md:pr-[420px] min-h-[300px]">
+              <div className="flex-1 w-full flex items-center justify-center md:pr-[420px] min-h-[180px] md:min-h-[300px]">
                 {/* Clean workspace area */}
+              </div>
+
+              {/* Mobile View Stack: Stack AI Card and Task Panel below the Canvas on small viewports */}
+              <div className="w-full max-w-md flex flex-col gap-4 md:hidden pb-8">
+                <AiResponseCard
+                  prompt={lastUserMessage?.content || ""}
+                  response={lastAssistantMessage?.content || ""}
+                  isStreaming={isStreaming}
+                  thinkingSteps={thinkingSteps}
+                  isThinking={isStreaming}
+                  onEdit={handleEdit}
+                  error={error}
+                />
+                <TaskPanel
+                  tasksCollapsed={tasksCollapsed}
+                  setTasksCollapsed={setTasksCollapsed}
+                />
               </div>
             </div>
           )}
@@ -98,18 +140,19 @@ export default function App() {
         <PromptBar
           prompt={prompt}
           setPrompt={setPrompt}
-          isSent={isSent}
+          isSent={hasMessages}
           handleSend={handleSend}
           plusMenuOpen={plusMenuOpen}
           setPlusMenuOpen={setPlusMenuOpen}
           textareaRef={textareaRef}
+          isLoading={isLoading || isStreaming}
         />
 
         {/* Right Sidebar Panel: AI Response Card on top, Task Panel at the bottom */}
-        <div className="fixed top-20 right-6 bottom-6 w-[calc(100%-48px)] sm:w-[360px] flex flex-col gap-4 z-30 pointer-events-none">
-          {/* AI Response Card (only shows when isSent is true) */}
+        <div className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-30 pointer-events-none">
+          {/* AI Response Card (only shows when hasMessages is true) */}
           <AnimatePresence>
-            {isSent && (
+            {hasMessages && (
               <motion.div
                 initial={{ opacity: 0, y: -20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -118,17 +161,13 @@ export default function App() {
                 className="pointer-events-auto flex-shrink-0"
               >
                 <AiResponseCard
-                  prompt={sentPrompt}
-                  onEdit={() => {
-                    setPrompt(sentPrompt);
-                    setTimeout(() => {
-                      if (textareaRef.current) {
-                        textareaRef.current.focus();
-                        textareaRef.current.selectionStart = textareaRef.current.value.length;
-                        textareaRef.current.selectionEnd = textareaRef.current.value.length;
-                      }
-                    }, 50);
-                  }}
+                  prompt={lastUserMessage?.content || ""}
+                  response={lastAssistantMessage?.content || ""}
+                  isStreaming={isStreaming}
+                  thinkingSteps={thinkingSteps}
+                  isThinking={isStreaming}
+                  onEdit={handleEdit}
+                  error={error}
                 />
               </motion.div>
             )}

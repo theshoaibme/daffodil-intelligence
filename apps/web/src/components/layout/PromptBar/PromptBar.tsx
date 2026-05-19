@@ -12,6 +12,7 @@ interface PromptBarProps {
   plusMenuOpen: boolean;
   setPlusMenuOpen: (open: boolean) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
+  isLoading?: boolean;
 }
 
 export function PromptBar({
@@ -20,7 +21,8 @@ export function PromptBar({
   handleSend,
   plusMenuOpen,
   setPlusMenuOpen,
-  textareaRef
+  textareaRef,
+  isLoading = false
 }: PromptBarProps) {
   return (
     <motion.div 
@@ -53,7 +55,7 @@ export function PromptBar({
             <GeminiSelector />
             <ModelSelector modelName="3 Flash" />
             <SparklesButton />
-            <SendButton onClick={handleSend} disabled={!prompt.trim()} />
+            <SendButton onClick={handleSend} disabled={!prompt.trim() || isLoading} loading={isLoading} />
           </div>
         </div>
       </div>

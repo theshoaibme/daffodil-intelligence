@@ -11,23 +11,20 @@ import { SidebarItem } from "../../ui";
 import { recentProjects } from "./projects";
 import { SidebarProps } from "./types";
 
-export function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
+export function Sidebar({ sidebarOpen }: SidebarProps) {
   const [projects] = useState(recentProjects);
 
   return (
     <motion.aside
-      initial={false}
+      initial={{ width: 0, x: -20 }}
       animate={{ width: sidebarOpen ? 280 : 0, x: sidebarOpen ? 0 : -20 }}
+      exit={{ width: 0, x: -20 }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="h-full glass-panel border-r border-outline-variant/30 flex-shrink-0 z-50 overflow-hidden relative shadow-lg"
-      onMouseLeave={() => {
-        if (window.innerWidth < 1024) setSidebarOpen(false);
-      }}
+      className="fixed lg:relative inset-y-0 left-0 h-full glass-panel flex-shrink-0 z-50 overflow-hidden shadow-lg lg:shadow-none"
     >
       <div className="w-[280px] h-full flex flex-col p-6">
         <div className="flex items-center gap-3 mb-8">
-          <span className="text-xl font-semibold tracking-tight">Stitch</span>
-          <span className="bg-primary/20 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider">BETA</span>
+          <span className="text-xl font-semibold tracking-tight">Daffodil Intelligence</span>
         </div>
 
         <div className="flex p-1 bg-surface-container-high rounded-xl mb-6">
