@@ -1,8 +1,0 @@
-{
-  "name": "daffodil-messaging",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "/usr/bin/python3 app/main.py"
-  }
-}

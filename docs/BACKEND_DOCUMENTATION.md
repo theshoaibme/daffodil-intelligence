@@ -85,10 +85,10 @@ apps/api/app/
 └── live_broadcaster.py   # Live broadcast handler
 ```
 
-### 2. MCP Server (`apps/mcp/`)
+### 2. MCP Server (`packages/mcp/`)
 Model Context Protocol server providing tools/function calling capabilities.
 
-**Entry Point:** `apps/mcp/app/server.py`
+**Entry Point:** `packages/mcp/app/server.py`
 
 **Features:**
 - 20+ registered tools across categories
@@ -98,28 +98,28 @@ Model Context Protocol server providing tools/function calling capabilities.
 - Permission-based access control (Student/Faculty/Admin/Public)
 - Real-time tools support
 
-### 3. Live Application (`apps/live/`)
+### 3. Live Application (`packages/live/`)
 WebRTC-based real-time voice communication.
 
-**Entry Point:** `apps/live/app/server.py`
+**Entry Point:** `packages/live/app/server.py`
 
 **Key Components:**
 - `webrtc_integration.py` - WebRTC integration
 - `nano_bridge.py` - Nano bridge for voice
 - `webrtc_client.py` - Client management
 
-### 4. Messaging Application (`apps/messaging/`)
+### 4. Messaging Application (`packages/messaging/`)
 Handles messaging integrations (Telegram, WhatsApp).
 
-**Entry Point:** `apps/messaging/app/main.py`
+**Entry Point:** `packages/messaging/app/main.py`
 
 **Features:**
 - `voice_handler.py` - Voice message processing
 
-### 5. Worker Application (`apps/worker/`)
+### 5. Worker Application (`packages/worker/`)
 Background job processing.
 
-**Entry Point:** `apps/worker/app/tasks.py`
+**Entry Point:** `packages/worker/app/tasks.py`
 
 ---
 
@@ -342,7 +342,7 @@ USE_MOCK_DATA: bool = True
 
 ## MCP Tool Server
 
-**File:** `apps/mcp/app/server.py`
+**File:** `packages/mcp/app/server.py`
 
 ### Tools by Category
 
@@ -424,7 +424,7 @@ USE_MOCK_DATA: bool = True
 | `agent_orchestrator.py` | Voice agent orchestration |
 | `microphone.py` | Microphone handling |
 
-### Live Application (`apps/live/`)
+### Live Application (`packages/live/`)
 
 - WebRTC server for real-time voice
 - End-to-end encryption support
@@ -507,20 +507,20 @@ uvicorn app.main:app --reload
 
 ### Start MCP Server
 ```bash
-cd apps/mcp
+cd packages/mcp
 pip install -r requirements.txt
 python app/server.py --port 8001
 ```
 
 ### Start Live Server
 ```bash
-cd apps/live
+cd packages/live
 # Build and run WebRTC server
 ```
 
 ### Start Worker
 ```bash
-cd apps/worker
+cd packages/worker
 pip install -r requirements.txt
 python app/tasks.py
 ```

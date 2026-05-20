@@ -47,9 +47,12 @@ pnpm install
 pnpm dev
 
 # Or start individually:
-# API: cd apps/api && node run-api.js
-# Web: cd apps/web && npm run dev
-# MCP: cd apps/mcp && python app/server.py
+# API: pnpm dev:api
+# Web: pnpm dev:web
+# MCP: pnpm --filter daffodil-mcp dev
+# Live: pnpm --filter daffodil-live dev
+# Messaging: pnpm --filter daffodil-messaging dev
+# Worker: pnpm --filter daffodil-worker dev
 ```
 
 ## Environment Variables

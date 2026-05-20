@@ -5,20 +5,21 @@
     "apps/*",
     "packages/*"
   ],
-"scripts": {
+  "scripts": {
     "dev": "turbo dev --ui=tui",
-    "dev:web": "cd apps/web && npm run dev",
-    "dev:api": "cd apps/api && node run-api.js",
+    "dev:web": "pnpm --filter daffodil-web dev",
+    "dev:api": "pnpm --filter daffodil-api dev",
     "dev:all": "turbo dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
-    "db:generate": "turbo run db:generate",
-    "db:migrate": "turbo run db:migrate",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "turbo db:migrate",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down"
   },
   "devDependencies": {
+    "run-script-os": "^1.1.6",
     "turbo": "^2.0.0"
   },
   "packageManager": "pnpm@9.0.0",

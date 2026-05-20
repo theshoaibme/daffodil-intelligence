@@ -8,17 +8,14 @@ importers:
 
   .:
     devDependencies:
+      run-script-os:
+        specifier: ^1.1.6
+        version: 1.1.6
       turbo:
         specifier: ^2.0.0
         version: 2.9.12
 
   apps/api: {}
-
-  apps/live: {}
-
-  apps/mcp: {}
-
-  apps/messaging: {}
 
   apps/web:
     dependencies:
@@ -93,13 +90,19 @@ importers:
         specifier: ^5.0.0
         version: 5.4.21
 
-  apps/worker: {}
-
   packages/config: {}
 
   packages/core: {}
 
+  packages/live: {}
+
+  packages/mcp: {}
+
+  packages/messaging: {}
+
   packages/types: {}
+
+  packages/worker: {}
 
 packages:
 
@@ -1371,6 +1374,10 @@ packages:
 
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
+
+  run-script-os@1.1.6:
+    resolution: {integrity: sha512-ql6P2LzhBTTDfzKts+Qo4H94VUKpxKDFz6QxxwaUZN0mwvi7L3lpOI7BqPCq7lgDh3XLl0dpeXwfcVIitlrYrw==}
+    hasBin: true
 
   scheduler@0.23.2:
     resolution: {integrity: sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ==}
@@ -2925,6 +2932,8 @@ snapshots:
   run-parallel@1.2.0:
     dependencies:
       queue-microtask: 1.2.3
+
+  run-script-os@1.1.6: {}
 
   scheduler@0.23.2:
     dependencies:

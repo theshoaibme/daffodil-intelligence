@@ -1,8 +1,0 @@
-{
-  "name": "daffodil-mcp",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "/usr/bin/python3 app/server.py --port 8002"
-  }
-}
