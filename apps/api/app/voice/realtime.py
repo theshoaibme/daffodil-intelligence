@@ -93,7 +93,7 @@ class StreamingSTT:
             audio_base64 = base64.b64encode(audio).decode()
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={settings.GEMINI_API_KEY}",
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}",
                     json={"contents": [{"parts": [{"inline_data": {"mimeType": "audio/wav", "data": audio_base64}}]}]}
                 )
                 if response.status_code == 200:
@@ -995,7 +995,7 @@ class MultimodalProcessor:
             audio_base64 = base64.b64encode(audio).decode()
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={settings.GEMINI_API_KEY}",
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}",
                     json={
                         "contents": [{
                             "parts": [{
@@ -1025,7 +1025,7 @@ class MultimodalProcessor:
             
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={settings.GEMINI_API_KEY}",
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}",
                     json={
                         "contents": [{
                             "parts": [{
@@ -1378,7 +1378,7 @@ class LiveTranslation:
             
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={settings.GEMINI_API_KEY}",
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}",
                     json={
                         "contents": [{
                             "parts": [{"text": prompt}]
@@ -1742,7 +1742,7 @@ class RealtimeVoiceEngine:
             audio_base64 = base64.b64encode(audio).decode()
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={settings.GEMINI_API_KEY}",
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}",
                     json={
                         "contents": [{
                             "parts": [{

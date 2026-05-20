@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_ID: str = ""
     WHATSAPP_ACCESS_TOKEN: str = ""
 
-    GEMINI_MODEL_NAME: str = "gemini-2.0-flash-exp"
+    GEMINI_MODEL_NAME: str = "gemini-2.0-flash"
     GEMINI_VOICE: str = "Charon"
 
     TTS_PROSODY_RATE: str = "fast"
