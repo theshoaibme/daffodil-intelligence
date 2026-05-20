@@ -107,6 +107,24 @@ If query is complex (multiple topics), call multiple agents in parallel.
 
     async def process(self, message: str, context: Optional[dict] = None) -> str:
         lang = detect_language(message)
+        
+        # Fast local handling for simple greetings to save LLM calls and avoid rate-limiting
+        msg_clean = message.lower().strip().strip("?.!।")
+        greetings_en = ["hello", "hi", "hey", "greetings", "good morning", "good afternoon", "good evening"]
+        greetings_bn = ["হ্যালো", "হাই", "আসসালামু আলাইকুম", "নমস্কার", "শুভ সকাল", "শুভ দুপুর", "শুভ সন্ধ্যা"]
+        
+        if any(g in msg_clean for g in greetings_en + greetings_bn):
+            # Check if any other agent keyword is present
+            has_other_keywords = False
+            for agent, words in KEYWORDS.items():
+                if any(word in msg_clean for word in words):
+                    has_other_keywords = True
+                    break
+            if not has_other_keywords:
+                if lang == "bn":
+                    return "হ্যালো! আমি ড্যাফোডিল ইন্টেলিজেন্স। আজ আপনাকে কীভাবে সাহায্য করতে পারি?"
+                return "Hello! I am Daffodil Intelligence. How can I assist you today?"
+
         agents = await self.detect_intent_ai(message)
         results = await process_with_agents(message, agents, context)
         response = await synthesize_response(results, message, lang)
@@ -134,31 +152,32 @@ AGENT_MAP = {
 }
 
 
+KEYWORDS = {
+    "academic": ["cgpa", "gpa", "grade", "result", "course", "syllabus", "semester", "attendance", "marks"],
+    "library": ["book", "journal", "pdf", "borrow", "library", "research paper", "isbn"],
+    "campus": ["shuttle", "room", "notice", "campus", "building", "facility"],
+    "career": ["job", "internship", "cv", "resume", "interview", "career", "roadmap", "placement"],
+    "coding": ["code", "debug", "programming", "algorithm", "error", "bug", "develop", "function"],
+    "research": ["thesis", "paper", "research", "citation", "literature", "abstract", "publication"],
+    "wellness": ["stress", "mental", "study tips", "motivation", "relax", "anxiety", "health"],
+    "finance": ["fee", "payment", "waiver", "scholarship", "tuition", "money", "cost"],
+    "vision": ["image", "screenshot", "photo", "pdf", "analyze", "read"],
+    "voice": ["speak", "voice", "speech", "audio", "talk", "voice chat"],
+    "exam": ["exam", "exam schedule", "seating", "seat plan", "midterm", "final exam"],
+    "hostel": ["hostel", "hostel room", "bed", "mess", "check in", "check out", "ac room"],
+    "transport": ["shuttle", "bus", "transport", "route", "track shuttle", "vehicle", "van"],
+    "event": ["event", "workshop", "seminar", "club", "activity", "register event"],
+    "complaint": ["complaint", "complain", "issue", "problem", "feedback", "escalate", "grievance"],
+    "notification": ["notification", "notifications", "alert", "announcement", "message", "subscribe"],
+    "fee": ["tuition fee", "installment", "due", "pay fee", "emi", "semester fee"],
+}
+
+
 def detect_intent(message: str) -> list[str]:
     message_lower = message.lower()
     agents = []
 
-    keywords = {
-        "academic": ["cgpa", "gpa", "grade", "result", "course", "syllabus", "semester", "attendance", "marks"],
-        "library": ["book", "journal", "pdf", "borrow", "library", "research paper", "isbn"],
-        "campus": ["shuttle", "room", "notice", "campus", "building", "facility"],
-        "career": ["job", "internship", "cv", "resume", "interview", "career", "roadmap", "placement"],
-        "coding": ["code", "debug", "programming", "algorithm", "error", "bug", "develop", "function"],
-        "research": ["thesis", "paper", "research", "citation", "literature", "abstract", "publication"],
-        "wellness": ["stress", "mental", "study tips", "motivation", "relax", "anxiety", "health"],
-        "finance": ["fee", "payment", "waiver", "scholarship", "tuition", "money", "cost"],
-        "vision": ["image", "screenshot", "photo", "pdf", "analyze", "read"],
-        "voice": ["speak", "voice", "speech", "audio", "talk", "voice chat"],
-        "exam": ["exam", "exam schedule", "seating", "seat plan", "midterm", "final exam"],
-        "hostel": ["hostel", "hostel room", "bed", "mess", "check in", "check out", "ac room"],
-        "transport": ["shuttle", "bus", "transport", "route", "track shuttle", "vehicle", "van"],
-        "event": ["event", "workshop", "seminar", "club", "activity", "register event"],
-        "complaint": ["complaint", "complain", "issue", "problem", "feedback", "escalate", "grievance"],
-        "notification": ["notification", "notifications", "alert", "announcement", "message", "subscribe"],
-        "fee": ["tuition fee", "installment", "due", "pay fee", "emi", "semester fee"],
-    }
-
-    for agent, words in keywords.items():
+    for agent, words in KEYWORDS.items():
         if any(word in message_lower for word in words):
             agents.append(agent)
 
@@ -169,6 +188,23 @@ def detect_intent(message: str) -> list[str]:
 
 
 async def process_with_agents(message: str, agents: list[str], context: dict = None) -> dict:
+    lang = detect_language(message)
+    msg_clean = message.lower().strip().strip("?.!।")
+    greetings_en = ["hello", "hi", "hey", "greetings", "good morning", "good afternoon", "good evening"]
+    greetings_bn = ["হ্যালো", "হাই", "আসসালামু আলাইকুম", "নমস্কার", "শুভ সকাল", "শুভ দুপুর", "শুভ সন্ধ্যা"]
+    
+    if any(g in msg_clean for g in greetings_en + greetings_bn):
+        # Check if any other agent keyword is present
+        has_other_keywords = False
+        for agent, words in KEYWORDS.items():
+            if any(word in msg_clean for word in words):
+                has_other_keywords = True
+                break
+        if not has_other_keywords:
+            if lang == "bn":
+                return {"general": "হ্যালো! আমি ড্যাফোডিল ইন্টেলিজেন্স। আজ আপনাকে কীভাবে সাহায্য করতে পারি?"}
+            return {"general": "Hello! I am Daffodil Intelligence. How can I assist you today?"}
+
     results = {}
     tools_used = []
 
@@ -194,16 +230,37 @@ async def synthesize_response(results: dict, original_message: str, language: st
     if language is None:
         language = detect_language(original_message)
 
-    if len(results) == 1:
-        result_text = list(results.values())[0]
+    # Process all result values to clean/replace error messages first
+    processed_results = {}
+    for agent_name, result in results.items():
+        if isinstance(result, str):
+            if result.startswith("Error"):
+                if language == "bn":
+                    processed_results[agent_name] = "দুঃখিত, বিশ্ববিদ্যালয়ের সার্ভিসটির সাথে সংযোগ করতে সমস্যা হচ্ছে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।"
+                else:
+                    processed_results[agent_name] = "I'm sorry, I am having trouble connecting to the university service. Please try again in a moment."
+            else:
+                processed_results[agent_name] = result
+        else:
+            processed_results[agent_name] = result
+
+    if len(processed_results) == 1:
+        result_text = list(processed_results.values())[0]
         if isinstance(result_text, str):
             return format_voice_response(result_text, language)
         return result_text
 
     response_parts = []
-    for agent_name, result in results.items():
-        if isinstance(result, str) and not result.startswith("Error"):
+    for agent_name, result in processed_results.items():
+        if isinstance(result, str):
             response_parts.append(format_voice_response(result, language))
+
+    # Avoid returning empty string if all results failed
+    if not response_parts:
+        if language == "bn":
+            return "দুঃখিত, বিশ্ববিদ্যালয়ের সার্ভিসটির সাথে সংযোগ করতে সমস্যা হচ্ছে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।"
+        else:
+            return "I'm sorry, I am having trouble connecting to the university service. Please try again in a moment."
 
     return "। ".join(response_parts) if language == "bn" else "\n\n".join(response_parts)
 

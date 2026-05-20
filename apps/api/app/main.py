@@ -7,6 +7,7 @@ from pathlib import Path
 import langchain
 langchain.verbose = False
 langchain.debug = False
+langchain.llm_cache = None
 
 from .core.config import get_settings
 from .core.database import init_db, close_db

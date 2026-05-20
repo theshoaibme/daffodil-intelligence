@@ -161,9 +161,9 @@ class StreamingTTS:
         for i, chunk in enumerate(chunks[:3]):
             if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "test-key":
                 ssml = self._make_ssml(chunk, language)
-                first_tasks.append(self._tts_async(ssml, language))
+                first_tasks.append(asyncio.create_task(self._tts_async(ssml, language)))
             else:
-                first_tasks.append(self._mock_tts(chunk))
+                first_tasks.append(asyncio.create_task(self._mock_tts(chunk)))
         
         # Stream first chunks immediately
         for i, task in enumerate(first_tasks):
