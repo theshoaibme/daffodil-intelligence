@@ -4,7 +4,7 @@ import logging
 # pyrefly: ignore [missing-import]
 from langchain_openai import ChatOpenAI
 # pyrefly: ignore [missing-import]
-from langchain.schema import HumanMessage, AIMessage, SystemMessage
+from langchain.messages import HumanMessage, AIMessage, SystemMessage
 from ..core.config import get_settings
 
 settings = get_settings()
