@@ -63,11 +63,11 @@ class BaseAgent(ABC):
 
     async def generate_response(self, system_prompt: str, user_message: str) -> str:
         try:
-            messages = [SystemMessage(content=system_prompt)] + self.history + [HumanMessage(content=user_message)]
+            # Agents are singletons — do NOT use self.history here to prevent
+            # cross-request history contamination between different users/sessions.
+            messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_message)]
             response = await self.llm.agenerate([messages])
-            result = response.generations[0][0].text
-            self.add_to_history("assistant", result)
-            return result
+            return response.generations[0][0].text
         except Exception as e:
             err_str = str(e)
             if "429" in err_str or "rate" in err_str.lower() or "Too Many Requests" in err_str:

@@ -1,9 +1,12 @@
 import asyncio
 import base64
 import json
+import logging
 import re
 import time
 import math
+import tempfile
+import os
 from typing import Optional, AsyncGenerator, Dict, List, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -11,6 +14,13 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 import httpx
 from ..core.config import get_settings
+
+logger = logging.getLogger(__name__)
+
+# Edge TTS rate limiting
+_tts_cache: Dict[str, str] = {}
+_last_tts_call: float = 0
+_tts_rate_limit_delay: float = 0.5  # 500ms between calls
 
 
 class VoiceState(Enum):
@@ -237,23 +247,77 @@ class StreamingTTS:
     async def _tts_async(self, ssml: str, language: str) -> str:
         settings = get_settings()
         
-        # Skip entirely if no API key — avoids 403 errors from Google TTS
-        if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("", "test-key", "your_gemini_api_key"):
-            return ""
+        # First try Google Cloud TTS
+        if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY not in ("", "test-key", "your_gemini_api_key"):
+            lang_code = "bn-BD" if language.startswith("bn") else "en-US"
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    response = await client.post(
+                        f"https://texttospeech.googleapis.com/v1/text:synthesize?key={settings.GEMINI_API_KEY}",
+                        json={
+                            "input": {"ssml": ssml},
+                            "voice": {"languageCode": lang_code, "name": settings.GEMINI_VOICE},
+                            "audioConfig": {"audioEncoding": "MP3", "sampleRateHertz": 24000, "speakingRate": 1.1}
+                        }
+                    )
+                    if response.status_code == 200:
+                        return response.json().get("audioContent", "")
+            except Exception:
+                pass
         
-        lang_code = "bn-BD" if language.startswith("bn") else "en-US"
+        # Fallback to Edge TTS (free, no API key needed)
+        try:
+            import edge_tts
+            import base64
+            
+            # Rate limiting
+            global _last_tts_call, _tts_rate_limit_delay
+            now = time.time()
+            if now - _last_tts_call < _tts_rate_limit_delay:
+                await asyncio.sleep(_tts_rate_limit_delay - (now - _last_tts_call))
+            _last_tts_call = time.time()
+            
+            text = ssml.replace('<speak>', '').replace('</speak>', '').replace('<prosody rate="105%">', '').replace('<prosody rate="110%">', '').replace('</prosody>', '').strip()
+            
+            if not text:
+                logger.debug(f"Edge TTS: Empty text after parsing SSML")
+                return ""
+            
+            voice = "bn-BD-NabanitaNeural" if language.startswith("bn") else "en-US-JennyNeural"
+            
+            # Check cache
+            cache_key = f"{voice}:{text[:100]}"
+            if cache_key in _tts_cache:
+                return _tts_cache[cache_key]
+            
+            logger.debug(f"Edge TTS: text='{text[:50]}...' voice={voice}")
+            
+            communicate = edge_tts.Communicate(text, voice)
+            temp_path = "/tmp/di_tts_output.mp3"
+            await communicate.save(temp_path)
+            
+            with open(temp_path, 'rb') as f:
+                audio_bytes = f.read()
+            
+            os.remove(temp_path)
+            
+            if not audio_bytes:
+                logger.debug("Edge TTS: No audio bytes received")
+                return ""
+            
+            result = base64.b64encode(audio_bytes).decode('utf-8')
+            
+            # Cache result (limit cache size)
+            if len(_tts_cache) > 50:
+                _tts_cache.clear()
+            _tts_cache[cache_key] = result
+            
+            return result
+        except Exception as e:
+            logger.error(f"Edge TTS fallback failed: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.post(
-                f"https://texttospeech.googleapis.com/v1/text:synthesize?key={settings.GEMINI_API_KEY}",
-                json={
-                    "input": {"ssml": ssml},
-                    "voice": {"languageCode": lang_code, "name": settings.GEMINI_VOICE},
-                    "audioConfig": {"audioEncoding": "MP3", "sampleRateHertz": 24000, "speakingRate": 1.1}
-                }
-            )
-            if response.status_code == 200:
-                return response.json().get("audioContent", "")
         return ""
     
 
@@ -1699,43 +1763,58 @@ class RealtimeVoiceEngine:
     
     async def text_to_speech_ssml(self, ssml: str, language: str = "en-US") -> str:
         settings = get_settings()
-        if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("", "test-key", "your_gemini_api_key"):
-            return ""
         
-        lang_code = language
-        if language == "bn-BD":
-            lang_code = "bn-BD"
-        elif language.startswith("bn"):
-            lang_code = "bn-BD"
-        elif language == "en-US":
-            lang_code = "en-US"
-        else:
-            lang_code = "en-US"
-        
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"https://texttospeech.googleapis.com/v1/text:synthesize?key={settings.GEMINI_API_KEY}",
-                    json={
-                        "input": {"ssml": ssml},
-                        "voice": {
-                            "languageCode": lang_code,
-                            "name": settings.GEMINI_VOICE
-                        },
-                        "audioConfig": {
-                            "audioEncoding": "MP3",
-                            "sampleRateHertz": 24000,
-                            "speakingRate": 1.1,
-                            "pitch": 0,
-                            "volumeGainDb": 0
+        # Try Google Cloud TTS first
+        if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY not in ("", "test-key", "your_gemini_api_key"):
+            lang_code = language if language in ("bn-BD", "en-US") else ("bn-BD" if language.startswith("bn") else "en-US")
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        f"https://texttospeech.googleapis.com/v1/text:synthesize?key={settings.GEMINI_API_KEY}",
+                        json={
+                            "input": {"ssml": ssml},
+                            "voice": {"languageCode": lang_code, "name": settings.GEMINI_VOICE},
+                            "audioConfig": {"audioEncoding": "MP3", "sampleRateHertz": 24000, "speakingRate": 1.1, "pitch": 0, "volumeGainDb": 0}
                         }
-                    }
-                )
-                if response.status_code == 200:
-                    result = response.json()
-                    return result.get("audioContent", "")
+                    )
+                    if response.status_code == 200:
+                        return response.json().get("audioContent", "")
+            except Exception:
+                pass
+        
+        # Fallback to Edge TTS
+        try:
+            import edge_tts
+            import base64
+            
+            # Rate limiting
+            global _last_tts_call, _tts_rate_limit_delay
+            now = time.time()
+            if now - _last_tts_call < _tts_rate_limit_delay:
+                await asyncio.sleep(_tts_rate_limit_delay - (now - _last_tts_call))
+            _last_tts_call = time.time()
+            
+            text = ssml.replace('<speak>', '').replace('</speak>', '').replace('<prosody rate="105%">', '').replace('<prosody rate="110%">', '').replace('</prosody>', '').strip()
+            
+            if not text:
+                return ""
+            
+            voice = "bn-BD-NabanitaNeural" if language.startswith("bn") else "en-US-JennyNeural"
+            communicate = edge_tts.Communicate(text, voice)
+            temp_path = "/tmp/di_tts_output2.mp3"
+            await communicate.save(temp_path)
+            with open(temp_path, 'rb') as f:
+                audio_bytes = f.read()
+            os.remove(temp_path)
+            
+            if not audio_bytes:
+                logger.debug("Edge TTS: No audio bytes received")
+                return ""
+            
+            return base64.b64encode(audio_bytes).decode('utf-8')
         except Exception as e:
-            pass
+            logger.error(f"Edge TTS fallback failed: {e}")
+        
         return ""
     
     async def text_to_speech(self, text: str) -> str:

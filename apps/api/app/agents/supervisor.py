@@ -16,6 +16,7 @@ from .event import EventAgent
 from .complaint import ComplaintAgent
 from .notification import NotificationAgent
 from .fee_agent import FeeAgent
+from .general import GeneralAgent
 import logging
 import re
 from typing import Optional
@@ -146,6 +147,7 @@ AGENT_MAP = {
     "complaint": ComplaintAgent(),
     "notification": NotificationAgent(),
     "fee": FeeAgent(),
+    "general": GeneralAgent(),
 }
 
 
@@ -178,34 +180,15 @@ def detect_intent(message: str) -> list[str]:
         if any(word in message_lower for word in words):
             agents.append(agent)
 
-    # Don't blindly fallback to academic — return empty to trigger a general clarification
+    # Fallback to general agent for greetings or unknown queries
+    if not agents:
+        agents = ["general"]
+
     return agents
 
 
 async def process_with_agents(message: str, agents: list[str], context: dict = None) -> dict:
     lang = detect_language(message)
-    msg_clean = message.lower().strip().strip("?.!।")
-    greetings_en = ["hello", "hi", "hey", "greetings", "good morning", "good afternoon", "good evening"]
-    greetings_bn = ["হ্যালো", "হাই", "আসসালামু আলাইকুম", "নমস্কার", "শুভ সকাল", "শুভ দুপুর", "শুভ সন্ধ্যা"]
-    
-    if any(g in msg_clean for g in greetings_en + greetings_bn):
-        # Check if any other agent keyword is present
-        has_other_keywords = False
-        for agent, words in KEYWORDS.items():
-            if any(word in msg_clean for word in words):
-                has_other_keywords = True
-                break
-        if not has_other_keywords:
-            if lang == "bn":
-                return {"general": "হ্যালো! আমি ড্যাফোডিল ইন্টেলিজেন্স। আজ আপনাকে কীভাবে সাহায্য করতে পারি?"}
-            return {"general": "Hello! I am Daffodil Intelligence. How can I assist you today?"}
-
-    # No agents matched — ask user to clarify
-    if not agents:
-        if lang == "bn":
-            return {"general": "আমি আপনার প্রশ্নটি সম্পূর্ণভাবে বুঝতে পারিনি। অনুগ্রহ করে আরও নির্দিষ্টভাবে জিজ্ঞাসা করুন — যেমন সিজিপিএ, লাইব্রেরি, শাটল, বা ক্যারিয়ার সম্পর্কে।"}
-        return {"general": "I'm not sure what you're asking. Could you be more specific? You can ask me about CGPA, library books, shuttle schedules, career opportunities, and more."}
-
     results = {}
     tools_used = []
 
@@ -220,10 +203,7 @@ async def process_with_agents(message: str, agents: list[str], context: dict = N
             except RuntimeError as e:
                 if str(e) == "RATE_LIMITED":
                     logger.warning(f"Agent {agent_type} rate-limited, skipping")
-                    if lang == "bn":
-                        results[agent_type] = "দুঃখিত, এআই সার্ভিসটি এই মুহূর্তে ব্যস্ত আছে। একটু পরে আবার চেষ্টা করুন।"
-                    else:
-                        results[agent_type] = "I'm sorry, the AI service is busy right now. Please try again in a moment."
+                    results[agent_type] = "Error: RATE_LIMITED"
                 else:
                     logger.error(f"Agent {agent_type} failed: {e}")
                     results[agent_type] = f"Error: {str(e)}"
@@ -241,19 +221,10 @@ async def synthesize_response(results: dict, original_message: str, language: st
     if language is None:
         language = detect_language(original_message)
 
-    # Process all result values to clean/replace error messages first
+    # Process all result values
     processed_results = {}
     for agent_name, result in results.items():
-        if isinstance(result, str):
-            if result.startswith("Error"):
-                if language == "bn":
-                    processed_results[agent_name] = "দুঃখিত, বিশ্ববিদ্যালয়ের সার্ভিসটির সাথে সংযোগ করতে সমস্যা হচ্ছে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।"
-                else:
-                    processed_results[agent_name] = "I'm sorry, I am having trouble connecting to the university service. Please try again in a moment."
-            else:
-                processed_results[agent_name] = result
-        else:
-            processed_results[agent_name] = result
+        processed_results[agent_name] = result
 
     if len(processed_results) == 1:
         result_text = list(processed_results.values())[0]
@@ -266,12 +237,8 @@ async def synthesize_response(results: dict, original_message: str, language: st
         if isinstance(result, str):
             response_parts.append(format_voice_response(result, language))
 
-    # Avoid returning empty string if all results failed
     if not response_parts:
-        if language == "bn":
-            return "দুঃখিত, বিশ্ববিদ্যালয়ের সার্ভিসটির সাথে সংযোগ করতে সমস্যা হচ্ছে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।"
-        else:
-            return "I'm sorry, I am having trouble connecting to the university service. Please try again in a moment."
+        return "Error: No response generated"
 
     return "। ".join(response_parts) if language == "bn" else "\n\n".join(response_parts)
 

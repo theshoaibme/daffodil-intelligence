@@ -2,6 +2,9 @@ import asyncio
 import base64
 import json
 import time
+import subprocess
+import tempfile
+import os
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, List, Any, AsyncGenerator
 from dataclasses import dataclass, field
@@ -309,12 +312,91 @@ class AzureSpeechProvider(TTSProvider):
         return self._voices
 
 
+class EdgeTTSProvider(TTSProvider):
+    def __init__(self, config: TTSConfig = None):
+        super().__init__(config or TTSConfig())
+        self.name = "edge_tts"
+        self._voice_map = {
+            "bn": "bn-BD-NabanitaNeural",
+            "bn-BD": "bn-BD-NabanitaNeural",
+            "en": "en-US-JennyNeural",
+            "en-US": "en-US-JennyNeural",
+            "en-GB": "en-GB-SoniaNeural",
+        }
+        self._voices = [
+            TTSVoice("bn-BD-NabanitaNeural", "Nabanita (Bengali)", "bn-BD", "female"),
+            TTSVoice("bn-BD-PradeepNeural", "Pradeep (Bengali)", "bn-BD", "male"),
+            TTSVoice("en-US-JennyNeural", "Jenny (English)", "en-US", "female"),
+            TTSVoice("en-US-GuyNeural", "Guy (English)", "en-US", "male"),
+            TTSVoice("en-GB-SoniaNeural", "Sonia (English UK)", "en-GB", "female"),
+        ]
+    
+    def preprocess_text(self, text: str) -> str:
+        text = text.replace('।', '.').replace('!', '! ').strip()
+        return text
+    
+    async def synthesize(self, text: str, voice_id: str = None) -> TTSResult:
+        start = time.time()
+        text = self.preprocess_text(text)
+        
+        voice = voice_id or "en-US"
+        if voice in self._voice_map:
+            voice = self._voice_map[voice]
+        
+        try:
+            import edge_tts
+            communicate = edge_tts.Communicate(text, voice)
+            mp3_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False)
+            await communicate.save(mp3_file.name)
+            mp3_file.close()
+            with open(mp3_file.name, 'rb') as f:
+                audio_bytes = f.read()
+            os.unlink(mp3_file.name)
+            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+            return TTSResult(
+                audio=audio_base64,
+                duration_ms=len(text) * 50,
+                provider=self.name,
+                voice_id=voice,
+                cost_ms=(time.time() - start) * 1000
+            )
+        except Exception as e:
+            print(f"Edge TTS error: {e}")
+        return TTSResult(audio="", duration_ms=len(text) * 50, provider=self.name, voice_id=voice, cost_ms=(time.time() - start) * 1000)
+    
+    async def synthesize_streaming(self, text: str, voice_id: str = None) -> AsyncGenerator[bytes, None]:
+        try:
+            import edge_tts
+            voice = voice_id or "en-US"
+            if voice in self._voice_map:
+                voice = self._voice_map[voice]
+            communicate = edge_tts.Communicate(text, voice)
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    yield chunk["data"]
+        except Exception as e:
+            print(f"Edge TTS streaming error: {e}")
+            yield b""
+    
+    async def get_available_voices(self) -> List[TTSVoice]:
+        try:
+            import edge_tts
+            voices = await edge_tts.list_voices()
+            return [
+                TTSVoice(v["Name"], v["Name"], v["Locale"], v.get("Gender", "neutral"))
+                for v in voices[:10]
+            ]
+        except:
+            return self._voices
+
+
 class UnifiedTTSEngine:
     def __init__(self, api_keys: Dict[str, str] = None):
         self.config = TTSConfig()
         self.api_keys = api_keys or {}
         
         self.providers: Dict[str, TTSProvider] = {
+            "edge_tts": EdgeTTSProvider(self.config),
             "elevenlabs": ElevenLabsProvider(
                 self.api_keys.get("elevenlabs", "test")
             ),
@@ -327,8 +409,8 @@ class UnifiedTTSEngine:
             )
         }
         
-        self.current_provider = "elevenlabs"
-        self._fallback_chain = ["elevenlabs", "google_cloud", "azure"]
+        self.current_provider = "edge_tts"
+        self._fallback_chain = ["edge_tts", "elevenlabs", "google_cloud", "azure"]
         self._usage_stats: Dict[str, Dict] = {}
     
     def set_provider(self, provider: str):
