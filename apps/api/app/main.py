@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
+# pyrefly: ignore [missing-import]
+import langchain
+langchain.verbose = False
 
 from .core.config import get_settings
 from .core.database import init_db, close_db

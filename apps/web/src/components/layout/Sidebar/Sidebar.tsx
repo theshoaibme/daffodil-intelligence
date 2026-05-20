@@ -4,15 +4,19 @@ import {
   LayoutGrid,
   Users,
   Settings,
-  HelpCircle
+  HelpCircle,
+  Mic,
+  Cpu
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { SidebarItem } from "../../ui";
 import { recentProjects } from "./projects";
 import { SidebarProps } from "./types";
 
 export function Sidebar({ sidebarOpen }: SidebarProps) {
   const [projects] = useState(recentProjects);
+  const navigate = useNavigate();
 
   return (
     <motion.aside
@@ -43,7 +47,7 @@ export function Sidebar({ sidebarOpen }: SidebarProps) {
           <input 
             type="text" 
             placeholder="Search..."
-            className="w-full bg-surface-container-high/50 border border-outline-variant/20 rounded-xl pl-10 pr-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant focus:ring-1 focus:ring-primary outline-none transition-all"
+            className="w-full bg-surface-container-high/50 border border-outline-variant/20 rounded-xl pl-10 pr-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none transition-all"
           />
         </div>
 
@@ -64,11 +68,25 @@ export function Sidebar({ sidebarOpen }: SidebarProps) {
         </div>
 
         <div className="pt-4 border-t border-outline-variant/20 flex flex-col gap-1">
-          <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all">
+          <button 
+            onClick={() => navigate("/live")}
+            className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer"
+          >
+            <Mic size={20} className="text-primary" />
+            <span className="text-sm font-semibold">Live Voice</span>
+          </button>
+          <button 
+            onClick={() => navigate("/model")}
+            className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer"
+          >
+            <Cpu size={20} className="text-primary" />
+            <span className="text-sm font-semibold">Model Settings</span>
+          </button>
+          <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer">
             <Settings size={20} />
             <span className="text-sm">Settings</span>
           </button>
-          <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all">
+          <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer">
             <HelpCircle size={20} />
             <span className="text-sm">Help Center</span>
           </button>

@@ -11,13 +11,14 @@ import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./compone
 import { useChat } from "./hooks/useChat";
 
 import { Routes, Route } from "react-router-dom";
-import { ModelManagementPage } from "./components/layout";
+import { ModelManagementPage, LiveVoicePage } from "./components/layout";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<ChatDashboard />} />
       <Route path="/model" element={<ModelManagementPage />} />
+      <Route path="/live" element={<LiveVoicePage />} />
     </Routes>
   );
 }

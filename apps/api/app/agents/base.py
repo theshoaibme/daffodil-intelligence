@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Optional
 import logging
 # pyrefly: ignore [missing-import]
+import langchain
+langchain.verbose = False
+# pyrefly: ignore [missing-import]
 from langchain_openai import ChatOpenAI
 # pyrefly: ignore [missing-import]
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
