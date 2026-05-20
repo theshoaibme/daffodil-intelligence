@@ -6,6 +6,7 @@ from pathlib import Path
 # pyrefly: ignore [missing-import]
 import langchain
 langchain.verbose = False
+langchain.debug = False
 
 from .core.config import get_settings
 from .core.database import init_db, close_db

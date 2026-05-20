@@ -4,6 +4,7 @@ import logging
 # pyrefly: ignore [missing-import]
 import langchain
 langchain.verbose = False
+langchain.debug = False
 # pyrefly: ignore [missing-import]
 from langchain_openai import ChatOpenAI
 # pyrefly: ignore [missing-import]

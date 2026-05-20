@@ -256,7 +256,7 @@ class StreamingTTS:
                 return response.json().get("audioContent", "")
         return ""
     
-    def _mock_tts(self, text: str) -> str:
+    async def _mock_tts(self, text: str) -> str:
         return base64.b64encode(f"audio_{text[:20]}".encode()).decode()
     
     def _mock_tts_sync(self, text: str) -> str:
