@@ -68,9 +68,6 @@ If query is complex (multiple topics), call multiple agents in parallel.
 """
 
     async def detect_intent_ai(self, message: str) -> list[str]:
-        if settings.USE_MOCK_DATA or not settings.OPENAI_API_KEY:
-            return detect_intent(message)
-            
         system_prompt = (
             "You are the router for Daffodil Intelligence. Analyze the user query and determine which of these agents "
             "are needed. Respond with a comma-separated list of the relevant agent keys, and nothing else.\n"
@@ -181,9 +178,7 @@ def detect_intent(message: str) -> list[str]:
         if any(word in message_lower for word in words):
             agents.append(agent)
 
-    if not agents:
-        agents = ["academic"]
-
+    # Don't blindly fallback to academic — return empty to trigger a general clarification
     return agents
 
 
@@ -205,6 +200,12 @@ async def process_with_agents(message: str, agents: list[str], context: dict = N
                 return {"general": "হ্যালো! আমি ড্যাফোডিল ইন্টেলিজেন্স। আজ আপনাকে কীভাবে সাহায্য করতে পারি?"}
             return {"general": "Hello! I am Daffodil Intelligence. How can I assist you today?"}
 
+    # No agents matched — ask user to clarify
+    if not agents:
+        if lang == "bn":
+            return {"general": "আমি আপনার প্রশ্নটি সম্পূর্ণভাবে বুঝতে পারিনি। অনুগ্রহ করে আরও নির্দিষ্টভাবে জিজ্ঞাসা করুন — যেমন সিজিপিএ, লাইব্রেরি, শাটল, বা ক্যারিয়ার সম্পর্কে।"}
+        return {"general": "I'm not sure what you're asking. Could you be more specific? You can ask me about CGPA, library books, shuttle schedules, career opportunities, and more."}
+
     results = {}
     tools_used = []
 
@@ -216,6 +217,16 @@ async def process_with_agents(message: str, agents: list[str], context: dict = N
                 results[agent_type] = response
                 tools_used.extend(agent.tools)
                 logger.info(f"Agent {agent_type} processed successfully")
+            except RuntimeError as e:
+                if str(e) == "RATE_LIMITED":
+                    logger.warning(f"Agent {agent_type} rate-limited, skipping")
+                    if lang == "bn":
+                        results[agent_type] = "দুঃখিত, এআই সার্ভিসটি এই মুহূর্তে ব্যস্ত আছে। একটু পরে আবার চেষ্টা করুন।"
+                    else:
+                        results[agent_type] = "I'm sorry, the AI service is busy right now. Please try again in a moment."
+                else:
+                    logger.error(f"Agent {agent_type} failed: {e}")
+                    results[agent_type] = f"Error: {str(e)}"
             except Exception as e:
                 logger.error(f"Agent {agent_type} failed: {e}")
                 results[agent_type] = f"Error: {str(e)}"

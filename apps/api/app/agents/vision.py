@@ -98,8 +98,6 @@ Great for debugging UI issues!"""
 
 
 async def analyze_image(image_data: str) -> Dict:
-    settings = __import__('os').environ
-    
     if not image_data:
         return {
             "description": "No image data provided",
@@ -108,13 +106,6 @@ async def analyze_image(image_data: str) -> Dict:
         }
     
     try:
-        if len(image_data) < 100:
-            return {
-                "description": "Mock analysis: A university campus scene with buildings and students",
-                "detected_elements": ["building", "students", "trees", "pathway", "signboard"],
-                "confidence": 0.92
-            }
-        
         return {
             "description": "Real-time analysis: Objects detected in the camera frame",
             "detected_elements": ["object1", "object2", "text_detected"],

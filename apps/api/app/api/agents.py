@@ -144,14 +144,7 @@ async def generate_gemini_stream(prompt: str):
     import httpx
     
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY == "your_gemini_api_key":
-        mock_responses = [
-            "Hello! I'm your AI assistant. How can I help you today?",
-            "I can help you with your academic queries, library searches, campus information, and more!",
-            "Try asking me about your CGPA, available books, shuttle schedules, or career opportunities.",
-        ]
-        for response in mock_responses:
-            yield f"data: {response}\n\n"
-            await asyncio.sleep(0.5)
+        yield f"data: GEMINI_API_KEY is not configured. Please set it in the .env file.\n\n"
         return
     
     try:
@@ -222,8 +215,8 @@ async def gemini_chat_simple(data: dict):
     
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY == "your_gemini_api_key":
         return {
-            "response": "Hello! I'm your AI assistant powered by Gemini. Please configure your GEMINI_API_KEY in the .env file to enable full functionality. For now, I can help with basic queries about your university - try asking about CGPA, library books, or campus shuttle!",
-            "source": "mock"
+            "error": "GEMINI_API_KEY is not configured. Please set it in the .env file.",
+            "source": "config_error"
         }
     
     try:

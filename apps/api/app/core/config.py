@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     NODE_ENV: str = "development"
     LOG_LEVEL: str = "DEBUG"
 
-    USE_MOCK_DATA: bool = True
+    USE_MOCK_DATA: bool = False
 
     CORS_ORIGINS: str = "http://localhost:3000"
 

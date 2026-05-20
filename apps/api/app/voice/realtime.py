@@ -159,11 +159,8 @@ class StreamingTTS:
         # Pre-generate first chunks in parallel
         first_tasks = []
         for i, chunk in enumerate(chunks[:3]):
-            if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "test-key":
-                ssml = self._make_ssml(chunk, language)
-                first_tasks.append(asyncio.create_task(self._tts_async(ssml, language)))
-            else:
-                first_tasks.append(asyncio.create_task(self._mock_tts(chunk)))
+            ssml = self._make_ssml(chunk, language)
+            first_tasks.append(asyncio.create_task(self._tts_async(ssml, language)))
         
         # Stream first chunks immediately
         for i, task in enumerate(first_tasks):
@@ -178,9 +175,10 @@ class StreamingTTS:
                     "streaming": True
                 }
             except asyncio.TimeoutError:
+                # Skip audio on timeout — text is still sent
                 yield {
                     "type": "audio_chunk",
-                    "audio": self._mock_tts_sync(chunks[i]),
+                    "audio": "",
                     "text": chunks[i],
                     "chunk_index": i,
                     "total_chunks": len(chunks),
@@ -191,15 +189,12 @@ class StreamingTTS:
         for i in range(3, len(chunks)):
             ssml = self._make_ssml(chunks[i], language)
             try:
-                if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "test-key":
-                    audio = await asyncio.wait_for(
-                        self._tts_async(ssml, language),
-                        timeout=2.5
-                    )
-                else:
-                    audio = self._mock_tts_sync(chunks[i])
-            except:
-                audio = self._mock_tts_sync(chunks[i])
+                audio = await asyncio.wait_for(
+                    self._tts_async(ssml, language),
+                    timeout=2.5
+                )
+            except Exception:
+                audio = ""
             
             yield {
                 "type": "audio_chunk",
@@ -241,6 +236,11 @@ class StreamingTTS:
     
     async def _tts_async(self, ssml: str, language: str) -> str:
         settings = get_settings()
+        
+        # Skip entirely if no API key — avoids 403 errors from Google TTS
+        if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("", "test-key", "your_gemini_api_key"):
+            return ""
+        
         lang_code = "bn-BD" if language.startswith("bn") else "en-US"
         
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -256,11 +256,7 @@ class StreamingTTS:
                 return response.json().get("audioContent", "")
         return ""
     
-    async def _mock_tts(self, text: str) -> str:
-        return base64.b64encode(f"audio_{text[:20]}".encode()).decode()
-    
-    def _mock_tts_sync(self, text: str) -> str:
-        return base64.b64encode(f"audio_{text[:20]}".encode()).decode()
+
 
 
 class VoiceAnalytics:
@@ -1703,8 +1699,8 @@ class RealtimeVoiceEngine:
     
     async def text_to_speech_ssml(self, ssml: str, language: str = "en-US") -> str:
         settings = get_settings()
-        if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY == "test-key":
-            return base64.b64encode(b"mock_audio_" + ssml.encode()).decode()
+        if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("", "test-key", "your_gemini_api_key"):
+            return ""
         
         lang_code = language
         if language == "bn-BD":

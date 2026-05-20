@@ -61,15 +61,10 @@ I can help with:
 Share your paper and I'll format citations."""
 
 
-MOCK_PAPERS = [
-    {"title": "Deep Learning for Image Recognition", "authors": "Smith et al.", "year": 2023, "citations": 150},
-    {"title": "Transformer Networks", "authors": "Vaswani et al.", "year": 2017, "citations": 50000},
-    {"title": "BERT: Pre-training of Deep Bidirectional Transformers", "authors": "Devlin et al.", "year": 2019, "citations": 30000},
-]
-
 
 async def search_papers(query: str) -> list[dict]:
-    return [p for p in MOCK_PAPERS if query.lower() in p["title"].lower()] or MOCK_PAPERS[:2]
+    """Returns empty list — real paper search is handled by the ResearchAgent LLM via generate_response."""
+    return []
 
 
 async def help_thesis(topic: str) -> dict:
