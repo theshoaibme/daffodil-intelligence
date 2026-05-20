@@ -47,8 +47,8 @@ pnpm install
 pnpm dev
 
 # Or start individually:
-# API: pnpm dev:api
-# Web: pnpm dev:web
+# API: pnpm --filter daffodil-api dev
+# Web: pnpm --filter daffodil-web dev
 # MCP: pnpm --filter daffodil-mcp dev
 # Live: pnpm --filter daffodil-live dev
 # Messaging: pnpm --filter daffodil-messaging dev

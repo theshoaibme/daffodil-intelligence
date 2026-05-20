@@ -6,17 +6,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo dev --ui=tui",
-    "dev:web": "pnpm --filter daffodil-web dev",
-    "dev:api": "pnpm --filter daffodil-api dev",
-    "dev:all": "turbo dev",
+    "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "turbo test",
-    "db:generate": "turbo db:generate",
-    "db:migrate": "turbo db:migrate",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "test": "turbo test"
   },
   "devDependencies": {
     "run-script-os": "^1.1.6",
