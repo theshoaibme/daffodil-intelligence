@@ -150,7 +150,7 @@ async def generate_gemini_stream(prompt: str):
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/gemini-2.0-flash:streamGenerateContent?key={settings.GEMINI_API_KEY}&alt=sse",
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key={settings.GEMINI_API_KEY}&alt=sse",
                 json={
                     "contents": [{
                         "parts": [{"text": prompt}]
@@ -223,7 +223,7 @@ async def gemini_chat_simple(data: dict):
         import httpx
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.GEMINI_API_KEY}",
                 json={
                     "contents": [{
                         "parts": [{"text": f"You are a helpful AI assistant for a university. Answer this query: {message}"}]
