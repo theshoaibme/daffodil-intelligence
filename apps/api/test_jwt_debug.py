@@ -1,5 +1,6 @@
+import os
 import sys
-sys.path.insert(0, '/Users/ratulhasan/Desktop/Shoaib/daffodil-intelligence/apps/api')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.auth_engine import JWTManager
 import time

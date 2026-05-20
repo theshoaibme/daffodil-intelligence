@@ -18,6 +18,10 @@ from .notification import NotificationAgent
 from .fee_agent import FeeAgent
 import logging
 import re
+from typing import Optional
+from ..core.config import get_settings
+
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +64,53 @@ Available agents (18 total):
 - notification: alerts, announcements, preferences
 - fee: tuition, installments, payment status
 
-If query is complex (multiple topics), call multiple agents in parallel."""
+If query is complex (multiple topics), call multiple agents in parallel.
+"""
+
+    async def detect_intent_ai(self, message: str) -> list[str]:
+        if settings.USE_MOCK_DATA or not settings.OPENAI_API_KEY:
+            return detect_intent(message)
+            
+        system_prompt = (
+            "You are the router for Daffodil Intelligence. Analyze the user query and determine which of these agents "
+            "are needed. Respond with a comma-separated list of the relevant agent keys, and nothing else.\n"
+            "Keys:\n"
+            "- academic: CGPA, results, courses, grades, attendance, syllabus\n"
+            "- library: books, journals, PDF, borrowing\n"
+            "- campus: shuttle, rooms, notices, facilities, building\n"
+            "- career: jobs, CV, roadmap, internships, resumes, placements\n"
+            "- coding: debugging, programming, errors, bug fixing\n"
+            "- research: papers, thesis, citations, literature, publications\n"
+            "- wellness: stress, mental health, study tips, motivation, relax\n"
+            "- finance: fees, tuition, waivers, scholarships, cost, money\n"
+            "- vision: image or screenshot analysis\n"
+            "- voice: voice commands or audio\n"
+            "- exam: exam schedules, seating, seat plan, midterm/final exams\n"
+            "- hostel: hostel rooms, bedding, mess\n"
+            "- transport: shuttle buses, transport routes, tracking\n"
+            "- event: workshops, seminars, university events, clubs\n"
+            "- complaint: grievances, issues, feedback, escalation\n"
+            "- notification: subscription settings, alerts, announcement messages\n"
+            "- fee: tuition fee, installments, payment status\n"
+        )
+        
+        try:
+            res = await self.generate_response(system_prompt, message)
+            detected = [a.strip().lower() for a in res.split(",")]
+            valid_agents = [a for a in detected if a in AGENT_MAP]
+            if not valid_agents:
+                return ["academic"]
+            return valid_agents
+        except Exception as e:
+            logger.error(f"Error in detect_intent_ai: {e}")
+            return detect_intent(message)
+
+    async def process(self, message: str, context: Optional[dict] = None) -> str:
+        lang = detect_language(message)
+        agents = await self.detect_intent_ai(message)
+        results = await process_with_agents(message, agents, context)
+        response = await synthesize_response(results, message, lang)
+        return response
 
 
 AGENT_MAP = {

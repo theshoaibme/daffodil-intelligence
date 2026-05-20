@@ -179,6 +179,8 @@ class RAGSystem:
         formatted_results = []
         for r in results:
             if r.score >= min_score:
+                if r.document.metadata.get("sensitive"):
+                    continue
                 formatted_results.append({
                     'content': r.chunk,
                     'score': float(r.score),

@@ -1,6 +1,7 @@
-import asyncio
+import os
 import sys
-sys.path.insert(0, '/Users/ratulhasan/Desktop/Shoaib/daffodil-intelligence/apps/api')
+import asyncio
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.agents.academic import AcademicAgent
 from app.agents.library import LibraryAgent
@@ -12,6 +13,7 @@ from app.agents.wellness import WellnessAgent
 from app.agents.finance import FinanceAgent
 from app.agents.vision import VisionAgent
 from app.agents.voice import VoiceAgent
+from app.agents.supervisor import SupervisorAgent
 
 
 async def test_all_agents():
@@ -30,6 +32,7 @@ async def test_all_agents():
         ("Finance Agent", FinanceAgent(), "What's my pending fees?"),
         ("Vision Agent", VisionAgent(), "Analyze this image"),
         ("Voice Agent", VoiceAgent(), "Convert speech to text"),
+        ("Supervisor Agent", SupervisorAgent(), "What is my CGPA and are there books on deep learning?"),
     ]
     
     for name, agent, query in agents:

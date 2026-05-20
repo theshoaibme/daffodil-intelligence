@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { PlusMenuDropdown } from "./PlusMenuDropdown";
-import { GeminiSelector, ModelSelector } from "./ModelSelector";
+import { ModelSelector } from "./ModelSelector";
 import { ImageAttachmentButton, SparklesButton, SendButton } from "./ActionButtons";
 
 interface PromptBarProps {
@@ -24,6 +24,17 @@ export function PromptBar({
   textareaRef,
   isLoading = false
 }: PromptBarProps) {
+  const [selectedModelId, setSelectedModelId] = useState<string>("gemini-3-flash");
+  const [selectedTools, setSelectedTools] = useState<string[]>(["Agent", "Task"]);
+
+  const handleToggleTool = (tool: string) => {
+    setSelectedTools(prev => 
+      prev.includes(tool)
+        ? prev.filter(t => t !== tool)
+        : [...prev, tool]
+    );
+  };
+
   return (
     <motion.div 
       layout
@@ -47,13 +58,20 @@ export function PromptBar({
 
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-1">
-            <PlusMenuDropdown isOpen={plusMenuOpen} setIsOpen={setPlusMenuOpen} />
+            <PlusMenuDropdown 
+              isOpen={plusMenuOpen} 
+              setIsOpen={setPlusMenuOpen} 
+              selectedTools={selectedTools}
+              onToggleTool={handleToggleTool}
+            />
             <ImageAttachmentButton />
           </div>
 
           <div className="flex items-center gap-2">
-            <GeminiSelector />
-            <ModelSelector modelName="3 Flash" />
+            <ModelSelector 
+              selectedModelId={selectedModelId}
+              onChange={setSelectedModelId}
+            />
             <SparklesButton />
             <SendButton onClick={handleSend} disabled={!prompt.trim() || isLoading} loading={isLoading} />
           </div>

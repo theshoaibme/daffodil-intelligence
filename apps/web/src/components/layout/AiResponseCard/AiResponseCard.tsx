@@ -26,11 +26,7 @@ export function AiResponseCard({
 }: AiResponseCardProps) {
   const [thinkingExpanded, setThinkingExpanded] = useState(true);
   
-  const [internalSteps, setInternalSteps] = useState<ThinkingStep[]>([
-    { id: "1", title: "Analyzing request", status: "active" },
-    { id: "2", title: "Processing with AI agent", status: "pending" },
-    { id: "3", title: "Gathering results", status: "pending" },
-  ]);
+  const [internalSteps, setInternalSteps] = useState<ThinkingStep[]>([]);
 
   const steps = externalSteps.length > 0 ? externalSteps : internalSteps;
   const isThinking = externalIsThinking || isStreaming;

@@ -53,25 +53,8 @@ function renderFormattedText(text: string) {
 }
 
 export function ResponseContent({ isThinking, data }: ResponseContentProps) {
-  // Ultra-polished Gemini-style loading skeleton inside the scroll area
   if (isThinking) {
-    return (
-      <div className="flex flex-col gap-3.5 w-full animate-pulse select-none py-1 flex-1">
-        <div className="h-4 bg-on-surface/10 rounded-full w-[90%]" />
-        <div className="h-4 bg-on-surface/10 rounded-full w-[80%]" />
-        <div className="h-4 bg-on-surface/10 rounded-full w-[65%]" />
-        <div className="flex flex-col gap-3.5 mt-3 pl-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-2 h-2 rounded-full bg-on-surface/10 flex-shrink-0" />
-            <div className="h-3.5 bg-on-surface/10 rounded-full w-[75%]" />
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-2 h-2 rounded-full bg-on-surface/10 flex-shrink-0" />
-            <div className="h-3.5 bg-on-surface/10 rounded-full w-[55%]" />
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

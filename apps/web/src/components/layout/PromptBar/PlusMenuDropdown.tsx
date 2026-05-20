@@ -6,9 +6,11 @@ import { DropdownItem } from "../../ui";
 interface PlusMenuDropdownProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  selectedTools: string[];
+  onToggleTool: (toolName: string) => void;
 }
 
-export function PlusMenuDropdown({ isOpen, setIsOpen }: PlusMenuDropdownProps) {
+export function PlusMenuDropdown({ isOpen, setIsOpen, selectedTools, onToggleTool }: PlusMenuDropdownProps) {
   const plusMenuRef = useRef<HTMLDivElement>(null);
 
   // Close plus menu on click outside
@@ -21,6 +23,13 @@ export function PlusMenuDropdown({ isOpen, setIsOpen }: PlusMenuDropdownProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [setIsOpen]);
+
+  const items = [
+    { text: "MCP", icon: <Compass className="text-primary" size={20} /> },
+    { text: "Agent", icon: <Monitor className="text-primary" size={20} /> },
+    { text: "Research", icon: <Compass className="text-primary" size={20} /> },
+    { text: "Task", icon: <CheckCircle2 className="text-primary" size={20} /> },
+  ];
 
   return (
     <div className="relative" ref={plusMenuRef}>
@@ -41,10 +50,15 @@ export function PlusMenuDropdown({ isOpen, setIsOpen }: PlusMenuDropdownProps) {
             className="absolute bottom-full left-0 mb-3 w-56 bg-surface-container-high border border-outline-variant/40 rounded-2xl shadow-xl z-[60] overflow-hidden"
           >
             <div className="p-2 space-y-1">
-              <DropdownItem icon={<Compass className="text-primary" size={20} />} text="MCP" />
-              <DropdownItem icon={<Monitor className="text-primary" size={20} />} text="Agent" />
-              <DropdownItem icon={<Compass className="text-primary" size={20} />} text="Research" />
-              <DropdownItem icon={<CheckCircle2 className="text-primary" size={20} />} text="Task" />
+              {items.map((item) => (
+                <DropdownItem 
+                  key={item.text} 
+                  icon={item.icon} 
+                  text={item.text} 
+                  active={selectedTools.includes(item.text)}
+                  onClick={() => onToggleTool(item.text)}
+                />
+              ))}
             </div>
           </motion.div>
         )}

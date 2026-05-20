@@ -14,13 +14,7 @@ export interface TaskPanelProps {
   setTasksCollapsed: (collapsed: boolean) => void;
 }
 
-export const initialTasks: TaskItem[] = [
-  { id: "1", text: "also right side panel create div in react", active: true },
-  { id: "2", text: "Refine the sidebar collapse animation" },
-  { id: "3", text: "Implement a sticky sidebar layout border" },
-  { id: "4", text: "Make the chat input dynamically grow" },
-  { id: "5", text: "Make the chat input dynamic and rounded" }
-];
+export const initialTasks: TaskItem[] = [];
 
 export function LogItem({
   text,
@@ -84,14 +78,16 @@ export function TaskPanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
               transition={{ duration: 0.15 }}
-              className="p-3 border-b border-outline-variant/20 h-[56px] flex items-center"
+              className="p-3 border-b border-outline-variant/20 h-[56px] flex items-center justify-center"
             >
-              {activeTask && (
+              {activeTask ? (
                 <LogItem 
                   text={activeTask.text} 
                   active 
                   onClick={() => handleTaskClick(activeTask.id)} 
                 />
+              ) : (
+                <span className="text-xs font-medium text-on-surface-variant/50">No active tasks</span>
               )}
             </motion.div>
           ) : (
@@ -101,16 +97,20 @@ export function TaskPanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 5 }}
               transition={{ duration: 0.15 }}
-              className="flex-1 p-3 custom-scrollbar overflow-y-auto max-h-[196px] space-y-1.5 h-[196px]"
+              className="flex-1 p-3 custom-scrollbar overflow-y-auto max-h-[196px] space-y-1.5 h-[196px] flex flex-col items-center justify-center"
             >
-              {tasks.map(task => (
-                <LogItem 
-                  key={task.id} 
-                  text={task.text} 
-                  active={task.active} 
-                  onClick={() => handleTaskClick(task.id)}
-                />
-              ))}
+              {tasks.length > 0 ? (
+                tasks.map(task => (
+                  <LogItem 
+                    key={task.id} 
+                    text={task.text} 
+                    active={task.active} 
+                    onClick={() => handleTaskClick(task.id)}
+                  />
+                ))
+              ) : (
+                <span className="text-xs font-medium text-on-surface-variant/50">No tasks active</span>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

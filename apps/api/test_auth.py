@@ -1,5 +1,6 @@
+import os
 import sys
-sys.path.insert(0, '/Users/ratulhasan/Desktop/Shoaib/daffodil-intelligence/apps/api')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.auth_engine import AuthenticationEngine, AuthProvider, SecureHasher, JWTManager
 
@@ -145,8 +146,7 @@ def test_google_login():
     auth = AuthenticationEngine()
     
     result = auth.login_google(
-        google_token="fake_google_token",
-        user_info={"email": "google@test.com", "name": "Google User"}
+        {"email": "google@test.com", "name": "Google User"}
     )
     
     print(f"Google login status: {result.status}")
@@ -168,7 +168,6 @@ def test_google_login_existing_user():
     auth.register_email("Existing", "existing@test.com", "password", "password")
     
     result = auth.login_google(
-        "token",
         {"email": "existing@test.com", "name": "Should Fail"}
     )
     

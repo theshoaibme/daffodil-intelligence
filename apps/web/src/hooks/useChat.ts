@@ -70,11 +70,7 @@ export function useChat() {
       
       setMessages(prev => [...prev, userMessage]);
 
-      setThinkingSteps([
-        { id: "1", title: "Analyzing request", status: "active" },
-        { id: "2", title: "Processing with AI agent", status: "pending" },
-        { id: "3", title: "Gathering results", status: "pending" },
-      ]);
+      setThinkingSteps([]);
 
       const assistantMessageId = `assistant-${Date.now()}`;
       const assistantMessage: ChatMessage = {

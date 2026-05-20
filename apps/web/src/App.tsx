@@ -10,7 +10,19 @@ import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
 import { useChat } from "./hooks/useChat";
 
+import { Routes, Route } from "react-router-dom";
+import { ModelManagementPage } from "./components/layout";
+
 export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<ChatDashboard />} />
+      <Route path="/model" element={<ModelManagementPage />} />
+    </Routes>
+  );
+}
+
+function ChatDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [prompt, setPrompt] = useState("");
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);

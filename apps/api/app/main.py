@@ -2,6 +2,11 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+import langchain
+langchain.verbose = False
+langchain.debug = False
+langchain.llm_cache = None
+
 from pathlib import Path
 
 from .core.config import get_settings

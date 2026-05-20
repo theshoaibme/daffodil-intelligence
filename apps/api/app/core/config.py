@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     
     OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = ""
+    OPENAI_MODEL_NAME: str = "gpt-4-turbo-preview"
     GEMINI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
 

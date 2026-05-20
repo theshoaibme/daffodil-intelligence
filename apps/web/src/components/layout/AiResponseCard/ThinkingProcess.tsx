@@ -20,23 +20,12 @@ export function ThinkingProcess({
   isExpanded,
   onToggleExpand,
 }: ThinkingProcessProps) {
+  if (!steps || steps.length === 0) {
+    return null;
+  }
+
   return (
     <div className="flex flex-col gap-2.5 w-full">
-      {/* Dynamic Gemini-Inspired Animated Thinking Bar */}
-      {isThinking && (
-        <div className="relative w-full h-1 rounded-full overflow-hidden bg-primary/10 select-none">
-          <motion.div
-            className="absolute top-0 bottom-0 h-full rounded-full bg-gradient-to-r from-primary via-secondary to-primary"
-            style={{ width: "40%" }}
-            animate={{ left: ["-40%", "110%"] }}
-            transition={{
-              duration: 1.6,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        </div>
-      )}
 
       {/* Accordion Trigger Row */}
       <div className="flex items-center justify-between w-full relative">
