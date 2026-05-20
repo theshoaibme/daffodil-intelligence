@@ -43,11 +43,11 @@
 # Install dependencies
 pnpm install
 
-# Start all services
+# Start all services (Windows, macOS, Linux compatible)
 pnpm dev
 
 # Or start individually:
-# API: cd apps/api && uvicorn app.main:app --reload
+# API: cd apps/api && node run-api.js
 # Web: cd apps/web && npm run dev
 # MCP: cd apps/mcp && python app/server.py
 ```

@@ -8,8 +8,8 @@
 "scripts": {
     "dev": "turbo dev --ui=tui",
     "dev:web": "cd apps/web && npm run dev",
-    "dev:api": "cd apps/api && ./.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
-    "dev:all": "npm run dev:api & npm run dev:web",
+    "dev:api": "cd apps/api && node run-api.js",
+    "dev:all": "turbo dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
