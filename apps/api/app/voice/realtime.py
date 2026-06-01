@@ -247,16 +247,25 @@ class StreamingTTS:
     async def _tts_async(self, ssml: str, language: str) -> str:
         settings = get_settings()
         
+        has_bengali = any(0x0980 <= ord(c) <= 0x09FF for c in ssml)
+        
         # First try Google Cloud TTS
         if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY not in ("", "test-key", "your_gemini_api_key"):
-            lang_code = "bn-BD" if language.startswith("bn") else "en-US"
+            lang_code = "bn-BD" if has_bengali else ("bn-BD" if language.startswith("bn") else "en-US")
+            
+            voice_name = settings.GEMINI_VOICE
+            if has_bengali and not voice_name.startswith("bn-"):
+                voice_name = "bn-BD-Standard-A"
+            elif not has_bengali and voice_name.startswith("bn-"):
+                voice_name = "en-US-Standard-C"
+                
             try:
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     response = await client.post(
                         f"https://texttospeech.googleapis.com/v1/text:synthesize?key={settings.GEMINI_API_KEY}",
                         json={
                             "input": {"ssml": ssml},
-                            "voice": {"languageCode": lang_code, "name": settings.GEMINI_VOICE},
+                            "voice": {"languageCode": lang_code, "name": voice_name},
                             "audioConfig": {"audioEncoding": "MP3", "sampleRateHertz": 24000, "speakingRate": 1.1}
                         }
                     )
@@ -283,7 +292,8 @@ class StreamingTTS:
                 logger.debug(f"Edge TTS: Empty text after parsing SSML")
                 return ""
             
-            voice = "bn-BD-NabanitaNeural" if language.startswith("bn") else "en-US-JennyNeural"
+            has_bengali_text = any(0x0980 <= ord(c) <= 0x09FF for c in text)
+            voice = "bn-BD-NabanitaNeural" if has_bengali_text else ("bn-BD-NabanitaNeural" if language.startswith("bn") else "en-US-JennyNeural")
             
             # Check cache
             cache_key = f"{voice}:{text[:100]}"
@@ -1764,16 +1774,25 @@ class RealtimeVoiceEngine:
     async def text_to_speech_ssml(self, ssml: str, language: str = "en-US") -> str:
         settings = get_settings()
         
+        has_bengali = any(0x0980 <= ord(c) <= 0x09FF for c in ssml)
+        
         # Try Google Cloud TTS first
         if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY not in ("", "test-key", "your_gemini_api_key"):
-            lang_code = language if language in ("bn-BD", "en-US") else ("bn-BD" if language.startswith("bn") else "en-US")
+            lang_code = "bn-BD" if has_bengali else (language if language in ("bn-BD", "en-US") else ("bn-BD" if language.startswith("bn") else "en-US"))
+            
+            voice_name = settings.GEMINI_VOICE
+            if has_bengali and not voice_name.startswith("bn-"):
+                voice_name = "bn-BD-Standard-A"
+            elif not has_bengali and voice_name.startswith("bn-"):
+                voice_name = "en-US-Standard-C"
+                
             try:
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.post(
                         f"https://texttospeech.googleapis.com/v1/text:synthesize?key={settings.GEMINI_API_KEY}",
                         json={
                             "input": {"ssml": ssml},
-                            "voice": {"languageCode": lang_code, "name": settings.GEMINI_VOICE},
+                            "voice": {"languageCode": lang_code, "name": voice_name},
                             "audioConfig": {"audioEncoding": "MP3", "sampleRateHertz": 24000, "speakingRate": 1.1, "pitch": 0, "volumeGainDb": 0}
                         }
                     )
@@ -1799,7 +1818,8 @@ class RealtimeVoiceEngine:
             if not text:
                 return ""
             
-            voice = "bn-BD-NabanitaNeural" if language.startswith("bn") else "en-US-JennyNeural"
+            has_bengali_text = any(0x0980 <= ord(c) <= 0x09FF for c in text)
+            voice = "bn-BD-NabanitaNeural" if has_bengali_text else ("bn-BD-NabanitaNeural" if language.startswith("bn") else "en-US-JennyNeural")
             communicate = edge_tts.Communicate(text, voice)
             temp_path = "/tmp/di_tts_output2.mp3"
             await communicate.save(temp_path)
