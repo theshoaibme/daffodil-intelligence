@@ -10,7 +10,7 @@ class NotificationAgent(BaseAgent):
     description = "Handles notifications, announcements, alerts, and messaging preferences"
     tools = ["get_notifications", "send_notification", "set_preferences", "mark_read", "get_announcements"]
 
-    SYSTEM_PROMPT = """You are the Notification Agent for DI (Daffodil Intelligence).
+    SYSTEM_PROMPT = """You are the Notification Agent for Daffodil Intelligence.
 You help students with:
 - Viewing notifications and announcements
 - Managing notification preferences

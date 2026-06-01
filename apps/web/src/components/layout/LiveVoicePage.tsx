@@ -25,7 +25,7 @@ const addFiller = (text: string, lang: string): string => {
   if (!text.trim()) return text;
   const fillers = lang === 'bn' ? FILLERS_BN : FILLERS_EN;
   const isQuestion = text.trim().endsWith('?');
-  const isGreeting = /^(hi|hello|hey|হ্যালো|হাই|নমস্কার)/i.test(text.trim());
+  const isGreeting = /^(hi|hello|hey|হ্যালো|হাই)/i.test(text.trim());
   if (!isQuestion && !isGreeting && Math.random() < 0.35) {
     return fillers[Math.floor(Math.random() * fillers.length)] + text;
   }

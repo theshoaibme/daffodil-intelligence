@@ -10,7 +10,7 @@ class ComplaintAgent(BaseAgent):
     description = "Handles student complaints, feedback, suggestions, and grievance resolution"
     tools = ["submit_complaint", "get_complaint_status", "escalate_issue", "give_feedback", "get_grievance_policy"]
 
-    SYSTEM_PROMPT = """You are the Complaint Agent for DI (Daffodil Intelligence).
+    SYSTEM_PROMPT = """You are the Complaint Agent for Daffodil Intelligence.
 You help students with:
 - Submitting complaints
 - Tracking complaint status

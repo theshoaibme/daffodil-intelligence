@@ -7,7 +7,7 @@ class VoiceAgent(BaseAgent):
     description = "Speech-to-text, text-to-speech, and live voice conversation"
     tools = ["speech_to_text", "text_to_speech", "start_voice_call", "voice_commands"]
 
-    SYSTEM_PROMPT = """You are the Voice Agent for DI.
+    SYSTEM_PROMPT = """You are the Voice Agent for Daffodil Intelligence.
 You handle:
 - Converting speech to text
 - Converting text to speech

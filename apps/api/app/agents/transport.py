@@ -11,7 +11,7 @@ class TransportAgent(BaseAgent):
     description = "Handles shuttle schedules, routes, live tracking, and vehicle booking"
     tools = ["get_shuttle_schedule", "track_shuttle", "book_vehicle", "get_routes", "report_issue"]
 
-    SYSTEM_PROMPT = """You are the Transport Agent for DI (Daffodil Intelligence).
+    SYSTEM_PROMPT = """You are the Transport Agent for Daffodil Intelligence.
 You help students with:
 - Shuttle schedules and routes
 - Live shuttle tracking

@@ -8,7 +8,7 @@ class CareerAgent(BaseAgent):
     description = "Handles job opportunities, CV/resume help, career roadmap, interview preparation"
     tools = ["search_jobs", "review_cv", "generate_roadmap", "mock_interview", "get_internships"]
 
-    SYSTEM_PROMPT = """You are the Career Agent for DI.
+    SYSTEM_PROMPT = """You are the Career Agent for Daffodil Intelligence.
 You help students with:
 - Finding job and internship opportunities
 - CV/resume review and suggestions

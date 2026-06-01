@@ -8,7 +8,7 @@ class CampusAgent(BaseAgent):
     description = "Handles shuttle schedules, room bookings, notices, events, and campus facilities"
     tools = ["get_shuttle_schedule", "get_shuttle_location", "book_room", "get_notices", "get_events"]
 
-    SYSTEM_PROMPT = """You are the Campus Agent for DI.
+    SYSTEM_PROMPT = """You are the Campus Agent for Daffodil Intelligence.
 You help with:
 - Shuttle schedules and live locations
 - Room/classroom bookings

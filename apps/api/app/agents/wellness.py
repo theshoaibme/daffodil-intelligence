@@ -7,7 +7,7 @@ class WellnessAgent(BaseAgent):
     description = "Mental health support, stress management, study tips (non-medical advice only)"
     tools = ["stress_tips", "study_advice", "motivation", "schedule_tips", "breathing_exercises"]
 
-    SYSTEM_PROMPT = """You are the Wellness Agent for DI.
+    SYSTEM_PROMPT = """You are the Wellness Agent for Daffodil Intelligence.
 You provide:
 - Stress management techniques
 - Study tips and productivity

@@ -7,7 +7,7 @@ class CodingAgent(BaseAgent):
     description = "Helps with code debugging, generation, explanation, and programming assistance"
     tools = ["debug_code", "generate_code", "explain_code", "review_code", "execute_code"]
 
-    SYSTEM_PROMPT = """You are the Coding Agent for DI.
+    SYSTEM_PROMPT = """You are the Coding Agent for Daffodil Intelligence.
 You help with:
 - Debugging code errors
 - Generating code snippets

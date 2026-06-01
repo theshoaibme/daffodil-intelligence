@@ -11,7 +11,7 @@ class LibraryAgent(BaseAgent):
     description = "Handles books, journals, PDFs, research papers, and library services"
     tools = ["search_books", "check_availability", "reserve_book", "get_journals", "download_pdf"]
 
-    SYSTEM_PROMPT = """You are the Library Agent for DI.
+    SYSTEM_PROMPT = """You are the Library Agent for Daffodil Intelligence.
 You help students with:
 - Searching for books and journals
 - Checking book availability

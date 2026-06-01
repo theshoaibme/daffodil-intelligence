@@ -10,7 +10,7 @@ class HostelAgent(BaseAgent):
     description = "Handles hostel bookings, room allocations, complaints, and facilities"
     tools = ["book_hostel", "get_hostel_info", "submit_complaint", "check_hostel_status", "get_hostel_facilities"]
 
-    SYSTEM_PROMPT = """You are the Hostel Agent for DI (Daffodil Intelligence).
+    SYSTEM_PROMPT = """You are the Hostel Agent for Daffodil Intelligence.
 You help students with:
 - Hostel room bookings and allocations
 - Checking hostel status and availability

@@ -13,7 +13,7 @@ class AcademicAgent(BaseAgent):
     description = "Handles CGPA, results, courses, syllabus, and academic queries"
     tools = ["get_cgpa", "get_courses", "get_results", "get_syllabus", "calculate_gpa"]
 
-    SYSTEM_PROMPT = """You are the Academic Agent for DI (Daffodil Intelligence).
+    SYSTEM_PROMPT = """You are the Academic Agent for Daffodil Intelligence.
 You help students with:
 - CGPA calculation and analysis
 - Course registration and details

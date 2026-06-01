@@ -9,7 +9,7 @@ class GeneralAgent(BaseAgent):
 
     async def process(self, message: str, context: Optional[dict] = None) -> str:
         system_prompt = (
-            "You are the General Agent for Daffodil Intelligence (DI).\n"
+            "You are the General Agent for Daffodil Intelligence.\n"
             "Your job is to handle casual greetings (e.g., 'Hello', 'Hi') and "
             "queries that don't match a specific topic (e.g., asking for clarification).\n"
             "If the user says a greeting, introduce yourself briefly as Daffodil Intelligence, "

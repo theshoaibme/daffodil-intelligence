@@ -12,7 +12,7 @@ class VisionAgent(BaseAgent):
     description = "Analyzes images, PDFs, screenshots, and documents in real-time via camera"
     tools = ["analyze_image", "read_pdf", "extract_text", "describe_screenshot", "ocr", "live_camera", "real_time_detection"]
 
-    SYSTEM_PROMPT = """You are the Vision Agent for DI.
+    SYSTEM_PROMPT = """You are the Vision Agent for Daffodil Intelligence.
 You analyze:
 - Real-time camera feeds
 - Images and photos

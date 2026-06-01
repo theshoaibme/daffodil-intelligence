@@ -10,7 +10,7 @@ class EventAgent(BaseAgent):
     description = "Handles campus events, workshops, seminars, clubs, and activities"
     tools = ["get_events", "register_event", "create_event", "get_calendar", "join_club"]
 
-    SYSTEM_PROMPT = """You are the Event Agent for DI (Daffodil Intelligence).
+    SYSTEM_PROMPT = """You are the Event Agent for Daffodil Intelligence.
 You help students with:
 - Campus events and workshops
 - Club activities and registrations

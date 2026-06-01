@@ -8,7 +8,7 @@ class ResearchAgent(BaseAgent):
     description = "Helps with research papers, citations, thesis help, literature review"
     tools = ["search_papers", "get_citations", "help_thesis", "literature_review", "generate_abstract"]
 
-    SYSTEM_PROMPT = """You are the Research Agent for DI.
+    SYSTEM_PROMPT = """You are the Research Agent for Daffodil Intelligence.
 You help students with:
 - Finding research papers
 - Managing citations

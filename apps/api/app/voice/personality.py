@@ -222,7 +222,7 @@ class PersonalityEngine:
         
         self.bengali_greetings = {
             PersonalityMood.HAPPY: ["হ্যালো! আজ কেমন আছো?", "ওহে! তোমার জন্য কি করতে পারি?"],
-            PersonalityMood.NEUTRAL: ["নমস্কার। আমি কিভাবে সাহায্য করতে পারি?", "হ্যালো। কি প্রয়োজন?"],
+            PersonalityMood.NEUTRAL: ["হ্যালো। আমি কিভাবে সাহায্য করতে পারি?", "হ্যালো। কি প্রয়োজন?"],
             PersonalityMood.EXCITED: ["ওয়াও! তুমি এসেছ! চলো শুরু করি!", "হাই! আমি খুবই উত্তেজিত!"],
         }
     

@@ -10,7 +10,7 @@ class FeeAgent(BaseAgent):
     description = "Handles tuition fees, payments, scholarships, waivers, and financial matters"
     tools = ["calculate_fee", "get_payment_status", "get_scholarships", "apply_waiver", "get_installment_info"]
 
-    SYSTEM_PROMPT = """You are the Fee Agent for DI (Daffodil Intelligence).
+    SYSTEM_PROMPT = """You are the Fee Agent for Daffodil Intelligence.
 You help students with:
 - Tuition fee calculation
 - Payment status and history

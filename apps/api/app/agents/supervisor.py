@@ -109,7 +109,7 @@ If query is complex (multiple topics), call multiple agents in parallel.
         # Fast local handling for simple greetings to save LLM calls and avoid rate-limiting
         msg_clean = message.lower().strip().strip("?.!।")
         greetings_en = ["hello", "hi", "hey", "greetings", "good morning", "good afternoon", "good evening"]
-        greetings_bn = ["হ্যালো", "হাই", "আসসালামু আলাইকুম", "নমস্কার", "শুভ সকাল", "শুভ দুপুর", "শুভ সন্ধ্যা"]
+        greetings_bn = ["হ্যালো", "হাই", "আসসালামু আলাইকুম", "শুভ সকাল", "শুভ দুপুর", "শুভ সন্ধ্যা"]
         
         if any(g in msg_clean for g in greetings_en + greetings_bn):
             # Check if any other agent keyword is present
