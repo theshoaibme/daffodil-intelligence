@@ -13,6 +13,11 @@ _use_mock = False
 
 class MockStore:
     _users = {}
+    _chats = {}
+    _messages = {}
+    _sessions = {}
+    _documents = {}
+    _tickets = {}
     _counter = 1
 
 
@@ -28,6 +33,19 @@ class MockSession:
         pass
     
     async def execute(self, query):
+        from datetime import datetime
+        import re
+        
+        class MockScalars:
+            def __init__(self, data):
+                self._data = data
+            def all(self):
+                return self._data
+            def first(self):
+                if self._data:
+                    return self._data[0]
+                return None
+        
         class MockResult:
             def __init__(self, data):
                 self._data = data
@@ -36,37 +54,97 @@ class MockSession:
                 if self._data:
                     return self._data[0]
                 return None
-        
-        query_str = str(query)
-        if 'User' in query_str or 'user' in query_str.lower():
-            class MockUser:
-                def __init__(self, data):
-                    self.__dict__.update(data) if isinstance(data, dict) else None
-                    for k, v in data.items() if isinstance(data, dict) else []:
-                        setattr(self, k, v)
             
-            users = [MockUser(u) for u in MockStore._users.values()]
-            return MockResult(users)
+            def scalars(self):
+                return MockScalars(self._data)
         
-        return MockResult([])
+        # Get the model class being queried
+        model_cls = None
+        if hasattr(query, 'column_descriptions') and query.column_descriptions:
+            model_cls = query.column_descriptions[0].get('entity') or query.column_descriptions[0].get('type')
+            
+        cls_name = model_cls.__name__ if model_cls else ""
+        store_name = f"_{cls_name.lower()}s"
+        store = getattr(MockStore, store_name, None)
+        
+        # Fallback if class name didn't match directly
+        if store is None:
+            query_str = str(query).lower()
+            if 'user' in query_str:
+                store = MockStore._users
+            elif 'chat' in query_str:
+                store = MockStore._chats
+            elif 'message' in query_str:
+                store = MockStore._messages
+            elif 'session' in query_str:
+                store = MockStore._sessions
+            elif 'document' in query_str:
+                store = MockStore._documents
+            elif 'ticket' in query_str:
+                store = MockStore._tickets
+            else:
+                store = {}
+                
+        data = list(store.values())
+        
+        # Extract filter criteria from query parameters
+        filters = {}
+        try:
+            params = query.compile().params
+            for k, v in params.items():
+                col_name = re.sub(r'_\d+$', '', k)
+                filters[col_name] = v
+        except Exception:
+            pass
+            
+        filtered_data = []
+        for obj in data:
+            match = True
+            for col, val in filters.items():
+                if hasattr(obj, col):
+                    obj_val = getattr(obj, col)
+                    if obj_val != val:
+                        match = False
+                        break
+            if match:
+                filtered_data.append(obj)
+                
+        # Sort by created_at if present
+        if filtered_data and hasattr(filtered_data[0], 'created_at'):
+            filtered_data.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
+            
+        # Apply offset and limit
+        offset = query._offset if hasattr(query, '_offset') and query._offset is not None else 0
+        limit = query._limit if hasattr(query, '_limit') and query._limit is not None else None
+        
+        if offset:
+            filtered_data = filtered_data[offset:]
+        if limit is not None:
+            filtered_data = filtered_data[:limit]
+            
+        return MockResult(filtered_data)
     
     def add(self, obj):
-        if hasattr(obj, 'id') and obj.id is None:
+        if not hasattr(obj, 'id') or obj.id is None:
             obj.id = MockStore._counter
             MockStore._counter += 1
+            
+        from datetime import datetime
+        now = datetime.utcnow()
+        for field in ['created_at', 'updated_at', 'started_at']:
+            if hasattr(obj, field) and getattr(obj, field) is None:
+                setattr(obj, field, now)
+                
         self.added.append(obj)
     
     async def commit(self):
         self.committed = True
         for obj in self.added:
-            if hasattr(obj, 'email'):
-                MockStore._users[obj.id] = {
-                    'id': obj.id,
-                    'email': obj.email,
-                    'password_hash': obj.password_hash,
-                    'full_name': obj.full_name,
-                    'role': obj.role
-                }
+            cls_name = obj.__class__.__name__
+            store_name = f"_{cls_name.lower()}s"
+            store = getattr(MockStore, store_name, None)
+            if store is not None:
+                store[obj.id] = obj
     
     async def refresh(self, obj):
         pass

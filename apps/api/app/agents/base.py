@@ -62,15 +62,32 @@ class BaseAgent(ABC):
         self.history = []
 
     async def generate_response(self, system_prompt: str, user_message: str) -> str:
+        messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_message)]
+        
+        # Primary attempt
         try:
-            # Agents are singletons — do NOT use self.history here to prevent
-            # cross-request history contamination between different users/sessions.
-            messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_message)]
             response = await self.llm.agenerate([messages])
             return response.generations[0][0].text
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str or "rate" in err_str.lower() or "Too Many Requests" in err_str:
+            is_rate_limit = "429" in err_str or "rate" in err_str.lower() or "Too Many Requests" in err_str or "RESOURCE_EXHAUSTED" in err_str
+            if not is_rate_limit:
+                raise
+            logger.warning(f"Primary model rate-limited, attempting fallback model")
+        
+        # Fallback to gemini-2.5-flash-lite (separate free-tier quota)
+        try:
+            fallback_llm = ChatOpenAI(
+                model="models/gemini-2.5-flash-lite",
+                temperature=0.7,
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_BASE_URL or "https://generativelanguage.googleapis.com/v1beta/openai/",
+            )
+            response = await fallback_llm.agenerate([messages])
+            return response.generations[0][0].text
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "rate" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
                 raise RuntimeError("RATE_LIMITED") from e
             raise
 

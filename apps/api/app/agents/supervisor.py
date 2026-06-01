@@ -219,7 +219,7 @@ def _is_rate_limit_error(result: str) -> bool:
 
 async def synthesize_response(results: dict, original_message: str, language: str = None) -> str:
     if not results:
-        return "I'm not sure how to help with that. Can you be more specific?"
+        return "Error: No results"
 
     if language is None:
         language = detect_language(original_message)
@@ -232,9 +232,6 @@ async def synthesize_response(results: dict, original_message: str, language: st
     if len(processed_results) == 1:
         result_text = list(processed_results.values())[0]
         if isinstance(result_text, str):
-            if _is_rate_limit_error(result_text):
-                msg = "দুঃখিত, একটু ব্যস্ত আছি। একটু পরে আবার চেষ্টা করুন।" if language == "bn" else "Sorry, I'm a bit busy right now. Please try again in a moment."
-                return format_voice_response(msg, language)
             return format_voice_response(result_text, language)
         return result_text
 
@@ -244,7 +241,7 @@ async def synthesize_response(results: dict, original_message: str, language: st
             response_parts.append(format_voice_response(result, language))
 
     if not response_parts:
-        return "দুঃখিত, একটু ব্যস্ত আছি। একটু পরে আবার চেষ্টা করুন।" if language == "bn" else "Sorry, I'm a bit busy right now. Please try again in a moment."
+        return "Error: No response generated"
 
     return "। ".join(response_parts) if language == "bn" else "\n\n".join(response_parts)
 
