@@ -302,8 +302,9 @@ class StreamingTTS:
             
             logger.debug(f"Edge TTS: text='{text[:50]}...' voice={voice}")
             
+            import uuid
             communicate = edge_tts.Communicate(text, voice)
-            temp_path = "/tmp/di_tts_output.mp3"
+            temp_path = os.path.join(tempfile.gettempdir(), f"di_tts_{uuid.uuid4().hex}.mp3")
             await communicate.save(temp_path)
             
             with open(temp_path, 'rb') as f:
@@ -1820,8 +1821,9 @@ class RealtimeVoiceEngine:
             
             has_bengali_text = any(0x0980 <= ord(c) <= 0x09FF for c in text)
             voice = "bn-BD-NabanitaNeural" if has_bengali_text else ("bn-BD-NabanitaNeural" if language.startswith("bn") else "en-US-JennyNeural")
+            import uuid
             communicate = edge_tts.Communicate(text, voice)
-            temp_path = "/tmp/di_tts_output2.mp3"
+            temp_path = os.path.join(tempfile.gettempdir(), f"di_tts_{uuid.uuid4().hex}.mp3")
             await communicate.save(temp_path)
             with open(temp_path, 'rb') as f:
                 audio_bytes = f.read()
