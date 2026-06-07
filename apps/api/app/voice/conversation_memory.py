@@ -1,4 +1,5 @@
 import time
+import os
 from typing import Optional, Dict, List, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -72,6 +73,40 @@ class ConversationContext:
             self.messages = self.messages[-self.context_window:]
 
 
+def serialize_entry(entry: MemoryEntry) -> dict:
+    return {
+        "memory_id": entry.memory_id,
+        "user_id": entry.user_id,
+        "content": entry.content,
+        "memory_type": entry.memory_type.value,
+        "timestamp": entry.timestamp,
+        "importance_score": entry.importance_score,
+        "access_count": entry.access_count,
+        "last_accessed": entry.last_accessed,
+        "metadata": entry.metadata,
+        "embedding_key": entry.embedding_key,
+        "related_memories": entry.related_memories,
+        "tags": entry.tags,
+    }
+
+
+def deserialize_entry(d: dict) -> MemoryEntry:
+    return MemoryEntry(
+        memory_id=d["memory_id"],
+        user_id=d["user_id"],
+        content=d["content"],
+        memory_type=MemoryType(d["memory_type"]),
+        timestamp=d["timestamp"],
+        importance_score=d.get("importance_score", 0.5),
+        access_count=d.get("access_count", 0),
+        last_accessed=d.get("last_accessed", 0.0),
+        metadata=d.get("metadata", {}),
+        embedding_key=d.get("embedding_key", ""),
+        related_memories=d.get("related_memories", []),
+        tags=d.get("tags", []),
+    )
+
+
 class ConversationMemory:
     def __init__(self):
         self.short_term: Dict[int, deque] = {}
@@ -87,6 +122,76 @@ class ConversationMemory:
         self.forgetting_rate = 0.01
         
         self._memory_index: Dict[int, Dict[str, List[str]]] = {}
+        self.load_from_disk()
+
+    def save_to_disk(self):
+        try:
+            file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "agent_memory.json")
+            data = {
+                "short_term": {
+                    str(uid): [serialize_entry(e) for e in list(dq)]
+                    for uid, dq in self.short_term.items()
+                },
+                "long_term": {
+                    str(uid): [serialize_entry(e) for e in lst]
+                    for uid, lst in self.long_term.items()
+                },
+                "episodic": {
+                    str(uid): lst
+                    for uid, lst in self.episodic.items()
+                },
+                "semantic": {
+                    str(uid): {k: serialize_entry(e) for k, e in dct.items()}
+                    for uid, dct in self.semantic.items()
+                },
+                "working": {
+                    str(uid): [serialize_entry(e) for e in lst]
+                    for uid, lst in self.working.items()
+                }
+            }
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Error saving agent memory to disk: {e}")
+
+    def load_from_disk(self):
+        try:
+            file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "agent_memory.json")
+            if not os.path.exists(file_path):
+                return
+            
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            self.short_term = {}
+            for uid_str, entries in data.get("short_term", {}).items():
+                uid = int(uid_str)
+                self.short_term[uid] = deque(
+                    [deserialize_entry(e) for e in entries],
+                    maxlen=self.max_short_term
+                )
+            
+            self.long_term = {}
+            for uid_str, entries in data.get("long_term", {}).items():
+                uid = int(uid_str)
+                self.long_term[uid] = [deserialize_entry(e) for e in entries]
+            
+            self.episodic = {}
+            for uid_str, episodes in data.get("episodic", {}).items():
+                uid = int(uid_str)
+                self.episodic[uid] = episodes
+            
+            self.semantic = {}
+            for uid_str, dct in data.get("semantic", {}).items():
+                uid = int(uid_str)
+                self.semantic[uid] = {k: deserialize_entry(e) for k, e in dct.items()}
+                
+            self.working = {}
+            for uid_str, entries in data.get("working", {}).items():
+                uid = int(uid_str)
+                self.working[uid] = [deserialize_entry(e) for e in entries]
+        except Exception as e:
+            print(f"Error loading agent memory from disk: {e}")
     
     def _get_or_create_short_term(self, user_id: int) -> deque:
         if user_id not in self.short_term:
@@ -134,6 +239,7 @@ class ConversationMemory:
                 self.working[user_id] = []
             self.working[user_id].append(entry)
         
+        self.save_to_disk()
         return entry
     
     def _update_semantic_index(self, user_id: int, entry: MemoryEntry):
@@ -235,6 +341,8 @@ class ConversationMemory:
         for entry in to_remove:
             short_term.remove(entry)
         
+        if consolidated > 0:
+            self.save_to_disk()
         return consolidated
     
     def forget_old_memories(self, user_id: int, max_age_seconds: float = 3600):
@@ -254,6 +362,7 @@ class ConversationMemory:
         for entry in to_remove:
             short_term.remove(entry)
         
+        self.save_to_disk()
         return len(to_remove)
     
     def create_episode(self, user_id: int, session_id: str, context: ConversationContext):
@@ -277,6 +386,7 @@ class ConversationMemory:
         if len(self.episodic[user_id]) > 100:
             self.episodic[user_id] = self.episodic[user_id][-100:]
         
+        self.save_to_disk()
         return episode
     
     def _generate_summary(self, messages: List[Dict]) -> str:
@@ -353,6 +463,7 @@ class ConversationMemory:
     def clear_short_term(self, user_id: int):
         if user_id in self.short_term:
             self.short_term[user_id].clear()
+            self.save_to_disk()
     
     def clear_all_memory(self, user_id: int):
         self.short_term.pop(user_id, None)
@@ -360,6 +471,7 @@ class ConversationMemory:
         self.episodic.pop(user_id, None)
         self.semantic.pop(user_id, None)
         self.working.pop(user_id, None)
+        self.save_to_disk()
     
     def get_memory_stats(self, user_id: int) -> Dict[str, Any]:
         return {
@@ -383,6 +495,7 @@ class ConversationMemory:
             for entry in mem_list:
                 if entry.memory_id == memory_id:
                     entry.importance_score = max(0, min(1, entry.importance_score + delta))
+                    self.save_to_disk()
                     return True
         return False
     
@@ -442,6 +555,7 @@ class ConversationMemory:
                 entry1.related_memories.append(memory_id2)
             if memory_id1 not in entry2.related_memories:
                 entry2.related_memories.append(memory_id1)
+            self.save_to_disk()
             return True
         return False
     
