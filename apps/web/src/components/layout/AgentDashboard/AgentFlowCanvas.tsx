@@ -18,8 +18,16 @@ import { FlowZoomControls } from "./FlowZoomControls";
 import { flowNodeTypes } from "./FlowNodes";
 import { buildAgentGraph } from "./graphBuilder";
 import { loadLayout, saveLayout } from "./layoutStorage";
+import { nextParallelSimulation, type ParallelSimulationState } from "./parallelSimulator";
+import { SimulatorPanel } from "./SimulatorPanel";
 
 const edgeTypes = { activeBeam: ActiveBeamEdge };
+
+const EMPTY_SIMULATION: ParallelSimulationState = {
+  activeAgentIds: [],
+  activeInputId: "input-telegram",
+  tasks: [],
+};
 
 interface AgentFlowCanvasProps {
   agents: Agent[];
@@ -30,15 +38,19 @@ interface AgentFlowCanvasProps {
 
 export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(), []);
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+  const [simulation, setSimulation] = useState<ParallelSimulationState>(EMPTY_SIMULATION);
   const [dialogAgents, setDialogAgents] = useState<Agent[] | null>(null);
   const [selectedCount, setSelectedCount] = useState(0);
-  const simulationIndex = useRef(0);
+  const simulationRound = useRef(0);
   const nodesRef = useRef<Node[]>([]);
 
   const graph = useMemo(
-    () => buildAgentGraph(agents, savedLayout, activeAgentId),
-    [agents, savedLayout, activeAgentId]
+    () =>
+      buildAgentGraph(agents, savedLayout, {
+        activeAgentIds: simulation.activeAgentIds,
+        activeInputId: simulation.activeInputId,
+      }),
+    [agents, savedLayout, simulation.activeAgentIds, simulation.activeInputId]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
@@ -62,22 +74,18 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
 
   useEffect(() => {
     if (editing || agents.length === 0) {
-      setActiveAgentId(null);
+      setSimulation(EMPTY_SIMULATION);
       return;
     }
 
     const tick = () => {
-      const busy = agents.filter((a) => a.status === "executing" || a.status === "thinking");
-      if (busy.length > 0) {
-        setActiveAgentId(busy[0].id);
-        return;
-      }
-      simulationIndex.current = (simulationIndex.current + 1) % agents.length;
-      setActiveAgentId(agents[simulationIndex.current]?.id ?? null);
+      const next = nextParallelSimulation(agents, simulationRound.current);
+      simulationRound.current += 1;
+      setSimulation(next);
     };
 
     tick();
-    const interval = window.setInterval(tick, 3200);
+    const interval = window.setInterval(tick, 3400);
     return () => window.clearInterval(interval);
   }, [agents, editing]);
 
@@ -125,8 +133,13 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
     }
   }, [editing]);
 
+  const activeInputLabel =
+    simulation.activeInputId === "input-chat" ? "Chat Input" : "Telegram";
+
   return (
     <div className="agent-flow-canvas w-full h-full relative">
+      {!editing && <SimulatorPanel tasks={simulation.tasks} activeInputLabel={activeInputLabel} />}
+
       {selectedCount > 1 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full bg-surface-container-lowest/95 border border-outline-variant/40 shadow-md text-xs font-medium text-on-surface">
           {selectedCount} agents selected — Shift+click to add more, click an agent for details

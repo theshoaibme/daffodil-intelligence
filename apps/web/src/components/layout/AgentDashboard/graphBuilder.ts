@@ -32,11 +32,18 @@ function defaultCategoryX(index: number): number {
   return 520 - span / 2 + index * 240;
 }
 
+export interface SimulationOverlay {
+  activeAgentIds: string[];
+  activeInputId?: string | null;
+}
+
 export function buildAgentGraph(
   agents: Agent[],
   saved: SavedPositions,
-  activeAgentId: string | null
+  simulation: SimulationOverlay
 ): { nodes: Node[]; edges: Edge[] } {
+  const { activeAgentIds, activeInputId = null } = simulation;
+  const activeSet = new Set(activeAgentIds);
   const grouped = agents.reduce(
     (acc, agent) => {
       const cat = agent.category || "general";
@@ -49,7 +56,7 @@ export function buildAgentGraph(
 
   const pos = (id: string, x: number, y: number) => saved[id] ?? { x, y };
 
-  const rootActive = activeAgentId !== null;
+  const rootActive = activeSet.size > 0;
 
   const nodes: Node[] = [
     {
@@ -73,7 +80,11 @@ export function buildAgentGraph(
       id: input.id,
       type: "integration",
       position: pos(input.id, INPUT_NODE_X, defaultInputY(index, INPUT_INTEGRATIONS.length)),
-      data: { label: input.label, integration: input.integration },
+      data: {
+        label: input.label,
+        integration: input.integration,
+        working: rootActive && activeInputId === input.id,
+      },
       draggable: true,
     });
 
@@ -83,7 +94,7 @@ export function buildAgentGraph(
       target: ROOT_NODE_ID,
       targetHandle: ROOT_INPUT_HANDLE,
       type: "activeBeam",
-      data: { active: rootActive },
+      data: { active: rootActive && activeInputId === input.id },
     });
   });
 
@@ -99,8 +110,7 @@ export function buildAgentGraph(
     });
 
     const list = grouped[category] ?? [];
-    const rootToCatActive =
-      activeAgentId !== null && list.some((a) => a.id === activeAgentId);
+    const rootToCatActive = list.some((a) => activeSet.has(a.id));
 
     edges.push({
       id: `e-${ROOT_NODE_ID}-${catId}`,
@@ -115,7 +125,7 @@ export function buildAgentGraph(
 
     list.forEach((agent, agentIndex) => {
       const isActive =
-        activeAgentId === agent.id ||
+        activeSet.has(agent.id) ||
         agent.status === "executing" ||
         agent.status === "thinking";
 
