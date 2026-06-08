@@ -71,13 +71,6 @@ export function Sidebar({ sidebarOpen }: SidebarProps) {
 
         <div className="pt-4 border-t border-outline-variant/20 flex flex-col gap-1">
           <button 
-            onClick={() => navigate("/live")}
-            className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer"
-          >
-            <Mic size={20} className="text-primary" />
-            <span className="text-sm font-semibold">Live Voice</span>
-          </button>
-          <button 
             onClick={() => navigate("/agents")}
             className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer"
           >
@@ -85,22 +78,11 @@ export function Sidebar({ sidebarOpen }: SidebarProps) {
             <span className="text-sm font-semibold">Agents</span>
           </button>
           <button 
-            onClick={() => navigate("/computer")}
-            className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer"
-          >
-            <Monitor size={20} className="text-tertiary" />
-            <span className="text-sm font-semibold">Computer View</span>
-          </button>
-          <button 
             onClick={() => navigate("/model")}
             className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer"
           >
-            <Cpu size={20} className="text-primary" />
-            <span className="text-sm font-semibold">Model Settings</span>
-          </button>
-          <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer">
-            <Settings size={20} />
-            <span className="text-sm">Settings</span>
+            <Settings size={20} className="text-primary" />
+            <span className="text-sm font-semibold">Settings</span>
           </button>
           <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer">
             <HelpCircle size={20} />

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { PlusMenuDropdown } from "./PlusMenuDropdown";
 import { ModelSelector } from "./ModelSelector";
-import { ImageAttachmentButton, SparklesButton, SendButton } from "./ActionButtons";
+import { ImageAttachmentButton, SendButton, LiveVoiceButton } from "./ActionButtons";
 
 interface PromptBarProps {
   prompt: string;
@@ -72,7 +72,7 @@ export function PromptBar({
               selectedModelId={selectedModelId}
               onChange={setSelectedModelId}
             />
-            <SparklesButton />
+            <LiveVoiceButton />
             <SendButton onClick={handleSend} disabled={!prompt.trim() || isLoading} loading={isLoading} />
           </div>
         </div>

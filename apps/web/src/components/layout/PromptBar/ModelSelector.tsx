@@ -65,7 +65,7 @@ export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps)
     <div className="relative" ref={containerRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-surface-container-highest/60 hover:bg-surface-container-highest px-4 py-2 text-on-surface transition-colors border border-outline-variant/20 rounded-full cursor-pointer outline-none"
+        className="flex items-center gap-2 bg-surface-container-highest/60 hover:bg-surface-container-highest px-3 py-1 text-on-surface transition-colors rounded-full cursor-pointer outline-none"
       >
         <span className="text-xs font-medium">{currentModel.name}</span>
         <ChevronDown size={14} />
