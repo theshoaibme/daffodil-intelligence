@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Search, LayoutGrid, Users, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -6,6 +6,8 @@ import { SidebarItem } from "../../ui";
 import { ROUTES } from "../../../lib/routes";
 import { recentProjects, sharedProjects } from "./projects";
 import { SidebarProps, SidebarTab } from "./types";
+import { useLocalStorageState } from "../../../hooks/useLocalStorageState";
+import { enterOrSkip } from "../../../lib/motion";
 
 function matchesSearch(project: { title: string; sharedBy?: string }, query: string) {
   const normalized = query.trim().toLowerCase();
@@ -16,9 +18,15 @@ function matchesSearch(project: { title: string; sharedBy?: string }, query: str
   );
 }
 
-export function Sidebar({ sidebarOpen }: SidebarProps) {
-  const [activeTab, setActiveTab] = useState<SidebarTab>("projects");
-  const [searchQuery, setSearchQuery] = useState("");
+export function Sidebar({ sidebarOpen, uiReady = true }: SidebarProps) {
+  const [activeTab, setActiveTab] = useLocalStorageState<SidebarTab>(
+    "di-dashboard-sidebar-tab",
+    "projects"
+  );
+  const [searchQuery, setSearchQuery] = useLocalStorageState(
+    "di-dashboard-sidebar-search",
+    ""
+  );
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -35,7 +43,7 @@ export function Sidebar({ sidebarOpen }: SidebarProps) {
 
   return (
     <motion.aside
-      initial={{ width: 0, x: -20 }}
+      initial={enterOrSkip(uiReady, { width: 0, x: -20 })}
       animate={{ width: sidebarOpen ? 280 : 0, x: sidebarOpen ? 0 : -20 }}
       exit={{ width: 0, x: -20 }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}

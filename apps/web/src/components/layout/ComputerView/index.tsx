@@ -1,7 +1,9 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { useComputerStream } from "../../../hooks/useComputerStream";
 import { ROUTES } from "../../../lib/routes";
+import { BOTTOM_BAR_LAYOUT_ID, modeSpring, modeSpringSoft, overlayFade } from "../../../lib/motion";
 import {
   Monitor,
   Camera,
@@ -174,13 +176,34 @@ export default function ComputerView({ embedded = false, onExitCopycat }: Comput
     }
   };
 
+  const shellClass = embedded
+    ? "absolute inset-0 z-40 overflow-hidden flex flex-col"
+    : "relative w-full h-screen overflow-hidden flex flex-col";
+
+  const Shell = embedded ? motion.div : "div";
+  const shellProps = embedded
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: overlayFade,
+      }
+    : {};
+
+  const ScreenShell = embedded ? motion.div : "div";
+  const screenProps = embedded
+    ? {
+        initial: { opacity: 0, y: 28, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 20, scale: 0.99 },
+        transition: modeSpringSoft,
+        className: "flex-1 relative bg-black",
+      }
+    : { className: "flex-1 relative" };
+
   return (
-    <div
-      className={`relative w-full bg-black overflow-hidden flex ${
-        embedded ? "absolute inset-0 z-40" : "h-screen"
-      }`}
-    >
-      <div className="flex-1 relative">
+    <Shell className={shellClass} {...shellProps}>
+      <ScreenShell {...screenProps}>
         <ScreenViewer frame={currentFrame} onCanvasClick={handleCanvasClick} />
 
         {error && (
@@ -189,12 +212,19 @@ export default function ComputerView({ embedded = false, onExitCopycat }: Comput
             <span className="text-sm font-medium">{error}</span>
           </div>
         )}
-      </div>
+      </ScreenShell>
 
       {/* Keyboard input popover */}
-      {keyboardOpen && (
-        <div className="fixed bottom-20 left-0 right-0 z-50 flex justify-center w-full px-4 pointer-events-none">
-          <div className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 rounded-3xl p-3 shadow-md flex gap-2 pointer-events-auto">
+      <AnimatePresence>
+        {keyboardOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.96 }}
+            transition={modeSpring}
+            className="fixed bottom-20 left-0 right-0 z-50 flex justify-center w-full px-4 pointer-events-none"
+          >
+            <div className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 rounded-3xl p-3 shadow-md flex gap-2 pointer-events-auto">
             <input
               value={typeText}
               onChange={(e) => setTypeText(e.target.value)}
@@ -215,13 +245,21 @@ export default function ComputerView({ embedded = false, onExitCopycat }: Comput
             >
               <Send size={16} />
             </button>
-          </div>
-        </div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom icon toolbar — same position as chat PromptBar */}
       <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center w-full px-4 pointer-events-none">
-        <div className="glass-gradient-panel border border-outline-variant/40 inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 py-1 shadow-md pointer-events-auto">
+        <motion.div
+          layoutId={BOTTOM_BAR_LAYOUT_ID}
+          initial={{ opacity: 0, y: 14, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 10, scale: 0.92 }}
+          transition={modeSpring}
+          className="glass-gradient-panel border border-outline-variant/40 inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 py-1 shadow-md pointer-events-auto"
+        >
           <ToolbarButton onClick={handleChatClick} label="Back to chat">
             <MessageSquare size={16} />
           </ToolbarButton>
@@ -281,8 +319,8 @@ export default function ComputerView({ embedded = false, onExitCopycat }: Comput
           >
             <RotateCcw size={16} className={isReplaying ? "animate-spin" : ""} />
           </ToolbarButton>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </Shell>
   );
 }

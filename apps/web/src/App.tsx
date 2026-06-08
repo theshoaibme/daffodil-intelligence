@@ -4,10 +4,13 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { enterOrSkip, modeSpring, overlayFade } from "./lib/motion";
+import { UiAnimationProvider, useUiAnimationReady } from "./context/UiAnimationContext";
 import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
 import { useChat } from "./hooks/useChat";
+import { useLocalStorageState } from "./hooks/useLocalStorageState";
 import { ROUTES } from "./lib/routes";
 
 import { Routes, Route, Navigate } from "react-router-dom";
@@ -49,7 +52,14 @@ export default function App() {
         <Route key={from} path={from} element={<Navigate to={to} replace />} />
       ))}
 
-      <Route path={ROUTES.home} element={<ChatDashboard />} />
+      <Route
+        path={ROUTES.home}
+        element={
+          <UiAnimationProvider>
+            <ChatDashboard />
+          </UiAnimationProvider>
+        }
+      />
       <Route path={ROUTES.model} element={<ModelManagementPage />} />
       <Route path={ROUTES.live} element={<LiveVoicePage />} />
       <Route path={ROUTES.agents} element={<AgentDashboard />} />
@@ -73,12 +83,25 @@ export default function App() {
   );
 }
 
+const DASHBOARD_STORAGE_KEYS = {
+  sidebarOpen: "di-dashboard-sidebar-open",
+  tasksCollapsed: "di-dashboard-tasks-collapsed",
+  promptDraft: "di-dashboard-prompt-draft",
+} as const;
+
 function ChatDashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const uiReady = useUiAnimationReady();
+  const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
+    DASHBOARD_STORAGE_KEYS.sidebarOpen,
+    true
+  );
   const [copycatMode, setCopycatMode] = useState(false);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useLocalStorageState(DASHBOARD_STORAGE_KEYS.promptDraft, "");
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
-  const [tasksCollapsed, setTasksCollapsed] = useState(false);
+  const [tasksCollapsed, setTasksCollapsed] = useLocalStorageState(
+    DASHBOARD_STORAGE_KEYS.tasksCollapsed,
+    false
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const {
@@ -127,21 +150,31 @@ function ChatDashboard() {
         {sidebarOpen && (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
+              initial={enterOrSkip(uiReady, { opacity: 0 })}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               onClick={() => setSidebarOpen(false)}
               className="fixed inset-0 bg-background/50 backdrop-blur-sm z-45 lg:hidden"
             />
-            <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} uiReady={uiReady} />
           </>
         )}
       </AnimatePresence>
 
-      <main className="flex-1 flex flex-col relative overflow-hidden bg-background dot-pattern transition-all">
+      <main className="flex-1 flex flex-col relative overflow-hidden bg-background dot-pattern">
         <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-        <div className="flex-1 flex flex-col items-center px-6 h-full pt-12 overflow-y-auto custom-scrollbar pb-32">
+        <motion.div
+          className="flex-1 flex flex-col items-center px-6 h-full pt-12 overflow-y-auto custom-scrollbar pb-32"
+          animate={{
+            opacity: copycatMode ? 0.35 : 1,
+            scale: copycatMode ? 0.985 : 1,
+            filter: copycatMode ? "blur(6px)" : "blur(0px)",
+          }}
+          transition={overlayFade}
+          style={{ pointerEvents: copycatMode ? "none" : "auto" }}
+        >
           {!hasMessages ? (
             <div className="max-w-3xl w-full flex flex-col items-center gap-10">
               <div className="text-center px-4">
@@ -169,7 +202,7 @@ function ChatDashboard() {
             <div className="w-full max-w-7xl relative flex flex-col md:flex-row gap-6 items-center md:items-start justify-center">
               <div className="flex-1 w-full flex items-center justify-center md:pr-[420px] min-h-[180px] md:min-h-[300px]" />
 
-              <div className="w-full max-w-md flex flex-col gap-4 md:hidden pb-8">
+              <div className="w-full max-w-md flex flex-col gap-4 md:hidden pb-36">
                 <AiResponseCard
                   prompt={lastUserMessage?.content || ""}
                   response={lastAssistantMessage?.content || ""}
@@ -179,24 +212,17 @@ function ChatDashboard() {
                   onEdit={handleEdit}
                   error={error}
                 />
-                <TaskPanel
-                  tasksCollapsed={tasksCollapsed}
-                  setTasksCollapsed={setTasksCollapsed}
-                />
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
 
-        <AnimatePresence>
-          {!copycatMode && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.2 }}
-            >
+        <LayoutGroup id="mode-switch">
+          <AnimatePresence mode="popLayout">
+            {!copycatMode && (
               <PromptBar
+                key="chat-mode-bar"
+                uiReady={uiReady}
                 prompt={prompt}
                 setPrompt={setPrompt}
                 isSent={hasMessages}
@@ -208,28 +234,32 @@ function ChatDashboard() {
                 onCopycatMode={() => setCopycatMode(true)}
                 copycatActive={copycatMode}
               />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
 
-        <AnimatePresence>
-          {copycatMode && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ComputerView embedded onExitCopycat={() => setCopycatMode(false)} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+          <AnimatePresence>
+            {copycatMode && (
+              <ComputerView
+                key="copycat-mode"
+                embedded
+                onExitCopycat={() => setCopycatMode(false)}
+              />
+            )}
+          </AnimatePresence>
+        </LayoutGroup>
 
-        <div className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-30 pointer-events-none">
+        <motion.div
+          className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-30 pointer-events-none"
+          animate={{
+            opacity: copycatMode ? 0 : 1,
+            x: copycatMode ? 24 : 0,
+          }}
+          transition={modeSpring}
+        >
           <AnimatePresence>
             {hasMessages && (
               <motion.div
-                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                initial={enterOrSkip(uiReady, { opacity: 0, y: -20, scale: 0.95 })}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
@@ -252,6 +282,17 @@ function ChatDashboard() {
             <TaskPanel
               tasksCollapsed={tasksCollapsed}
               setTasksCollapsed={setTasksCollapsed}
+              uiReady={uiReady}
+            />
+          </div>
+        </motion.div>
+
+        <div className="md:hidden fixed bottom-28 left-0 right-0 z-20 flex justify-center px-4 pointer-events-none">
+          <div className="w-full max-w-md pointer-events-auto">
+            <TaskPanel
+              tasksCollapsed={tasksCollapsed}
+              setTasksCollapsed={setTasksCollapsed}
+              uiReady={uiReady}
             />
           </div>
         </div>

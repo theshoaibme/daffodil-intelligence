@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, type ReactNode } from "react";
 import { Plus, Compass, Monitor, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DropdownItem } from "../../ui";
@@ -12,6 +12,14 @@ interface PlusMenuDropdownProps {
   copycatActive?: boolean;
 }
 
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="px-2.5 pt-1 pb-1.5 text-[11px] font-medium text-on-surface-variant/70 tracking-wide">
+      {children}
+    </p>
+  );
+}
+
 export function PlusMenuDropdown({
   isOpen,
   setIsOpen,
@@ -22,7 +30,6 @@ export function PlusMenuDropdown({
 }: PlusMenuDropdownProps) {
   const plusMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close plus menu on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (plusMenuRef.current && !plusMenuRef.current.contains(event.target as Node)) {
@@ -34,54 +41,59 @@ export function PlusMenuDropdown({
   }, [setIsOpen]);
 
   const tools = [
-    { text: "MCP", icon: <Compass className="text-primary" size={20} /> },
-    { text: "Agent", icon: <Monitor className="text-primary" size={20} /> },
-    { text: "Research", icon: <Compass className="text-primary" size={20} /> },
-    { text: "Task", icon: <CheckCircle2 className="text-primary" size={20} /> },
+    { text: "MCP", icon: <Compass size={16} strokeWidth={1.75} /> },
+    { text: "Agent", icon: <Monitor size={16} strokeWidth={1.75} /> },
+    { text: "Research", icon: <Compass size={16} strokeWidth={1.75} /> },
+    { text: "Task", icon: <CheckCircle2 size={16} strokeWidth={1.75} /> },
   ];
 
   const modes = [
-    { text: "Copycat Mode", icon: <Monitor className="text-tertiary" size={20} /> },
+    { text: "Copycat Mode", icon: <Monitor size={16} strokeWidth={1.75} /> },
   ];
 
   return (
     <div className="relative" ref={plusMenuRef}>
-      <button 
+      <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-full transition-all cursor-pointer border-0 outline-none"
+        aria-label="More options"
+        title="More options"
+        className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-full transition-all cursor-pointer border-0 outline-none"
       >
-        <Plus size={22} />
+        <Plus size={16} />
       </button>
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.97, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.12, ease: "easeOut" }}
-            className="absolute bottom-full left-0 mb-3 w-56 bg-surface-container-high border border-outline-variant/40 rounded-2xl shadow-xl z-[60] overflow-hidden flex flex-col"
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
+            className="absolute bottom-full left-0 mb-2 w-52 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
           >
-            <div className="p-2 space-y-1">
-              <div className="px-2 pb-1 text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Tools</div>
+            <div className="px-1 pb-0.5">
+              <SectionLabel>Tools</SectionLabel>
               {tools.map((item) => (
-                <DropdownItem 
-                  key={item.text} 
-                  icon={item.icon} 
-                  text={item.text} 
+                <DropdownItem
+                  key={item.text}
+                  icon={item.icon}
+                  text={item.text}
                   active={selectedTools.includes(item.text)}
                   onClick={() => onToggleTool(item.text)}
                 />
               ))}
             </div>
-            
-            <div className="border-t border-outline-variant/20 p-2 space-y-1">
-              <div className="px-2 pb-1 text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Modes</div>
+
+            <div className="mx-2.5 my-1 border-t border-outline-variant/30" />
+
+            <div className="px-1 pt-0.5 pb-1">
+              <SectionLabel>Modes</SectionLabel>
               {modes.map((mode) => (
-                <DropdownItem 
-                  key={mode.text} 
-                  icon={mode.icon} 
-                  text={mode.text} 
+                <DropdownItem
+                  key={mode.text}
+                  icon={mode.icon}
+                  text={mode.text}
                   active={copycatActive}
                   onClick={() => {
                     setIsOpen(false);

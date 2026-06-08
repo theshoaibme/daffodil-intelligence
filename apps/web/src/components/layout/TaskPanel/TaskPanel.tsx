@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { Compass, ChevronUp, ChevronDown, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader } from "../../ui/Loader";
+import { useLocalStorageState } from "../../../hooks/useLocalStorageState";
+import { enterOrSkip } from "../../../lib/motion";
 
 export interface TaskItem {
   id: string;
@@ -12,6 +14,7 @@ export interface TaskItem {
 export interface TaskPanelProps {
   tasksCollapsed: boolean;
   setTasksCollapsed: (collapsed: boolean) => void;
+  uiReady?: boolean;
 }
 
 export const initialTasks: TaskItem[] = [];
@@ -45,11 +48,14 @@ export function LogItem({
   );
 }
 
+const TASKS_STORAGE_KEY = "di-dashboard-task-items";
+
 export function TaskPanel({
   tasksCollapsed,
-  setTasksCollapsed
+  setTasksCollapsed,
+  uiReady = true,
 }: TaskPanelProps) {
-  const [tasks, setTasks] = useState<TaskItem[]>(initialTasks);
+  const [tasks, setTasks] = useLocalStorageState<TaskItem[]>(TASKS_STORAGE_KEY, initialTasks);
   const activeTask = tasks.find(t => t.active);
 
   const handleTaskClick = (taskId: string) => {
@@ -59,6 +65,13 @@ export function TaskPanel({
     })));
   };
 
+  useEffect(() => {
+    setTasks((prev) => {
+      if (!prev.some((task) => task.active)) return prev;
+      return prev.map((task) => ({ ...task, active: false }));
+    });
+  }, [setTasks]);
+
   return (
     <div 
       className="w-full glass-gradient-panel border border-outline-variant/40 shadow-md flex flex-col overflow-hidden rounded-3xl" 
@@ -66,18 +79,19 @@ export function TaskPanel({
     >
       {/* Smooth Spring Panel Body */}
       <motion.div
+        initial={false}
         animate={{ height: tasksCollapsed ? 56 : 200 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="overflow-hidden flex flex-col justify-end"
       >
-        <AnimatePresence initial={false} mode="wait">
+        <AnimatePresence mode="wait">
           {tasksCollapsed ? (
             <motion.div
               key="collapsed"
-              initial={{ opacity: 0, y: -5 }}
+              initial={enterOrSkip(uiReady, { opacity: 0, y: -5 })}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.2 }}
               className="p-3 border-b border-outline-variant/20 h-[56px] flex items-center justify-center"
             >
               {activeTask ? (
@@ -93,10 +107,10 @@ export function TaskPanel({
           ) : (
             <motion.div
               key="expanded"
-              initial={{ opacity: 0, y: 5 }}
+              initial={enterOrSkip(uiReady, { opacity: 0, y: 5 })}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 5 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.2 }}
               className="flex-1 p-3 custom-scrollbar overflow-y-auto max-h-[196px] space-y-1.5 h-[196px] flex flex-col items-center justify-center"
             >
               {tasks.length > 0 ? (

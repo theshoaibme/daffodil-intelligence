@@ -1,8 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { 
   createChat, 
   sendMessage 
 } from "../lib/api";
+import { clearChatSession, loadChatSession, saveChatSession } from "../lib/chatStorage";
 
 export interface ChatMessage {
   id: string;
@@ -24,13 +25,18 @@ export interface ThinkingStep {
 }
 
 export function useChat() {
-  const [chatId, setChatId] = useState<number | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatId, setChatId] = useState<number | null>(() => loadChatSession()?.chatId ?? null);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadChatSession()?.messages ?? []);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStreamingContent, setCurrentStreamingContent] = useState("");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isStreaming) return;
+    saveChatSession(chatId, messages);
+  }, [chatId, messages, isStreaming]);
 
   const initializeChat = useCallback(async () => {
     try {
@@ -135,6 +141,7 @@ export function useChat() {
     setThinkingSteps([]);
     setCurrentStreamingContent("");
     setError(null);
+    clearChatSession();
   }, []);
 
   return {

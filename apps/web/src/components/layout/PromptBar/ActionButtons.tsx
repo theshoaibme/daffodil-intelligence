@@ -1,14 +1,20 @@
-import { ImagePlus, Sparkles, ArrowUp, Loader2, Mic } from "lucide-react";
+import { Link, Sparkles, ArrowUp, Loader2, Mic } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../../lib/routes";
 
-export function ImageAttachmentButton({ onImageClick }: { onImageClick?: () => void }) {
+const promptIconButtonClass =
+  "w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-full transition-all cursor-pointer border-0 outline-none";
+
+export function FileAttachmentButton({ onClick }: { onClick?: () => void }) {
   return (
-    <button 
-      onClick={onImageClick}
-      className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-full transition-all cursor-pointer border-0 outline-none"
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Attach file"
+      title="Attach file"
+      className={promptIconButtonClass}
     >
-      <ImagePlus size={22} />
+      <Link size={16} />
     </button>
   );
 }
