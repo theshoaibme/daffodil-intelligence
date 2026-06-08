@@ -1,17 +1,12 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, FileText, MessageSquare, Gift, Sun, Moon, LogOut } from "lucide-react";
+import { FileText, MessageSquare, Gift, Sun, Moon, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeaderIcon } from "../ui";
 import { useThemeMode } from "../ThemeProvider";
 import { useAuth } from "../../context/AuthContext";
 import { ROUTES } from "../../lib/routes";
 import { dropdownPanelVariants, modeSpringSoft } from "../../lib/motion";
-
-interface HeaderProps {
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-}
 
 function userInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -58,7 +53,7 @@ function UserAvatar({
   );
 }
 
-export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
+export function Header() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
@@ -90,17 +85,14 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   };
 
   return (
-    <header className="flex justify-between items-center h-16 px-4 sm:px-8 w-full z-40">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 hover:bg-surface-container-highest rounded-full transition-colors text-on-surface-variant cursor-pointer flex items-center justify-center border-0 outline-none"
-        >
-          <Menu size={24} />
-        </button>
+    <header className="sticky top-0 z-30 shrink-0 flex justify-between items-center h-16 px-4 sm:px-6 w-full border-b border-outline-variant/30 bg-background/90 backdrop-blur-md">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-base sm:text-lg font-semibold tracking-tight text-on-surface truncate">
+          Daffodil Intelligence
+        </span>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         <div className="hidden sm:flex items-center gap-1.5">
           <HeaderIcon title="Documentation" icon={<FileText size={22} />} />
           <HeaderIcon title="Feedback" icon={<MessageSquare size={22} />} />

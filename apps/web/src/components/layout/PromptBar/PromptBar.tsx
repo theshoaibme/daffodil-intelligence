@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { Settings2 } from "lucide-react";
 import { PlusMenuDropdown } from "./PlusMenuDropdown";
+import { McpConfigureDialog } from "./McpConfigureDialog";
 import { ModelSelector } from "./ModelSelector";
 import { FileAttachmentButton, SendButton, LiveVoiceButton } from "./ActionButtons";
 import { BOTTOM_BAR_LAYOUT_ID, enterOrSkip, modeSpring } from "../../../lib/motion";
 import { useLocalStorageState } from "../../../hooks/useLocalStorageState";
+import { useMcpStatus } from "../../../hooks/useMcpStatus";
 
 interface PromptBarProps {
   prompt: string;
@@ -40,6 +43,17 @@ export function PromptBar({
     "di-dashboard-selected-tools",
     ["Agent", "Task"]
   );
+  const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
+  const {
+    status: mcpStatus,
+    loading: mcpLoading,
+    localServers,
+    isConfigured: mcpConfigured,
+    refreshLocal,
+  } = useMcpStatus();
+
+  const mcpSelected = selectedTools.includes("MCP");
+  const showMcpBanner = mcpSelected && !mcpConfigured;
 
   const handleToggleTool = (tool: string) => {
     setSelectedTools(prev => 
@@ -50,6 +64,15 @@ export function PromptBar({
   };
 
   return (
+    <>
+    <McpConfigureDialog
+      open={mcpDialogOpen}
+      onClose={() => setMcpDialogOpen(false)}
+      status={mcpStatus}
+      localServers={localServers}
+      onLocalServersChange={() => refreshLocal()}
+      loading={mcpLoading}
+    />
     <div className="fixed bottom-6 left-0 right-0 z-30 flex justify-center w-full px-4 pointer-events-none">
       <motion.div
         layoutId={BOTTOM_BAR_LAYOUT_ID}
@@ -59,6 +82,19 @@ export function PromptBar({
         transition={modeSpring}
         className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto"
       >
+        {showMcpBanner && (
+          <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-2xl bg-primary/10 text-primary text-xs">
+            <span>MCP is not configured yet.</span>
+            <button
+              type="button"
+              onClick={() => setMcpDialogOpen(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary text-on-primary font-semibold border-0 cursor-pointer hover:opacity-90"
+            >
+              <Settings2 size={12} />
+              Configure
+            </button>
+          </div>
+        )}
         <textarea 
           ref={textareaRef}
           rows={1}
@@ -83,6 +119,8 @@ export function PromptBar({
               onToggleTool={handleToggleTool}
               onCopycatMode={onCopycatMode}
               copycatActive={copycatActive}
+              mcpConfigured={mcpConfigured}
+              onConfigureMcp={() => setMcpDialogOpen(true)}
             />
             <FileAttachmentButton />
           </div>
@@ -98,5 +136,6 @@ export function PromptBar({
         </div>
       </motion.div>
     </div>
+    </>
   );
 }

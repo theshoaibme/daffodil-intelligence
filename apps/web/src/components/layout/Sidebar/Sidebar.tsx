@@ -1,45 +1,99 @@
-import { useMemo } from "react";
-import { Search, MessageSquare, Users, Settings, Plus } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
+import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { SidebarItem } from "../../ui";
 import { ROUTES } from "../../../lib/routes";
-import { sharedProjects } from "./projects";
-import type { SidebarProps, SidebarTab } from "./types";
-
-export type { SidebarProps } from "./types";
-import { useLocalStorageState } from "../../../hooks/useLocalStorageState";
-import { enterOrSkip } from "../../../lib/motion";
+import type { SidebarProps } from "./types";
+import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "../../../lib/motion";
 import { useChatHistory } from "../../../context/ChatHistoryContext";
 import { ChatHistoryItem } from "./ChatHistoryItem";
 
-function matchesSearch(item: { title: string; sharedBy?: string }, query: string) {
+export type { SidebarProps } from "./types";
+export const SIDEBAR_WIDTH_EXPANDED = 280;
+export const SIDEBAR_WIDTH_COLLAPSED = 56;
+
+const iconBtn =
+  "shrink-0 p-2 rounded-full transition-colors cursor-pointer flex items-center justify-center border-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+
+const SIDEBAR_NAV = [
+  { to: ROUTES.agents, label: "Agents", icon: LayoutGrid },
+  { to: ROUTES.skills, label: "Skills", icon: Sparkles },
+] as const;
+
+function matchesSearch(item: { title: string }, query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
+  return item.title.toLowerCase().includes(normalized);
+}
+
+function SidebarNavLink({
+  label,
+  icon: Icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
-    item.title.toLowerCase().includes(normalized) ||
-    (item.sharedBy?.toLowerCase().includes(normalized) ?? false)
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border-0 cursor-pointer text-left ${
+        active
+          ? "bg-primary text-on-primary"
+          : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+      }`}
+    >
+      <Icon size={18} />
+      {label}
+    </button>
+  );
+}
+
+function RailButton({
+  label,
+  onClick,
+  active = false,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={`${iconBtn} ${
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
 export function Sidebar({
   sidebarOpen,
+  setSidebarOpen,
   uiReady = true,
   activeHistoryId = null,
+  searchQuery,
+  setSearchQuery,
   onSelectHistory,
   onDeleteHistory,
   onShareHistory,
   onNewChat,
 }: SidebarProps) {
   const { histories } = useChatHistory();
-  const [activeTab, setActiveTab] = useLocalStorageState<SidebarTab>(
-    "di-dashboard-sidebar-tab",
-    "projects"
-  );
-  const [searchQuery, setSearchQuery] = useLocalStorageState(
-    "di-dashboard-sidebar-search",
-    ""
-  );
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,71 +102,104 @@ export function Sidebar({
     [histories, searchQuery]
   );
 
-  const visibleShared = useMemo(
-    () => sharedProjects.filter((project) => matchesSearch(project, searchQuery)),
-    [searchQuery]
-  );
-
-  const sectionLabel = activeTab === "projects" ? "Chat history" : "Shared with you";
-  const emptyLabel =
-    activeTab === "projects"
-      ? "No chats match your search."
-      : "No shared chats match your search.";
+  const toggleSidebar = () => setSidebarOpen?.(!sidebarOpen);
 
   return (
     <motion.aside
-      initial={enterOrSkip(uiReady, { width: 0, x: -20 })}
-      animate={{ width: sidebarOpen ? 280 : 0, x: sidebarOpen ? 0 : -20 }}
-      exit={{ width: 0, x: -20 }}
-      transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed inset-y-0 left-0 h-full glass-panel z-50 overflow-hidden shadow-lg"
+      initial={enterOrSkip(uiReady, { width: SIDEBAR_WIDTH_COLLAPSED })}
+      animate={{ width: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED }}
+      transition={sidebarWidthTransition}
+      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low border-r border-outline-variant/40 shadow-sm will-change-[width] lg:static lg:z-auto lg:flex-shrink-0"
     >
-      <div className="w-[280px] h-full flex flex-col p-6">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="text-xl font-semibold tracking-tight">Daffodil Intelligence</span>
-        </div>
-
-        <div className="flex p-1 bg-surface-container-high rounded-xl mb-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab("projects")}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-              activeTab === "projects"
-                ? "bg-primary text-on-primary"
-                : "text-on-surface-variant hover:text-on-surface"
-            }`}
+      <div
+        className="relative h-full"
+        style={{ width: SIDEBAR_WIDTH_EXPANDED }}
+      >
+        {/* Collapsed icon rail */}
+        <motion.div
+          aria-hidden={sidebarOpen}
+          initial={false}
+          animate={{ opacity: sidebarOpen ? 0 : 1 }}
+          transition={{
+            ...sidebarPanelTransition,
+            delay: sidebarOpen ? 0 : 0.06,
+          }}
+          className={`absolute inset-y-0 left-0 flex w-[56px] flex-col items-center gap-2 py-4 ${
+            sidebarOpen ? "pointer-events-none" : "pointer-events-auto"
+          }`}
+        >
+          <RailButton label="Expand sidebar" onClick={toggleSidebar}>
+            <Menu size={22} />
+          </RailButton>
+          <RailButton label="New chat" onClick={() => onNewChat?.()}>
+            <Plus size={22} />
+          </RailButton>
+          <div className="flex-1" />
+          <RailButton
+            label="Account settings"
+            active={location.pathname === ROUTES.account}
+            onClick={() => navigate(ROUTES.account)}
           >
-            <MessageSquare size={18} />
-            Chats
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("shared")}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-              activeTab === "shared"
-                ? "bg-primary text-on-primary"
-                : "text-on-surface-variant hover:text-on-surface"
-            }`}
-          >
-            <Users size={18} />
-            Shared
-          </button>
-        </div>
+            <Settings size={22} />
+          </RailButton>
+        </motion.div>
 
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-2.5 text-on-surface-variant" size={20} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={activeTab === "projects" ? "Search chats..." : "Search shared..."}
-            className="w-full bg-surface-container-high/50 border border-outline-variant/20 rounded-xl pl-10 pr-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none transition-all"
-          />
-        </div>
+        {/* Expanded panel */}
+        <motion.div
+          aria-hidden={!sidebarOpen}
+          initial={false}
+          animate={{
+            opacity: sidebarOpen ? 1 : 0,
+            x: sidebarOpen ? 0 : -8,
+          }}
+          transition={{
+            ...sidebarPanelTransition,
+            delay: sidebarOpen ? 0.05 : 0,
+          }}
+          className={`absolute inset-0 flex flex-col ${
+            sidebarOpen ? "pointer-events-auto" : "pointer-events-none"
+          }`}
+        >
+          <div className="shrink-0 flex items-center gap-2 px-4 pt-4 pb-3 border-b border-outline-variant/30">
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Collapse sidebar"
+              aria-expanded={sidebarOpen}
+              className={`${iconBtn} text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface`}
+            >
+              <Menu size={22} />
+            </button>
+            <div className="relative flex-1 min-w-0">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none"
+                size={16}
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search chats..."
+                tabIndex={sidebarOpen ? 0 : -1}
+                className="w-full bg-surface-container-high/50 border border-outline-variant/20 rounded-xl pl-9 pr-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:ring-1 focus:ring-primary outline-none transition-all"
+              />
+            </div>
+          </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-          <div className="mb-8">
-            {activeTab === "projects" && (
+          <nav className="shrink-0 px-6 pt-5 flex flex-col gap-1.5 mb-5">
+            {SIDEBAR_NAV.map((item) => (
+              <SidebarNavLink
+                key={item.to}
+                label={item.label}
+                icon={item.icon}
+                active={location.pathname === item.to}
+                onClick={() => navigate(item.to)}
+              />
+            ))}
+          </nav>
+
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 pr-4">
+            <div className="mb-8">
               <button
                 type="button"
                 onClick={() => onNewChat?.()}
@@ -121,12 +208,10 @@ export function Sidebar({
                 <Plus size={16} />
                 New chat
               </button>
-            )}
-            <h3 className="text-[11px] uppercase tracking-widest text-on-surface-variant font-bold mb-4 px-2">
-              {sectionLabel}
-            </h3>
-            {activeTab === "projects" ? (
-              visibleHistories.length > 0 ? (
+              <h3 className="text-[11px] uppercase tracking-widest text-on-surface-variant font-bold mb-4 px-2">
+                Chat history
+              </h3>
+              {visibleHistories.length > 0 ? (
                 <div className="space-y-1">
                   {visibleHistories.map((entry) => (
                     <ChatHistoryItem
@@ -145,41 +230,29 @@ export function Sidebar({
                   ))}
                 </div>
               ) : (
-                <p className="px-2 text-sm text-on-surface-variant">{emptyLabel}</p>
-              )
-            ) : visibleShared.length > 0 ? (
-              <div className="space-y-1">
-                {visibleShared.map((project) => (
-                  <SidebarItem
-                    key={project.id}
-                    title={project.title}
-                    date={project.date}
-                    img={project.img}
-                    subtitle={project.sharedBy}
-                    onClick={() => navigate(ROUTES.home)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="px-2 text-sm text-on-surface-variant">{emptyLabel}</p>
-            )}
+                <p className="px-2 text-sm text-on-surface-variant">No chats match your search.</p>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="pt-4 border-t border-outline-variant/20">
-          <button
-            type="button"
-            onClick={() => navigate(ROUTES.account)}
-            className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left w-full border-0 cursor-pointer ${
-              location.pathname === ROUTES.account
-                ? "bg-primary/10 text-primary"
-                : "bg-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
-            }`}
-          >
-            <Settings size={20} className={location.pathname === ROUTES.account ? "text-primary" : "text-secondary"} />
-            <span className="text-sm font-semibold">Account</span>
-          </button>
-        </div>
+          <div className="shrink-0 px-6 py-4 border-t border-outline-variant/20 bg-surface-container-low">
+            <button
+              type="button"
+              onClick={() => navigate(ROUTES.account)}
+              className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left w-full border-0 cursor-pointer ${
+                location.pathname === ROUTES.account
+                  ? "bg-primary/10 text-primary"
+                  : "bg-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+              }`}
+            >
+              <Settings
+                size={20}
+                className={location.pathname === ROUTES.account ? "text-primary" : "text-secondary"}
+              />
+              <span className="text-sm font-semibold">Account</span>
+            </button>
+          </div>
+        </motion.div>
       </div>
     </motion.aside>
   );

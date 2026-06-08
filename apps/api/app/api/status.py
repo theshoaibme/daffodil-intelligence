@@ -71,6 +71,14 @@ async def list_models():
     }
 
 
+@router.get("/api/system/mcp")
+async def mcp_status():
+    """MCP integration status for the chat tools menu."""
+    from ..core.health_checks import _check_mcp
+
+    return _check_mcp()
+
+
 @router.get("/api/system/runtime")
 async def system_runtime():
     """Live runtime snapshot for dashboard simulation (model, engine, integrations)."""

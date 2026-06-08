@@ -1,5 +1,5 @@
 import { useRef, useEffect, type ReactNode } from "react";
-import { Plus, Compass, Monitor, CheckCircle2 } from "lucide-react";
+import { Plus, Compass, Monitor, CheckCircle2, Settings2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DropdownItem } from "../../ui";
 
@@ -10,6 +10,8 @@ interface PlusMenuDropdownProps {
   onToggleTool: (toolName: string) => void;
   onCopycatMode?: () => void;
   copycatActive?: boolean;
+  mcpConfigured?: boolean;
+  onConfigureMcp?: () => void;
 }
 
 function SectionLabel({ children }: { children: ReactNode }) {
@@ -27,8 +29,12 @@ export function PlusMenuDropdown({
   onToggleTool,
   onCopycatMode,
   copycatActive = false,
+  mcpConfigured = true,
+  onConfigureMcp,
 }: PlusMenuDropdownProps) {
   const plusMenuRef = useRef<HTMLDivElement>(null);
+  const mcpSelected = selectedTools.includes("MCP");
+  const showMcpConfigure = mcpSelected && !mcpConfigured;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -41,7 +47,7 @@ export function PlusMenuDropdown({
   }, [setIsOpen]);
 
   const tools = [
-    { text: "MCP", icon: <Compass size={16} strokeWidth={1.75} /> },
+    { text: "MCP", icon: <Compass size={16} strokeWidth={1.75} />, isMcp: true },
     { text: "Agent", icon: <Monitor size={16} strokeWidth={1.75} /> },
     { text: "Research", icon: <Compass size={16} strokeWidth={1.75} /> },
     { text: "Task", icon: <CheckCircle2 size={16} strokeWidth={1.75} /> },
@@ -50,6 +56,16 @@ export function PlusMenuDropdown({
   const modes = [
     { text: "Copycat Mode", icon: <Monitor size={16} strokeWidth={1.75} /> },
   ];
+
+  const handleMcpClick = () => {
+    if (!mcpConfigured) {
+      if (!mcpSelected) onToggleTool("MCP");
+      setIsOpen(false);
+      onConfigureMcp?.();
+      return;
+    }
+    onToggleTool("MCP");
+  };
 
   return (
     <div className="relative" ref={plusMenuRef}>
@@ -70,19 +86,44 @@ export function PlusMenuDropdown({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className="absolute bottom-full left-0 mb-2 w-52 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
+            className="absolute bottom-full left-0 mb-2 w-56 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
           >
             <div className="px-1 pb-0.5">
               <SectionLabel>Tools</SectionLabel>
-              {tools.map((item) => (
-                <DropdownItem
-                  key={item.text}
-                  icon={item.icon}
-                  text={item.text}
-                  active={selectedTools.includes(item.text)}
-                  onClick={() => onToggleTool(item.text)}
-                />
-              ))}
+              {tools.map((item) =>
+                item.isMcp ? (
+                  <div key={item.text} className="relative">
+                    <DropdownItem
+                      icon={item.icon}
+                      text={item.text}
+                      active={mcpSelected && mcpConfigured}
+                      onClick={handleMcpClick}
+                    />
+                    {showMcpConfigure && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsOpen(false);
+                          onConfigureMcp?.();
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold border-0 cursor-pointer hover:bg-primary/25"
+                      >
+                        <Settings2 size={10} />
+                        Configure
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <DropdownItem
+                    key={item.text}
+                    icon={item.icon}
+                    text={item.text}
+                    active={selectedTools.includes(item.text)}
+                    onClick={() => onToggleTool(item.text)}
+                  />
+                )
+              )}
             </div>
 
             <div className="mx-2.5 my-1 border-t border-outline-variant/30" />

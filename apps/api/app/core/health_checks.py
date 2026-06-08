@@ -153,6 +153,41 @@ def _check_ai_providers() -> Dict[str, Any]:
     }
 
 
+def _check_mcp() -> Dict[str, Any]:
+    try:
+        from ..mcp.servers import get_mcp_server_configs, _AVAILABLE as sdk_available
+    except Exception:
+        sdk_available = False
+        get_mcp_server_configs = lambda **_: []  # type: ignore
+
+    if not settings.MCP_ENABLED:
+        return {
+            "status": "disabled",
+            "enabled": False,
+            "sdk_available": sdk_available,
+            "configured": False,
+            "server_count": 0,
+            "transport": settings.MCP_TRANSPORT,
+            "servers": [],
+        }
+
+    servers = get_mcp_server_configs()
+    server_names = [getattr(s, "name", "server") for s in servers]
+    external = (settings.MCP_EXTERNAL_SERVERS or "").strip()
+    configured = sdk_available and (len(servers) > 0 or bool(external))
+
+    return {
+        "status": "configured" if configured else "needs_configuration",
+        "enabled": True,
+        "sdk_available": sdk_available,
+        "configured": configured,
+        "server_count": len(servers),
+        "transport": settings.MCP_TRANSPORT,
+        "servers": server_names,
+        "has_external_env": bool(external),
+    }
+
+
 def _overall_status(checks: Dict[str, Dict[str, Any]]) -> str:
     critical = ("database", "tools", "agent_runtime")
     for key in critical:
@@ -185,11 +220,7 @@ async def collect_health() -> Dict[str, Any]:
         "tools": _check_tools(),
         "agent_runtime": _check_agent_runtime(),
         "telegram": _check_telegram(),
-        "mcp": {
-            "status": "up" if settings.MCP_ENABLED else "disabled",
-            "enabled": settings.MCP_ENABLED,
-            "transport": settings.MCP_TRANSPORT,
-        },
+        "mcp": _check_mcp(),
         "university_data": _check_university_data(),
         "ai_providers": _check_ai_providers(),
     }

@@ -1,5 +1,5 @@
 export * from "./Sidebar";
-export type { SidebarProps, SidebarTab, SidebarProject } from "./Sidebar/types";
+export type { SidebarProps } from "./Sidebar/types";
 export * from "./Header";
 export * from "./PromptBar/PromptBar";
 export * from "./TaskPanel/TaskPanel";
@@ -13,6 +13,7 @@ export * from "./AuthLayout";
 export * from "./LoginPage";
 export * from "./RegisterPage";
 export * from "./GuidancePage";
+export * from "./SkillsPage";
 export * from "./GoogleCallbackPage";
 export * from "./AccountPage";
 export * from "./LandingPage";

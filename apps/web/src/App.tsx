@@ -25,6 +25,7 @@ import {
   LoginPage,
   RegisterPage,
   GuidancePage,
+  SkillsPage,
   GoogleCallbackPage,
   AccountPage,
   LandingPage,
@@ -78,6 +79,7 @@ export default function App() {
         <Route path={ROUTES.model} element={<ModelManagementPage />} />
         <Route path={ROUTES.live} element={<LiveVoicePage />} />
         <Route path={ROUTES.agents} element={<AgentDashboard />} />
+        <Route path={ROUTES.skills} element={<SkillsPage />} />
         <Route path={ROUTES.computer} element={<ComputerView />} />
         <Route path={ROUTES.guidance} element={<GuidancePage />} />
         <Route path={ROUTES.account} element={<AccountPage />} />
@@ -106,6 +108,10 @@ function ChatDashboard() {
   const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
     DASHBOARD_STORAGE_KEYS.sidebarOpen,
     true
+  );
+  const [searchQuery, setSearchQuery] = useLocalStorageState(
+    "di-dashboard-sidebar-search",
+    ""
   );
   const [copycatMode, setCopycatMode] = useState(false);
   const [prompt, setPrompt] = useLocalStorageState(DASHBOARD_STORAGE_KEYS.promptDraft, "");
@@ -206,36 +212,38 @@ function ChatDashboard() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {sidebarOpen && (
-          <>
-            <motion.div
-              initial={enterOrSkip(uiReady, { opacity: 0 })}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-background/50 backdrop-blur-sm z-45 lg:hidden"
-            />
-            <Sidebar
-              sidebarOpen={sidebarOpen}
-              setSidebarOpen={setSidebarOpen}
-              uiReady={uiReady}
-              activeHistoryId={activeHistoryId}
-              onSelectHistory={handleSelectHistory}
-              onDeleteHistory={handleDeleteHistory}
-              onShareHistory={shareHistory}
-              onNewChat={handleNewChat}
-            />
-          </>
+          <motion.div
+            key="sidebar-backdrop"
+            initial={enterOrSkip(uiReady, { opacity: 0 })}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-background/50 backdrop-blur-sm z-40 lg:hidden"
+          />
         )}
       </AnimatePresence>
 
-      <main className="flex-1 flex flex-col relative overflow-hidden bg-background dot-pattern">
-        <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      <Sidebar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        uiReady={uiReady}
+        activeHistoryId={activeHistoryId}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSelectHistory={handleSelectHistory}
+        onDeleteHistory={handleDeleteHistory}
+        onShareHistory={shareHistory}
+        onNewChat={handleNewChat}
+      />
+
+      <main className="flex flex-1 flex-col min-w-0 h-screen overflow-hidden bg-background">
+        <Header />
 
         <motion.div
-          className="flex-1 flex flex-col items-center px-6 h-full pt-12 overflow-y-auto custom-scrollbar pb-32"
+          className="flex-1 min-h-0 flex flex-col items-center px-6 overflow-y-auto custom-scrollbar pb-32"
           animate={{
             opacity: copycatMode ? 0.35 : 1,
             scale: copycatMode ? 0.985 : 1,
