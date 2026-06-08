@@ -23,6 +23,40 @@ function displayName(fullName: string | null | undefined, email: string): string
   return email.split("@")[0] ?? email;
 }
 
+function UserAvatar({
+  avatarUrl,
+  initials,
+  size = "sm",
+}: {
+  avatarUrl?: string | null;
+  initials: string;
+  size?: "sm" | "lg";
+}) {
+  const [failed, setFailed] = useState(false);
+  const sizeClass = size === "lg" ? "w-20 h-20 mb-3.5" : "w-8 h-8";
+  const textClass = size === "lg" ? "text-2xl" : "text-[11px]";
+
+  if (avatarUrl && !failed) {
+    return (
+      <img
+        src={avatarUrl}
+        alt=""
+        referrerPolicy="no-referrer"
+        className={`${sizeClass} rounded-full object-cover border border-outline-variant/30 flex-shrink-0`}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`${sizeClass} rounded-full overflow-hidden border border-outline-variant/30 flex-shrink-0 bg-primary/15 flex items-center justify-center`}
+    >
+      <span className={`${textClass} font-bold text-primary`}>{initials}</span>
+    </div>
+  );
+}
+
 export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
@@ -37,6 +71,7 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   const email = user?.email ?? "";
   const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "";
   const initials = userInitials(name);
+  const avatarUrl = user?.avatar_url;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -77,13 +112,11 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
             onClick={() => setIsOpen(!isOpen)}
             className="flex items-center gap-2 p-1 pr-3 rounded-full bg-surface-container-high/60 hover:bg-surface-container-high border border-outline-variant/20 hover:border-outline-variant/40 transition-all cursor-pointer text-on-surface shadow-sm focus:outline-none"
           >
-            <div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30 flex-shrink-0 bg-primary/15 flex items-center justify-center">
-              {isAuthenticated ? (
-                <span className="text-[11px] font-bold text-primary">{initials}</span>
-              ) : (
-                <span className="text-[11px] font-bold text-on-surface-variant">?</span>
-              )}
-            </div>
+            <UserAvatar
+              avatarUrl={isAuthenticated ? avatarUrl : null}
+              initials={isAuthenticated ? initials : "?"}
+              size="sm"
+            />
             <div className="hidden sm:flex flex-col items-start text-left ml-1.5">
               <span className="text-xs font-semibold leading-tight text-on-surface">{name}</span>
               <span className="text-[10px] text-on-surface-variant leading-none">
@@ -118,9 +151,7 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
                 </div>
 
                 <div className="flex flex-col items-center text-center px-6 pb-6 pt-2">
-                  <div className="w-20 h-20 rounded-full overflow-hidden border border-outline-variant/30 shadow-md mb-3.5 flex-shrink-0 bg-primary/15 flex items-center justify-center">
-                    <span className="text-2xl font-semibold text-primary">{isAuthenticated ? initials : "?"}</span>
-                  </div>
+                  <UserAvatar avatarUrl={avatarUrl} initials={initials} size="lg" />
 
                   <span className="text-xl font-medium text-on-surface select-none">
                     {isAuthenticated ? `Hi, ${name.split(" ")[0]}!` : "Welcome"}

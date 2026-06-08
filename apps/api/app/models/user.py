@@ -16,6 +16,7 @@ class User(Base):
     semester = Column(Integer)
     role = Column(String(20), default="student")
     cgpa = Column(Float, nullable=True)
+    avatar_url = Column(String(512), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

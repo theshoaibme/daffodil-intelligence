@@ -15,5 +15,6 @@ export * from "./GuidancePage";
 export * from "./GoogleCallbackPage";
 export * from "./SettingsPage";
 export * from "./LandingPage";
+export * from "./LegalPage";
 
 

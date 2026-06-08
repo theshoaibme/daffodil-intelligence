@@ -14,6 +14,7 @@ interface CredentialFormProps {
   loading?: boolean;
   error?: string | null;
   submitLabel?: string;
+  defaultEmail?: string;
 }
 
 export const CredentialForm: React.FC<CredentialFormProps> = ({
@@ -22,8 +23,9 @@ export const CredentialForm: React.FC<CredentialFormProps> = ({
   loading = false,
   error,
   submitLabel,
+  defaultEmail = "",
 }) => {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
 

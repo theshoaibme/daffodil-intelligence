@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import exc
+from sqlalchemy import exc, text
 from .config import get_settings
 
 settings = get_settings()
@@ -210,6 +210,9 @@ async def init_db():
         try:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+                await conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(512)")
+                )
         except Exception as e:
             print(f"Table creation: {e}")
             _use_mock = True

@@ -24,6 +24,8 @@ import {
   GoogleCallbackPage,
   SettingsPage,
   LandingPage,
+  TermsPage,
+  PrivacyPage,
 } from "./components/layout";
 import { ProtectedRoute } from "./components/auth";
 
@@ -55,6 +57,8 @@ export default function App() {
       <Route path={ROUTES.computer} element={<ComputerView />} />
       <Route path={ROUTES.login} element={<LoginPage />} />
       <Route path={ROUTES.register} element={<RegisterPage />} />
+      <Route path={ROUTES.terms} element={<TermsPage />} />
+      <Route path={ROUTES.privacy} element={<PrivacyPage />} />
       <Route path={ROUTES.googleCallback} element={<GoogleCallbackPage />} />
       <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
       <Route

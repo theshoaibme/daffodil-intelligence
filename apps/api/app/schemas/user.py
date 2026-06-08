@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
@@ -19,6 +19,7 @@ class UserResponse(UserBase):
     id: int
     role: str
     cgpa: Optional[float] = None
+    avatar_url: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -33,6 +34,25 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class RegisterSendOtpRequest(BaseModel):
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+    accept_terms: bool
+
+
+class RegisterVerifyOtpRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=4, max_length=8)
+
+
+class RegisterOtpResponse(BaseModel):
+    message: str
+    email: str
+    dev_otp: Optional[str] = None
 
 
 class ChatCreate(BaseModel):
