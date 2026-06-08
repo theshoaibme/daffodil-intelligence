@@ -1,4 +1,5 @@
 import type { Node } from "@xyflow/react";
+import { DEFAULT_CANVAS_LAYOUT } from "./defaultLayout";
 
 const STORAGE_KEY = "di-agent-canvas-layout";
 
@@ -7,9 +8,10 @@ export type SavedPositions = Record<string, { x: number; y: number }>;
 export function loadLayout(): SavedPositions {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as SavedPositions) : {};
+    const custom = raw ? (JSON.parse(raw) as SavedPositions) : {};
+    return { ...DEFAULT_CANVAS_LAYOUT, ...custom };
   } catch {
-    return {};
+    return { ...DEFAULT_CANVAS_LAYOUT };
   }
 }
 

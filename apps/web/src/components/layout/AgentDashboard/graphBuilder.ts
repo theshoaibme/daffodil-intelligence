@@ -74,16 +74,6 @@ export function buildAgentGraph(
   const rootY = rootPosition.y;
   const modelCount = DASHBOARD_MODELS.length;
 
-  const sidePos = (id: string, defaultX: number, index: number, total: number) => ({
-    x: saved[id]?.x ?? defaultX,
-    y: sideNodeY(index, total, rootY),
-  });
-
-  const modelPos = (nodeId: string, index: number) => ({
-    x: saved[nodeId]?.x ?? modelNodeX(index, modelCount, rootX),
-    y: modelNodeY(rootY),
-  });
-
   const nodes: Node[] = [
     {
       id: ROOT_NODE_ID,
@@ -110,7 +100,7 @@ export function buildAgentGraph(
     nodes.unshift({
       id: nodeId,
       type: "model",
-      position: modelPos(nodeId, index),
+      position: pos(nodeId, modelNodeX(index, modelCount, rootX), modelNodeY(rootY)),
       data: {
         label: model.name,
         modelName: model.name,
@@ -135,7 +125,11 @@ export function buildAgentGraph(
     nodes.push({
       id: input.id,
       type: "integration",
-      position: sidePos(input.id, INPUT_NODE_X, index, INPUT_INTEGRATIONS.length),
+      position: pos(
+        input.id,
+        INPUT_NODE_X,
+        sideNodeY(index, INPUT_INTEGRATIONS.length, rootY)
+      ),
       data: {
         label: input.label,
         integration: input.integration,
@@ -160,7 +154,11 @@ export function buildAgentGraph(
     nodes.push({
       id: output.id,
       type: "response",
-      position: sidePos(output.id, OUTPUT_NODE_X, index, OUTPUT_INTEGRATIONS.length),
+      position: pos(
+        output.id,
+        OUTPUT_NODE_X,
+        sideNodeY(index, OUTPUT_INTEGRATIONS.length, rootY)
+      ),
       data: {
         label: output.label,
         integration: output.integration,
