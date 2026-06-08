@@ -11,7 +11,7 @@ from ..core.database import get_db
 from ..core.security import get_current_user
 from ..models.user import Chat, Message
 from ..schemas.user import ChatCreate, ChatResponse, MessageResponse, MessageCreate
-from ..runtime import orchestrator
+from ..runtime.pipeline import run_turn, run_turn_stream
 
 logger = logging.getLogger(__name__)
 
@@ -66,33 +66,45 @@ async def add_message(
     user: dict = Depends(get_current_user)
 ):
     user_id = int(user.get("sub"))
-    
-    # Create and save user message
+
+    chat_row = await db.execute(
+        select(Chat).where(Chat.id == chat_id, Chat.user_id == user_id)
+    )
+    chat_obj = chat_row.scalar_one_or_none()
+    agent_id = chat_obj.agent_type if chat_obj else "main"
+
     user_message = Message(chat_id=chat_id, role="user", content=message.content, meta=message.metadata)
     db.add(user_message)
     await db.commit()
     await db.refresh(user_message)
-    
+
     async def generate():
         full_response = ""
         tool_calls = []
         engine = "antigravity"
+        resolved_agent = agent_id
         try:
-            # Stream the answer through the unified runtime (Antigravity -> tools,
-            # falling back to the legacy supervisor when unavailable).
-            async for chunk in orchestrator.run_stream(
-                message.content, user_id=user_id, chat_id=chat_id,
+            async for chunk in run_turn_stream(
+                message.content,
+                user_id=user_id,
+                chat_id=chat_id,
+                agent_id=agent_id,
             ):
                 if not chunk:
                     continue
                 full_response += chunk
                 yield f'data: {json.dumps({"content": chunk})}\n\n'
             if not full_response.strip():
-                # No tokens streamed (e.g. tool-only turn) — fetch the full result.
-                result = await orchestrator.run(message.content, user_id=user_id, chat_id=chat_id)
+                result = await run_turn(
+                    message.content,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    agent_id=agent_id,
+                )
                 full_response = result.get("content", "")
                 tool_calls = result.get("tool_calls", [])
                 engine = result.get("engine", engine)
+                resolved_agent = result.get("agent_id", agent_id)
                 if full_response:
                     yield f'data: {json.dumps({"content": full_response})}\n\n'
         except Exception as e:
@@ -103,8 +115,9 @@ async def add_message(
         # Save assistant message to the database
         assistant_metadata = {
             "engine": engine,
+            "agent_id": resolved_agent,
             "tools_used": tool_calls,
-            "sources": []
+            "sources": [],
         }
         
         try:

@@ -218,6 +218,10 @@ async def init_db():
         _use_mock = True
 
 
+def is_mock_database() -> bool:
+    return _use_mock
+
+
 async def close_db():
     global _engine, _async_session
     if _engine:

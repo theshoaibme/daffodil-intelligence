@@ -14,8 +14,6 @@ from ..core.security import create_access_token
 from ..integrations.telegram.auth_store import auth_store
 from ..integrations.telegram.profiles import profile_store, STEP_COMPLETE
 from ..integrations.telegram.tokens import frontend_base, oauth_redirect_base, verify_state
-from ..prompts.manager import GREETING_EN
-
 logger = logging.getLogger(__name__)
 settings = get_settings()
 router = APIRouter(prefix="/auth/telegram", tags=["telegram-auth"])
@@ -25,11 +23,14 @@ def _redirect_uri() -> str:
     return f"{oauth_redirect_base()}/api/auth/telegram/google/callback"
 
 
-async def _notify_telegram(telegram_id: int, text: str):
+async def _notify_telegram_login(telegram_id: int, account, photo_url: str = ""):
     try:
         from ..integrations.telegram.bot import telegram_bot
-        if telegram_bot._app and telegram_bot._app.bot:
-            await telegram_bot._app.bot.send_message(chat_id=telegram_id, text=text)
+        await telegram_bot.notify_login_success(
+            telegram_id,
+            account,
+            photo_url=photo_url or None,
+        )
     except Exception as e:
         logger.warning("Could not notify Telegram user %s: %s", telegram_id, e)
 
@@ -141,6 +142,7 @@ async def google_callback(
             return HTMLResponse("<h2>Google login failed</h2><p>No email on your Google account.</p>", status_code=400)
 
         profile = profile_store.get(telegram_id)
+        picture = (info.get("picture") or "").strip()
         account = auth_store.create_or_link_google(
             telegram_id=telegram_id,
             email=email,
@@ -152,6 +154,7 @@ async def google_callback(
             role=profile.role or "student",
             student_id=profile.student_id,
             department=profile.department,
+            avatar_url=picture,
         )
         profile.email = account.email
         profile.full_name = account.full_name
@@ -159,12 +162,10 @@ async def google_callback(
         profile.step = STEP_COMPLETE
         profile_store.save(profile)
 
-        await _notify_telegram(
+        await _notify_telegram_login(
             telegram_id,
-            f"Google login successful!\n\n"
-            f"Name: {account.full_name}\n"
-            f"Email: {account.email}\n\n"
-            f"{GREETING_EN}",
+            account,
+            photo_url=picture,
         )
 
         return _success_redirect(account, telegram_id)

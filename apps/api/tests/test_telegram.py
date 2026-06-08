@@ -110,12 +110,43 @@ async def test_start_shows_auth_menu(monkeypatch, tmp_path):
     monkeypatch.setattr(prof_mod, "profile_store", prof_store)
     monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
 
+    class _FakeBot:
+        async def send_photo(self, **kwargs):
+            pass
+
+        async def send_message(self, **kwargs):
+            update.message.replies.append(kwargs.get("text", ""))
+
+        async def get_user_profile_photos(self, *_args, **_kwargs):
+            class P:
+                total_count = 0
+            return P()
+
     update = _FakeUpdate()
-    ctx = types.SimpleNamespace(bot=None, args=[])
+    ctx = types.SimpleNamespace(bot=_FakeBot(), args=[])
     await telegram_bot._cmd_start(update, ctx)
 
     assert "Daffodil Intelligence" in update.message.replies[0]
+    assert "Register" in update.message.replies[0]
     assert "JARVIS" not in update.message.replies[0].upper()
+
+
+async def test_auth_menu_register_suggestion(monkeypatch, tmp_path):
+    from app.integrations.telegram import auth_store as astore_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    astore = astore_mod.TelegramAuthStore(str(tmp_path / "users.json"))
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    monkeypatch.setattr(astore_mod, "auth_store", astore)
+    monkeypatch.setattr("app.integrations.telegram.bot.auth_store", astore)
+    monkeypatch.setattr(prof_mod, "profile_store", prof_store)
+    monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
+
+    update = _FakeUpdate("Register")
+    ctx = types.SimpleNamespace(bot=None, args=[])
+    await telegram_bot._on_text(update, ctx)
+
+    assert any("email" in r.lower() for r in update.message.replies)
 
 
 async def test_registration_email_otp_flow(monkeypatch, tmp_path):
@@ -129,28 +160,22 @@ async def test_registration_email_otp_flow(monkeypatch, tmp_path):
     monkeypatch.setattr(prof_mod, "profile_store", prof_store)
     monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
 
-    update = _FakeUpdate()
-    ctx = types.SimpleNamespace(bot=None, args=[])
-
-    # role callback
-    class _FakeQuery:
-        data = "role:student"
-        async def answer(self):
+    class _FakeBot:
+        async def send_photo(self, **kwargs):
             pass
-        async def edit_message_text(self, text, **kwargs):
-            update.message.replies.append(text)
 
-    update.callback_query = _FakeQuery()
-    p = prof_store.get(4242)
-    p.step = prof_mod.STEP_REGISTER_ROLE
-    p.mode = "register"
-    prof_store.save(p)
-    await telegram_bot._on_role_callback(update, ctx)
-    assert "phone" in update.message.replies[-1].lower()
+        async def send_message(self, **kwargs):
+            update.message.replies.append(kwargs.get("text", ""))
 
-    update.message.text = "+8801712345678"
+        async def get_user_profile_photos(self, *_args, **_kwargs):
+            class P:
+                total_count = 0
+            return P()
+
+    update = _FakeUpdate("Register")
+    ctx = types.SimpleNamespace(bot=_FakeBot(), args=[])
     await telegram_bot._on_text(update, ctx)
-    assert "email" in update.message.replies[-1].lower()
+    assert prof_store.get(4242).step == STEP_REGISTER_EMAIL
 
     update.message.text = "newuser@diu.edu.bd"
     await telegram_bot._on_text(update, ctx)
@@ -159,20 +184,41 @@ async def test_registration_email_otp_flow(monkeypatch, tmp_path):
     code = otp_service.generate("newuser@diu.edu.bd")
     update.message.text = code
     await telegram_bot._on_text(update, ctx)
+    assert "first name" in update.message.replies[-1].lower()
+
+    update.message.text = "New"
+    await telegram_bot._on_text(update, ctx)
+    update.message.text = "User"
+    await telegram_bot._on_text(update, ctx)
     assert "password" in update.message.replies[-1].lower()
 
     update.message.text = "mypass123"
     await telegram_bot._on_text(update, ctx)
-    assert "student id" in update.message.replies[-1].lower()
+    assert "role" in update.message.replies[-1].lower()
 
+    class _FakeQuery:
+        data = "role:student"
+        async def answer(self):
+            pass
+        async def edit_message_text(self, text, **kwargs):
+            update.message.replies.append(text)
+
+    update.callback_query = _FakeQuery()
+    await telegram_bot._on_role_callback(update, ctx)
+    assert "phone" in update.message.replies[-1].lower()
+
+    update.message.text = "+8801712345678"
+    await telegram_bot._on_text(update, ctx)
     update.message.text = "221-15-9999"
     await telegram_bot._on_text(update, ctx)
     update.message.text = "CSE"
     await telegram_bot._on_text(update, ctx)
 
-    assert "Registration complete" in update.message.replies[-1]
+    assert any("daffodil" in r.lower() for r in update.message.replies)
     acct = astore.get_by_telegram_id(4242)
     assert acct and acct.email == "newuser@diu.edu.bd"
+    assert acct.first_name == "New"
+    assert acct.last_name == "User"
 
 
 def test_oauth_state_token_roundtrip():

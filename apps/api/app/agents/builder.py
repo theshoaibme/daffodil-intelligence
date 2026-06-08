@@ -1,6 +1,13 @@
+import json
+import logging
+from pathlib import Path
 from typing import Optional, Dict, List, Any
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
 from enum import Enum
+
+logger = logging.getLogger(__name__)
+_CUSTOM_AGENTS_PATH = Path("data/custom_agents.json")
 
 
 class AgentType(str, Enum):
@@ -41,6 +48,8 @@ class DynamicAgent(BaseModel):
     personality: AgentPersonality
     capabilities: List[AgentCapability]
     system_prompt: str
+    ruleset_ids: List[str] = []
+    skill_ids: List[str] = []
     is_public: bool = False
     created_by: int
     usage_count: int = 0
@@ -152,6 +161,7 @@ AGENT_REGISTRY: Dict[str, DynamicAgent] = {}
 
 def register_agent(agent: DynamicAgent):
     AGENT_REGISTRY[agent.id] = agent
+    _persist_registry()
 
 
 def get_agent(agent_id: str) -> Optional[DynamicAgent]:
@@ -162,3 +172,34 @@ def list_agents(user_id: int = None) -> List[DynamicAgent]:
     if user_id:
         return [a for a in AGENT_REGISTRY.values() if a.created_by == user_id or a.is_public]
     return list(AGENT_REGISTRY.values())
+
+
+def delete_agent(agent_id: str) -> bool:
+    if agent_id not in AGENT_REGISTRY:
+        return False
+    del AGENT_REGISTRY[agent_id]
+    _persist_registry()
+    return True
+
+
+def _persist_registry():
+    try:
+        _CUSTOM_AGENTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _CUSTOM_AGENTS_PATH.write_text(
+            json.dumps({k: v.model_dump() for k, v in AGENT_REGISTRY.items()}, indent=2),
+            "utf-8",
+        )
+    except Exception as e:
+        logger.warning(f"Could not persist custom agents: {e}")
+
+
+def load_registry_from_disk():
+    if not _CUSTOM_AGENTS_PATH.exists():
+        return
+    try:
+        raw = json.loads(_CUSTOM_AGENTS_PATH.read_text("utf-8"))
+        for aid, data in raw.items():
+            AGENT_REGISTRY[aid] = DynamicAgent(**data)
+        logger.info(f"Loaded {len(AGENT_REGISTRY)} custom agents from disk")
+    except Exception as e:
+        logger.warning(f"Could not load custom agents: {e}")

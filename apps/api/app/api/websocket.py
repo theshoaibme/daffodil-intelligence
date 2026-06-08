@@ -2,7 +2,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, Set
 import json
 import logging
-from ..runtime import orchestrator
+from ..runtime.pipeline import run_turn
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             message_data = json.loads(data)
             message = message_data.get("message", "")
 
-            result = await orchestrator.run(message, user_id=user_id, chat_id=f"ws-{user_id}")
+            agent_id = message_data.get("agent_id")
+            result = await run_turn(
+                message,
+                user_id=user_id,
+                chat_id=f"ws-{user_id}",
+                agent_id=agent_id,
+            )
 
             await manager.send_message(json.dumps({
                 "type": "response",

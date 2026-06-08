@@ -3,8 +3,24 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/daffodil"
-    REDIS_URL: str = "redis://localhost:6379"
+    # Infrastructure
+    POSTGRES_USER: str = "daffodil"
+    POSTGRES_PASSWORD: str = "daffodil"
+    POSTGRES_DB: str = "daffodil"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+
+    DATABASE_URL: str = "postgresql://daffodil:daffodil@localhost:5432/daffodil"
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "daffodil"
+    MINIO_SECRET_KEY: str = "daffodil123"
+    MINIO_BUCKET: str = "daffodil"
+    MINIO_USE_SSL: bool = False
+    MINIO_CONSOLE_URL: str = "http://localhost:9001"
     
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = ""
@@ -80,7 +96,8 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     NODE_ENV: str = "development"
-    LOG_LEVEL: str = "DEBUG"
+    LOG_LEVEL: str = "INFO"
+    API_PORT: int = 8000
 
     USE_MOCK_DATA: bool = False
 

@@ -35,13 +35,22 @@ async def run(
     persona: AgentPersona | str = AgentPersona.MAIN,
     attachments: Optional[List[Any]] = None,
     lang: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    extra_system: Optional[str] = None,
 ) -> dict:
     """Run one turn and return {content, tool_calls/agents, engine}."""
+    if extra_system is None and agent_id:
+        from ..skills.resolver import resolve_runtime_config
+        cfg = resolve_runtime_config(agent_id=agent_id, user_id=user_id)
+        extra_system = cfg.extra_system or None
+        persona = cfg.persona
+
     if session_manager.available():
         try:
             res = await session_manager.chat(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
+                extra_system=extra_system,
             )
             res["engine"] = "antigravity"
             return res
@@ -57,13 +66,22 @@ async def run_stream(
     persona: AgentPersona | str = AgentPersona.MAIN,
     attachments: Optional[List[Any]] = None,
     lang: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    extra_system: Optional[str] = None,
 ) -> AsyncIterator[str]:
     """Yield text tokens for one turn (Antigravity, else legacy word-stream)."""
+    if extra_system is None and agent_id:
+        from ..skills.resolver import resolve_runtime_config
+        cfg = resolve_runtime_config(agent_id=agent_id, user_id=user_id)
+        extra_system = cfg.extra_system or None
+        persona = cfg.persona
+
     if session_manager.available():
         try:
             async for token in session_manager.stream(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
+                extra_system=extra_system,
             ):
                 yield token
             return

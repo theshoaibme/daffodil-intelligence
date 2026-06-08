@@ -21,10 +21,14 @@ STEP_REGISTER_ROLE = "register_role"
 STEP_REGISTER_PHONE = "register_phone"
 STEP_REGISTER_EMAIL = "register_email"
 STEP_REGISTER_OTP = "register_otp"
+STEP_REGISTER_FIRST_NAME = "register_first_name"
+STEP_REGISTER_LAST_NAME = "register_last_name"
 STEP_REGISTER_PASSWORD = "register_password"
 STEP_REGISTER_STUDENT_ID = "register_student_id"
 STEP_REGISTER_DEPARTMENT = "register_department"
 STEP_LOGIN_EMAIL = "login_email"
+STEP_LOGIN_FIRST_NAME = "login_first_name"
+STEP_LOGIN_LAST_NAME = "login_last_name"
 STEP_LOGIN_PASSWORD = "login_password"
 STEP_COMPLETE = "complete"
 
@@ -58,6 +62,17 @@ class TelegramProfile:
         if not user:
             return self
         self.username = user.username or ""
+        preserve_names = (
+            self.mode == "register"
+            and self.step
+            not in ("", STEP_AUTH_MENU, STEP_REGISTER_EMAIL, STEP_REGISTER_OTP)
+        ) or (
+            self.mode == "login"
+            and self.step
+            in (STEP_LOGIN_FIRST_NAME, STEP_LOGIN_LAST_NAME, STEP_LOGIN_PASSWORD)
+        )
+        if preserve_names:
+            return self
         self.first_name = (user.first_name or "").strip()
         self.last_name = (user.last_name or "").strip()
         parts = [self.first_name, self.last_name]

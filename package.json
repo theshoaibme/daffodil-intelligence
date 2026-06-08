@@ -6,21 +6,20 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo dev --ui=tui",
-    "dev:api": "pnpm --filter daffodil-api dev",
+    "dev": "pnpm docker:infra && turbo dev --ui=tui",
+    "dev:api": "pnpm docker:infra && pnpm --filter daffodil-api dev",
     "dev:web": "pnpm --filter daffodil-web dev",
-    "dev:mcp": "pnpm --filter daffodil-api mcp",
-    "dev:live": "pnpm --filter daffodil-live dev",
-    "dev:messaging": "pnpm --filter daffodil-messaging dev",
-    "dev:worker": "pnpm --filter daffodil-worker dev",
-    "dev:all": "turbo dev",
+    "dev:stack": "pnpm docker:infra && turbo dev --ui=tui",
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:up": "docker compose up -d",
+    "docker:infra": "docker compose up -d postgres redis minio adminer qdrant",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:ps": "docker compose ps"
   },
   "devDependencies": {
     "run-script-os": "^1.1.6",

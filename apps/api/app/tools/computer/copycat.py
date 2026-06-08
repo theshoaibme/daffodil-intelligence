@@ -35,11 +35,23 @@ class StopRecordingTool(BaseTool):
         if recording is None:
             return self.fail("Not currently recording.")
         rec.save(recording)
-        return self.ok({
+        payload = {
             "name": recording.name,
             "action_count": recording.action_count,
             "duration": round(recording.duration, 2),
-        })
+        }
+        try:
+            from ...skills.copycat import create_skill_from_recording
+            skill = create_skill_from_recording(
+                recording.name,
+                action_count=recording.action_count,
+                duration=recording.duration,
+            )
+            if skill:
+                payload["skill"] = skill
+        except Exception:
+            pass
+        return self.ok(payload)
 
 
 class ListRecordingsTool(BaseTool):

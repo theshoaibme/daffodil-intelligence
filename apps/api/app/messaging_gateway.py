@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from typing import Optional
 
-from .runtime import orchestrator
+from .runtime.pipeline import run_turn
 
 messaging_router = APIRouter(prefix="/api/messaging", tags=["messaging"])
 
@@ -19,7 +19,7 @@ async def send_to_api(message: str, chat_id: str = "messaging") -> str:
     Avoids the previous self-HTTP call to a JWT-protected endpoint (which 401'd).
     """
     try:
-        result = await orchestrator.run(message, user_id=chat_id, chat_id=f"msg-{chat_id}")
+        result = await run_turn(message, user_id=chat_id, chat_id=f"msg-{chat_id}")
         return result.get("content", "") or "(no response)"
     except Exception as e:
         return f"Error: {e}"

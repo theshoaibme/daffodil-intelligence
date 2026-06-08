@@ -71,22 +71,27 @@ def adapt_tool(tool: BaseTool):
 def get_antigravity_tools(
     categories: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
+    include: Optional[List[str]] = None,
 ) -> List[Any]:
     """Return Antigravity-ready tools from the registry.
 
     Args:
         categories: If provided, only include tools in these categories.
         exclude: Tool names to skip.
+        include: If provided, only these tool names are exposed (skills overlay).
 
     Returns:
         A list of Antigravity tool callables/wrappers.
     """
     registry = get_registry()
     exclude = set(exclude or [])
+    include_set = set(include) if include else None
     tools: List[Any] = []
     for schema in registry.list_all():
         name = schema["name"]
         if name in exclude:
+            continue
+        if include_set is not None and name not in include_set:
             continue
         if categories is not None and schema.get("category") not in categories:
             continue

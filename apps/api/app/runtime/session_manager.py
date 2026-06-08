@@ -97,6 +97,7 @@ class SessionManager:
         persona: AgentPersona | str = AgentPersona.MAIN,
         attachments: Optional[List[Any]] = None,
         lang: Optional[str] = None,
+        extra_system: Optional[str] = None,
     ) -> dict:
         """Run one turn and return the full response.
 
@@ -106,7 +107,7 @@ class SessionManager:
         conv = self._index.get(key)
         prompt = _build_prompt(message, attachments)
 
-        agent = build_agent(persona=persona, conversation_id=conv, lang=lang)
+        agent = build_agent(persona=persona, conversation_id=conv, lang=lang, extra_system=extra_system)
         async with agent:
             response = await agent.chat(prompt)
             content = await response.text()
@@ -133,13 +134,14 @@ class SessionManager:
         persona: AgentPersona | str = AgentPersona.MAIN,
         attachments: Optional[List[Any]] = None,
         lang: Optional[str] = None,
+        extra_system: Optional[str] = None,
     ) -> AsyncIterator[str]:
         """Run one turn and yield text tokens as they arrive."""
         key = _key(user_id, chat_id)
         conv = self._index.get(key)
         prompt = _build_prompt(message, attachments)
 
-        agent = build_agent(persona=persona, conversation_id=conv, lang=lang)
+        agent = build_agent(persona=persona, conversation_id=conv, lang=lang, extra_system=extra_system)
         async with agent:
             response = await agent.chat(prompt)
             async for token in response:

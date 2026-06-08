@@ -11,30 +11,64 @@ langchain.llm_cache = None
 
 from .core.config import get_settings
 from .core.database import init_db, close_db
+from .core.logging import configure_logging, log_startup_banner, log_startup_ready, mark_startup_begin
 from .core.middleware import LoggingMiddleware
 from .mcp.client import mcp_client
-from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth
+from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth, status, skills
+from .agents.builder import load_registry_from_disk
 from .api.computer_use import router as computer_use_router
 from .live_broadcaster import live_router
 from .messaging_gateway import messaging_router
 
 settings = get_settings()
-logging.basicConfig(level=settings.LOG_LEVEL, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+configure_logging(settings.LOG_LEVEL)
+mark_startup_begin()
 
 Path("logs").mkdir(exist_ok=True)
 Path("uploads").mkdir(exist_ok=True)
+
+OPENAPI_TAGS = [
+    {"name": "system", "description": "Health, status, and service catalog"},
+    {"name": "chats", "description": "Chat sessions and streaming messages"},
+    {"name": "agents", "description": "Agent runtime, tools, and routing"},
+    {"name": "auth", "description": "Authentication and sessions"},
+    {"name": "telegram-auth", "description": "Telegram Google OAuth"},
+    {"name": "memory", "description": "Semantic and session memory"},
+    {"name": "RAG", "description": "Document retrieval and embeddings"},
+    {"name": "Voice", "description": "Speech, TTS, and voice WebSockets"},
+    {"name": "computer-use", "description": "Desktop automation and recording"},
+    {"name": "upload", "description": "File uploads"},
+    {"name": "admin", "description": "Administration"},
+    {"name": "Agent Builder", "description": "Custom agent templates"},
+    {"name": "skills", "description": "Skill hub, rulesets, and global agent config"},
+    {"name": "messaging", "description": "Telegram / WhatsApp webhooks"},
+    {"name": "live", "description": "Gemini live sessions"},
+]
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    load_registry_from_disk()
 
-    # Start the interactive Telegram bot (in-process polling) if configured.
     from .integrations.telegram import telegram_bot
+
+    tg_user = None
     try:
         await telegram_bot.start()
+        if telegram_bot.enabled and telegram_bot._app:
+            me = await telegram_bot._app.bot.get_me()
+            tg_user = me.username
     except Exception as e:
-        logging.getLogger(__name__).error(f"Telegram bot failed to start: {e}")
+        logging.getLogger("app.telegram").error(f"Telegram bot failed: {e}")
+
+    log_startup_banner(
+        port=settings.API_PORT,
+        telegram_enabled=telegram_bot.enabled,
+        telegram_username=tg_user,
+        db_url=settings.DATABASE_URL,
+    )
+    log_startup_ready()
 
     yield
 
@@ -48,9 +82,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Daffodil Intelligence API",
-    description="360° Multi-Agent AI Operating System for University",
+    description=(
+        "360° multi-agent AI platform for Daffodil International University. "
+        "REST, WebSockets, MCP tools, live voice, and Telegram — single backend on port 8000."
+    ),
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    openapi_tags=OPENAPI_TAGS,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
@@ -62,33 +102,7 @@ app.add_middleware(
 )
 app.add_middleware(LoggingMiddleware)
 
-@app.get("/api/agents/list")
-async def list_agents():
-    return {
-        "agents": [
-            {"id": "academic", "name": "Academic Agent", "status": "active", "category": "university"},
-            {"id": "library", "name": "Library Agent", "status": "active", "category": "university"},
-            {"id": "campus", "name": "Campus Agent", "status": "active", "category": "university"},
-            {"id": "career", "name": "Career Agent", "status": "active", "category": "university"},
-            {"id": "coding", "name": "Coding Agent", "status": "active", "category": "productivity"},
-            {"id": "research", "name": "Research Agent", "status": "active", "category": "productivity"},
-            {"id": "wellness", "name": "Wellness Agent", "status": "active", "category": "university"},
-            {"id": "finance", "name": "Finance Agent", "status": "active", "category": "university"},
-            {"id": "vision", "name": "Vision Agent", "status": "active", "category": "ai"},
-            {"id": "voice", "name": "Voice Agent", "status": "active", "category": "ai"},
-            {"id": "exam", "name": "Exam Agent", "status": "active", "category": "university"},
-            {"id": "hostel", "name": "Hostel Agent", "status": "active", "category": "university"},
-            {"id": "transport", "name": "Transport Agent", "status": "active", "category": "university"},
-            {"id": "event", "name": "Event Agent", "status": "active", "category": "university"},
-            {"id": "complaint", "name": "Complaint Agent", "status": "active", "category": "university"},
-            {"id": "notification", "name": "Notification Agent", "status": "active", "category": "university"},
-            {"id": "fee", "name": "Fee Agent", "status": "active", "category": "university"},
-            {"id": "computer_use", "name": "Computer Use Agent", "status": "active", "category": "computer"},
-            {"id": "copycat", "name": "CopyCat Agent", "status": "active", "category": "computer"},
-            {"id": "planning", "name": "Planning Agent", "status": "active", "category": "orchestration"},
-        ]
-    }
-
+app.include_router(status.router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(telegram_auth.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
@@ -97,6 +111,7 @@ app.include_router(rag.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(agent_builder.router, prefix="/api")
+app.include_router(skills.router, prefix="/api")
 app.include_router(voice.router, prefix="/api")
 app.include_router(memory.router, prefix="/api")
 app.include_router(live_router)
@@ -104,34 +119,6 @@ app.include_router(messaging_router)
 app.include_router(computer_use_router)
 app.websocket("/ws/{user_id}")(websocket.websocket_endpoint)
 app.websocket("/voice/ws/{user_id}")(voice.voice_websocket)
-
-
-@app.get("/")
-async def root():
-    return {
-        "message": "Welcome to Daffodil Intelligence",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "services": ["api", "mcp", "live", "messaging"]
-    }
-
-
-@app.get("/health")
-async def health():
-    from .tools.registry import get_registry
-    try:
-        tool_count = get_registry().count
-    except Exception:
-        tool_count = 0
-    from .runtime.agent_factory import is_available as agent_available
-    return {
-        "status": "healthy",
-        "service": "di-api",
-        "tools": tool_count,
-        "agent_runtime": "antigravity" if agent_available() else "unavailable",
-    }
-
-
 
 
 if __name__ == "__main__":

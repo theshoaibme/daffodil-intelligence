@@ -16,10 +16,10 @@ def client(monkeypatch):
             yield tok
 
     async def fake_run(message, **kwargs):
-        return {"content": "Hello world", "tool_calls": [], "engine": "antigravity"}
+        return {"content": "Hello world", "tool_calls": [], "engine": "antigravity", "agent_id": "main"}
 
-    monkeypatch.setattr(chat_module.orchestrator, "run_stream", fake_stream)
-    monkeypatch.setattr(chat_module.orchestrator, "run", fake_run)
+    monkeypatch.setattr(chat_module, "run_turn_stream", fake_stream)
+    monkeypatch.setattr(chat_module, "run_turn", fake_run)
 
     from app.main import app
     with TestClient(app) as c:
@@ -40,12 +40,30 @@ def test_create_chat_and_stream_message(client):
     assert "[DONE]" in body
 
 
-def test_health_reports_runtime(client):
+def test_health_returns_html(client):
     res = client.get("/health")
     assert res.status_code == 200
+    assert "text/html" in res.headers.get("content-type", "")
+    assert "Server is healthy" in res.text
+    assert "healthy" in res.text.lower()
+
+
+def test_agents_list_from_registry(client):
+    res = client.get("/api/agents/list")
+    assert res.status_code == 200
     data = res.json()
-    assert data["status"] == "healthy"
-    assert "tools" in data and data["tools"] >= 27
+    assert data["count"] >= 20
+    assert any(a["id"] == "academic" for a in data["agents"])
+
+
+def test_swagger_docs_default_ui(client):
+    res = client.get("/docs")
+    assert res.status_code == 200
+    html = res.text
+    assert "swagger-ui-dist" in html
+    assert "swagger-ui.css" in html
+    assert "SwaggerUIBundle" in html
+    assert "/static/docs-theme.css" not in html
 
 
 def test_tools_endpoint_lists_registry(client):

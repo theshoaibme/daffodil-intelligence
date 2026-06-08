@@ -6,21 +6,21 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Frontend (React + MUI)                     │
-│                  http://localhost:3000                         │
+│                      Frontend (Vite + React)                    │
+│                  http://localhost:3000                          │
 └─────────────────────────────────────────────────────────────────┘
                                  │
                         ┌────────┴────────┐
-                        │   API Gateway   │
+                        │  Backend (API)  │
                         │  FastAPI :8000  │
+                        │  REST · WS · MCP│
+                        │  Live · Telegram│
                         └────────┬────────┘
                                  │
-    ┌────────────────────────────┼────────────────────────────┐
-    │            │            │            │            │     │
-┌───▼───┐   ┌────▼────┐  ┌───▼────┐  ┌──▼─────┐  ┌─▼────┐  │
-│  MCP   │   │Messaging│  │  Live  │  │ Worker │  │ RAG  │  │
-│ :8001  │   │ :8002   │  │ :8003  │  │  --    │  │ --   │  │
-└────────┘   └─────────┘  └────────┘  └────────┘  └───────┘  │
+         ┌───────────────────────┼───────────────────────┐
+         │           │           │           │           │
+    PostgreSQL    Redis       MinIO       Qdrant      Adminer
+     :5432       :6379    :9000 / :9001    :6333       :8080
 ```
 
 ## Available Agents
@@ -43,26 +43,35 @@
 # Install dependencies
 pnpm install
 
-# Start all services (Windows, macOS, Linux compatible)
+# Docker infra + frontend + backend (one API server on :8000)
 pnpm dev
 
-# Or start individually:
-# API: pnpm --filter daffodil-api dev
-# Web: pnpm --filter daffodil-web dev
-# MCP: pnpm --filter daffodil-mcp dev
-# Live: pnpm --filter daffodil-live dev
-# Messaging: pnpm --filter daffodil-messaging dev
-# Worker: pnpm --filter daffodil-worker dev
+# Or step by step:
+pnpm docker:infra   # Postgres, Redis, MinIO, Adminer, Qdrant
+pnpm dev:api        # Backend only (API + MCP + live + Telegram + WS)
+pnpm dev:web        # Frontend only
 ```
+
+MCP, live voice, messaging webhooks, and WebSockets all run inside the **same** FastAPI process (`apps/api`) — there are no separate `:8001` / `:8002` servers.
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and configure:
+Copy `.env.example` to `.env` at the repo root, then copy `apps/api/.env.example` to `apps/api/.env` for the API.
 
-- `DATABASE_URL` - PostgreSQL connection
-- `REDIS_URL` - Redis connection
-- `OPENAI_API_KEY` - OpenAI key
-- `GEMINI_API_KEY` - Google Gemini key
+| Service | URL | Default login |
+|---------|-----|----------------|
+| PostgreSQL | `localhost:5432` | `daffodil` / `daffodil` |
+| Adminer | http://localhost:8080 | Server: `postgres` (Docker) or `localhost` |
+| Redis | `localhost:6379` | no auth |
+| MinIO API | http://localhost:9000 | `daffodil` / `daffodil123` |
+| MinIO Console | http://localhost:9001 | same as MinIO |
+| Qdrant | http://localhost:6333 | — |
+
+Start infrastructure:
+
+```bash
+docker compose up -d postgres redis minio adminer qdrant
+```
 
 ## API Endpoints
 

@@ -4,6 +4,7 @@ dist/
 .turbo/
 .env
 .env.local
+apps/api/.env
 *.log
 .DS_Store
 .vscode
