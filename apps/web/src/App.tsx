@@ -176,26 +176,28 @@ function ChatDashboard() {
           style={{ pointerEvents: copycatMode ? "none" : "auto" }}
         >
           {!hasMessages ? (
-            <div className="max-w-3xl w-full flex flex-col items-center gap-10">
-              <div className="text-center px-4">
-                <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight text-on-surface mb-4">
-                  Welcome to Daffodil <br className="hidden sm:inline" /> Intelligence
-                </h1>
-              </div>
+            <div className="fixed inset-x-0 top-16 bottom-32 z-10 flex flex-col items-center justify-center px-6 pointer-events-none">
+              <div className="max-w-3xl w-full flex flex-col items-center gap-10 pointer-events-auto">
+                <div className="text-center px-4">
+                  <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight text-on-surface mb-4">
+                    Welcome to Daffodil <br className="hidden sm:inline" /> Intelligence
+                  </h1>
+                </div>
 
-              <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
-                <SuggestionChip
-                  text="Mood-based movie picker"
-                  onClick={() => sendPrompt("Mood-based movie picker")}
-                />
-                <SuggestionChip
-                  text="Trip packing checklist"
-                  onClick={() => sendPrompt("Trip packing checklist")}
-                />
-                <SuggestionChip
-                  text="E-commerce platform mockup"
-                  onClick={() => sendPrompt("E-commerce platform mockup")}
-                />
+                <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
+                  <SuggestionChip
+                    text="Mood-based movie picker"
+                    onClick={() => sendPrompt("Mood-based movie picker")}
+                  />
+                  <SuggestionChip
+                    text="Trip packing checklist"
+                    onClick={() => sendPrompt("Trip packing checklist")}
+                  />
+                  <SuggestionChip
+                    text="E-commerce platform mockup"
+                    onClick={() => sendPrompt("E-commerce platform mockup")}
+                  />
+                </div>
               </div>
             </div>
           ) : (

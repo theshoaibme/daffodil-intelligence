@@ -47,7 +47,7 @@ export function Sidebar({ sidebarOpen, uiReady = true }: SidebarProps) {
       animate={{ width: sidebarOpen ? 280 : 0, x: sidebarOpen ? 0 : -20 }}
       exit={{ width: 0, x: -20 }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed lg:relative inset-y-0 left-0 h-full glass-panel flex-shrink-0 z-50 overflow-hidden shadow-lg lg:shadow-none"
+      className="fixed inset-y-0 left-0 h-full glass-panel z-50 overflow-hidden shadow-lg"
     >
       <div className="w-[280px] h-full flex flex-col p-6">
         <div className="flex items-center gap-3 mb-8">
