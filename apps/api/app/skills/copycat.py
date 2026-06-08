@@ -19,7 +19,7 @@ def create_skill_from_recording(
         return None
 
     existing = [
-        s for s in skill_store.list_all(created_by=created_by)
+        s for s in skill_store.list_all(user_id=created_by)
         if s.source == "copycat" and s.recording_name == name
     ]
     if existing:

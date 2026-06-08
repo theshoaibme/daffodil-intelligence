@@ -246,7 +246,7 @@ Respond in the same language as the original goal (English or Bengali).
         if len(message.split()) < 8:
             return True
 
-        return True  # Default: use direct routing, only plan for explicit multi-step
+        return False  # Longer messages without connectors need planning
 
     async def _create_plan(self, goal: str) -> Optional[ExecutionPlan]:
         """Use LLM to create a structured execution plan."""

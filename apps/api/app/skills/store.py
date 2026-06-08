@@ -26,6 +26,10 @@ class _JsonStore:
             return
         self._loaded = True
 
+    def _persist_text(self, text: str):
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._path.write_text(text, "utf-8")
+
 
 class SkillStore(_JsonStore):
     def __init__(self):
@@ -45,9 +49,8 @@ class SkillStore(_JsonStore):
                 self._skills = {}
 
     def _save(self):
-        self._path.write_text(
+        self._persist_text(
             json.dumps({k: v.model_dump() for k, v in self._skills.items()}, indent=2),
-            "utf-8",
         )
 
     def get(self, skill_id: str) -> Optional[Skill]:
@@ -146,9 +149,8 @@ class RulesetStore(_JsonStore):
                 self._rulesets = {}
 
     def _save(self):
-        self._path.write_text(
+        self._persist_text(
             json.dumps({k: v.model_dump() for k, v in self._rulesets.items()}, indent=2),
-            "utf-8",
         )
 
     def get(self, ruleset_id: str) -> Optional[Ruleset]:
@@ -233,7 +235,7 @@ class GlobalConfigStore(_JsonStore):
     def save(self, config: GlobalAgentConfig) -> GlobalAgentConfig:
         with self._lock:
             self._config = config
-            self._path.write_text(config.model_dump_json(indent=2), "utf-8")
+            self._persist_text(config.model_dump_json(indent=2))
             return config
 
     def patch(self, **fields) -> GlobalAgentConfig:
@@ -261,9 +263,8 @@ class AgentProfileStore(_JsonStore):
                 self._profiles = {}
 
     def _save(self):
-        self._path.write_text(
+        self._persist_text(
             json.dumps({k: v.model_dump() for k, v in self._profiles.items()}, indent=2),
-            "utf-8",
         )
 
     def get(self, agent_id: str) -> Optional[AgentProfile]:

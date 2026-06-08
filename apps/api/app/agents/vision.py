@@ -27,7 +27,7 @@ Use the analyze_image function for real-time analysis."""
         message_lower = message.lower()
 
         if any(k in message_lower for k in ["camera", "live", "real time", "realtime"]):
-            return self.handle_camera()
+            return await self.handle_camera()
 
         elif any(k in message_lower for k in ["image", "photo", "picture"]):
             return await self.handle_image()
@@ -40,7 +40,7 @@ Use the analyze_image function for real-time analysis."""
 
         return await self.generate_response(self.SYSTEM_PROMPT, message)
 
-    def handle_camera(self) -> str:
+    async def handle_camera(self) -> str:
         return """📹 **Real-Time Camera**
 
 I can analyze your camera feed in real-time!
