@@ -1,6 +1,9 @@
 import type { Agent } from "../../../hooks/useAgents";
+import type { RuntimeStatus } from "../../../hooks/useRuntimeStatus";
+import { formatModelLabel } from "../../../hooks/useRuntimeStatus";
+import { DASHBOARD_MODELS } from "../../../lib/models";
 import { INPUT_INTEGRATIONS } from "./graphBuilder";
-import { getSimulatedTask } from "./simulatorTasks";
+import { getSimulatedModelTask, getSimulatedTask } from "./simulatorTasks";
 
 export interface ParallelTask {
   agentId: string;
@@ -12,24 +15,50 @@ export interface ParallelTask {
 export interface ParallelSimulationState {
   activeAgentIds: string[];
   activeInputId: string;
+  activeModelId: string;
+  modelActive: boolean;
+  modelTask: string;
+  pipelineLabel: string;
   tasks: ParallelTask[];
 }
 
 const PARALLEL_COUNT = 3;
 
-export function nextParallelSimulation(agents: Agent[], round: number): ParallelSimulationState {
+function inputLabel(inputId: string): string {
+  return inputId === "input-chat" ? "Chat" : "Telegram";
+}
+
+function pickActiveModel(round: number, runtime?: RuntimeStatus): string {
+  return DASHBOARD_MODELS[round % DASHBOARD_MODELS.length]?.id ?? runtime?.model ?? "gemini-2.0-flash";
+}
+
+export function nextParallelSimulation(
+  agents: Agent[],
+  round: number,
+  runtime?: RuntimeStatus
+): ParallelSimulationState {
+  const engine = runtime?.engine ?? "antigravity";
+  const activeModelId = pickActiveModel(round, runtime);
+  const modelName = formatModelLabel(activeModelId);
+  const activeInputId = INPUT_INTEGRATIONS[round % INPUT_INTEGRATIONS.length].id;
+
   const busy = agents.filter((a) => a.status === "executing" || a.status === "thinking");
   if (busy.length > 0) {
     const activeAgentIds = busy.slice(0, PARALLEL_COUNT).map((a) => a.id);
+    const tasks = busy.slice(0, PARALLEL_COUNT).map((agent) => ({
+      agentId: agent.id,
+      agentName: agent.name,
+      category: agent.category,
+      task: agent.currentTask || getSimulatedTask(agent.id, agent.category),
+    }));
     return {
       activeAgentIds,
-      activeInputId: INPUT_INTEGRATIONS[round % INPUT_INTEGRATIONS.length].id,
-      tasks: busy.slice(0, PARALLEL_COUNT).map((agent) => ({
-        agentId: agent.id,
-        agentName: agent.name,
-        category: agent.category,
-        task: agent.currentTask || getSimulatedTask(agent.id, agent.category),
-      })),
+      activeInputId,
+      activeModelId,
+      modelActive: true,
+      modelTask: getSimulatedModelTask(engine),
+      pipelineLabel: `${inputLabel(activeInputId)} → ${modelName} → Orchestrator → ${tasks.length} agents`,
+      tasks,
     };
   }
 
@@ -45,7 +74,15 @@ export function nextParallelSimulation(agents: Agent[], round: number): Parallel
 
   const categories = Object.keys(grouped).sort();
   if (categories.length === 0) {
-    return { activeAgentIds: [], activeInputId: INPUT_INTEGRATIONS[0].id, tasks: [] };
+    return {
+      activeAgentIds: [],
+      activeInputId,
+      activeModelId,
+      modelActive: false,
+      modelTask: "",
+      pipelineLabel: "",
+      tasks: [],
+    };
   }
 
   const activeAgentIds: string[] = [];
@@ -71,7 +108,14 @@ export function nextParallelSimulation(agents: Agent[], round: number): Parallel
 
   return {
     activeAgentIds,
-    activeInputId: INPUT_INTEGRATIONS[round % INPUT_INTEGRATIONS.length].id,
+    activeInputId,
+    activeModelId,
+    modelActive: tasks.length > 0,
+    modelTask: tasks.length > 0 ? getSimulatedModelTask(engine) : "",
+    pipelineLabel:
+      tasks.length > 0
+        ? `${inputLabel(activeInputId)} → ${modelName} (${engine}) → Orchestrator → ${tasks.length} agents parallel`
+        : "",
     tasks,
   };
 }

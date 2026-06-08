@@ -1,12 +1,13 @@
 import { memo, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Brain } from "lucide-react";
-import { RiChat3Fill, RiTelegramFill } from "react-icons/ri";
+import { RiBrainFill, RiChat3Fill, RiTelegramFill } from "react-icons/ri";
 import { getAgentIconStyle } from "./agentIcons";
 import { ICON_SIZE, ROOT_ICON_CENTER } from "./flowLayout";
 import {
   getCategoryTheme,
   getIntegrationTheme,
+  MODEL_NODE_THEME,
   NODE_RING_OFFSET,
   ROOT_NODE_THEME,
 } from "./flowNodeTheme";
@@ -50,8 +51,53 @@ function IconNodeFrame({
   );
 }
 
+const PROVIDER_ICON_COLORS: Record<string, string> = {
+  Gemini: "text-blue-500",
+  OpenAI: "text-emerald-500",
+  Claude: "text-orange-500",
+  DeepSeek: "text-violet-500",
+  Meta: "text-sky-600",
+  Mistral: "text-amber-600",
+  Qwen: "text-rose-500",
+};
+
+function ModelNode({ data }: NodeProps) {
+  const theme = MODEL_NODE_THEME;
+  const working = Boolean(data.working);
+  const provider = (data.provider as string) || "Gemini";
+  const engine = (data.engine as string) || "antigravity";
+  const iconColor = PROVIDER_ICON_COLORS[provider] ?? "text-primary";
+
+  return (
+    <div className="relative" style={{ width: ICON_SIZE, height: ICON_SIZE }}>
+      <Handle type="source" position={Position.Bottom} className="handle-muted" />
+      <div
+        className={`flex h-full w-full items-center justify-center rounded-full border shadow-sm ${theme.iconBg} ${theme.border} ${
+          working ? `ring-2 ring-primary ring-offset-2 ${NODE_RING_OFFSET}` : ""
+        }`}
+      >
+        <RiBrainFill size={26} className={iconColor} />
+      </div>
+      <span
+        className={`pointer-events-none absolute left-1/2 z-10 w-28 -translate-x-1/2 text-center text-[10px] font-medium leading-tight ${theme.text}`}
+        style={{ top: ICON_SIZE }}
+      >
+        {data.label as string}
+      </span>
+      <span
+        className="pointer-events-none absolute left-1/2 z-10 w-32 -translate-x-1/2 text-center text-[8px] font-medium leading-tight text-on-surface-variant/70"
+        style={{ top: ICON_SIZE + 14 }}
+      >
+        {provider}
+        <span className="block text-[7px] text-on-surface-variant/50">{engine}</span>
+      </span>
+    </div>
+  );
+}
+
 function RootNode({ data }: NodeProps) {
   const inputs = (data.inputs as string[] | undefined) ?? [];
+  const modelInput = data.modelInput as string | undefined;
   const outputs = (data.outputs as string[] | undefined) ?? [];
   const theme = ROOT_NODE_THEME;
 
@@ -61,6 +107,16 @@ function RootNode({ data }: NodeProps) {
         data.working ? `ring-2 ring-primary/40 ${NODE_RING_OFFSET}` : ""
       }`}
     >
+      {modelInput && (
+        <Handle
+          id={modelInput}
+          type="target"
+          position={Position.Top}
+          className="handle-muted"
+          style={{ left: "50%" }}
+        />
+      )}
+
       {inputs.map((inputId) => (
         <Handle
           key={inputId}
@@ -157,6 +213,7 @@ function AgentNode({ data, id, selected }: NodeProps) {
 
 export const flowNodeTypes = {
   root: memo(RootNode),
+  model: memo(ModelNode),
   integration: memo(IntegrationInputNode),
   category: memo(CategoryNode),
   agent: memo(AgentNode),

@@ -44,6 +44,13 @@ export const CATEGORY_NODE_THEME: Record<string, NodeTheme> = {
   },
 };
 
+export const MODEL_NODE_THEME: NodeTheme = {
+  bg: "bg-primary/10",
+  text: "text-primary",
+  border: "border-primary/30",
+  iconBg: "bg-primary/15",
+};
+
 export const ROOT_NODE_THEME: NodeTheme = {
   bg: "bg-surface-container-lowest",
   text: "text-on-surface",

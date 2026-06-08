@@ -24,7 +24,7 @@ export function PromptBar({
   textareaRef,
   isLoading = false
 }: PromptBarProps) {
-  const [selectedModelId, setSelectedModelId] = useState<string>("gemini-3-flash");
+  const [selectedModelId, setSelectedModelId] = useState<string>("gemini-2.0-flash");
   const [selectedTools, setSelectedTools] = useState<string[]>(["Agent", "Task"]);
 
   const handleToggleTool = (tool: string) => {

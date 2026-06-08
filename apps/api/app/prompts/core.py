@@ -26,7 +26,7 @@ Finance Agent → fees, payments, waivers
 Wellness Agent → mental support (non-medical)  
 Vision Agent → images, PDF, screen understanding  
 Voice Agent → speech input/output  
-Automation Agent → workflows, scheduling  
+Routine Agent → reminders, daily/weekly routines, scheduling  
 
 Supervisor Agent → YOU (orchestrator)
 

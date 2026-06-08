@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..agents.registry import AGENT_MAP
+from ..core.models_catalog import MODEL_CATALOG, dashboard_models, resolve_model_name
 
 router = APIRouter(tags=["system"])
 
@@ -32,6 +33,7 @@ _AGENT_CATEGORIES = {
     "computer_use": "computer",
     "copycat": "computer",
     "planning": "orchestration",
+    "routine": "university",
     "general": "general",
 }
 
@@ -58,6 +60,39 @@ async def root():
 @router.get("/api/agents/list")
 async def list_agents():
     return {"agents": _agent_catalog(), "count": len(AGENT_MAP)}
+
+
+@router.get("/api/models/list")
+async def list_models():
+    return {
+        "models": MODEL_CATALOG,
+        "dashboard_models": dashboard_models(),
+        "count": len(MODEL_CATALOG),
+    }
+
+
+@router.get("/api/system/runtime")
+async def system_runtime():
+    """Live runtime snapshot for dashboard simulation (model, engine, integrations)."""
+    from ..core.health_checks import collect_health
+
+    health = await collect_health()
+    checks = health.get("checks", {})
+    agent_runtime = checks.get("agent_runtime", {})
+    tools = checks.get("tools", {})
+    active_model = agent_runtime.get("model", "gemini-2.0-flash")
+    return {
+        "status": health.get("status"),
+        "engine": agent_runtime.get("engine", "unavailable"),
+        "model": active_model,
+        "model_name": resolve_model_name(active_model),
+        "models": dashboard_models(),
+        "runtime_status": agent_runtime.get("status", "down"),
+        "tools_count": tools.get("count", 0),
+        "telegram": checks.get("telegram", {}),
+        "mcp": checks.get("mcp", {}),
+        "agents_count": len(AGENT_MAP),
+    }
 
 
 @router.get("/health", response_class=HTMLResponse)

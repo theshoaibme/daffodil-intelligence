@@ -130,6 +130,7 @@ Available agent types:
 - copycat: record and replay user actions
 - browser: web search, open URLs, scrape pages
 - file: read/write files, list directories
+- routine: reminders, daily/weekly routines, schedules, alarms
 - general: greetings, clarifications, general info
 
 Output a JSON plan with this exact format:

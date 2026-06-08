@@ -21,6 +21,7 @@ export const AGENT_DESCRIPTION_FALLBACKS: Record<string, string> = {
   computer_use: "Controls mouse, keyboard, and screen for desktop automation tasks.",
   copycat: "Records and replays user actions for repeatable workflow automation.",
   planning: "Breaks down complex goals into plans and coordinates multi-step workflows.",
+  routine: "Manages reminders, daily/weekly routines, schedules, and recurring task automation.",
 };
 
 export const ROOT_DESCRIPTION =
@@ -30,7 +31,7 @@ export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   orchestration: "Plans tasks, delegates work, and coordinates multi-step workflows.",
   computer: "Screen control, browser automation, and recorded workflows.",
   productivity: "Coding, research, and general productivity assistance.",
-  university: "Campus services — academic, library, career, finance, and more.",
+  university: "Campus services — academic, library, career, finance, routines, and more.",
   ai: "Vision, voice, and multimodal AI capabilities.",
   general: "Fallback agent for open-ended queries.",
 };

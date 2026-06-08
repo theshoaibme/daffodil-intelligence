@@ -20,6 +20,7 @@ import {
   RiCalendarEventFill,
   RiNotificationFill,
   RiRobotFill,
+  RiTimerFill,
   RiWalletFill,
 } from "react-icons/ri";
 
@@ -50,6 +51,7 @@ export const AGENT_ICON_STYLES: Record<string, AgentIconStyle> = {
   computer_use: { icon: RiComputerFill, iconColor: "text-blue-600" },
   copycat: { icon: RiFileCopyFill, iconColor: "text-purple-500" },
   planning: { icon: RiBrainFill, iconColor: "text-violet-600" },
+  routine: { icon: RiTimerFill, iconColor: "text-cyan-500" },
 };
 
 const CATEGORY_FALLBACK: Record<string, AgentIconStyle> = {

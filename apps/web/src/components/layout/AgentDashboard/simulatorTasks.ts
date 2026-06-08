@@ -104,6 +104,11 @@ const TASKS_BY_AGENT: Record<string, string[]> = {
     "Assigning steps to specialist agents…",
     "Monitoring parallel task execution…",
   ],
+  routine: [
+    "Setting assignment deadline reminder…",
+    "Building daily study routine…",
+    "Scheduling weekly revision blocks…",
+  ],
 };
 
 const CATEGORY_TASKS: Record<string, string[]> = {
@@ -115,7 +120,20 @@ const CATEGORY_TASKS: Record<string, string[]> = {
   general: ["Forwarding to general handler…", "Escalating unmatched query…"],
 };
 
+const MODEL_TASKS = [
+  "Reasoning over student intent with Gemini…",
+  "Selecting specialist agents for parallel execution…",
+  "Synthesizing multi-agent tool results…",
+  "Applying supervisor policies and skills…",
+];
+
 let taskIndex = 0;
+
+export function getSimulatedModelTask(engine = "antigravity"): string {
+  const task = MODEL_TASKS[taskIndex % MODEL_TASKS.length];
+  taskIndex += 1;
+  return engine === "legacy" ? `Legacy supervisor: ${task}` : task;
+}
 
 export function getSimulatedTask(agentId: string, category?: string): string {
   const pool = TASKS_BY_AGENT[agentId];

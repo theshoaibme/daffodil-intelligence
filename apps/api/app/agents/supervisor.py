@@ -29,7 +29,7 @@ Your job is to:
 3. Coordinate multiple agents if needed
 4. Merge responses into one coherent answer
 
-Available agents (18 total):
+Available agents (23 total):
 - academic: CGPA, results, courses, grades
 - library: books, journals, PDF
 - campus: shuttle, rooms, notices, facilities
@@ -47,6 +47,7 @@ Available agents (18 total):
 - complaint: grievances, feedback, escalations
 - notification: alerts, announcements, preferences
 - fee: tuition, installments, payment status
+- routine: reminders, daily/weekly routines, schedules, alarms, habit tracking
 
 If query is complex (multiple topics), call multiple agents in parallel.
 """
@@ -73,6 +74,7 @@ If query is complex (multiple topics), call multiple agents in parallel.
             "- complaint: grievances, issues, feedback, escalation\n"
             "- notification: subscription settings, alerts, announcement messages\n"
             "- fee: tuition fee, installments, payment status\n"
+            "- routine: reminders, alarms, daily/weekly/monthly routines, habit tracking, schedule my day\n"
         )
         
         try:
@@ -133,6 +135,10 @@ KEYWORDS = {
     "computer_use": ["click", "mouse", "keyboard", "screen", "open app", "control", "type", "automate", "window", "cursor"],
     "copycat": ["record", "replay", "repeat", "macro", "copy action", "রেকর্ড", "আবার কর"],
     "planning": ["plan", "step by step", "first then", "multiple steps", "sequence", "workflow"],
+    "routine": [
+        "remind", "reminder", "alarm", "routine", "daily", "weekly", "monthly",
+        "schedule my day", "habit", "recurring", "every day", "every week",
+    ],
 }
 
 

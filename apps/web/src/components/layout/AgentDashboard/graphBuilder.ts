@@ -1,10 +1,13 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { Agent } from "../../../hooks/useAgents";
 import { CATEGORY_LABELS } from "./agentConstants";
+import { DASHBOARD_MODELS, modelNodeId } from "../../../lib/models";
 import {
   ROOT_DEFAULT_X,
   ROOT_DEFAULT_Y,
   INPUT_NODE_X,
+  MODEL_NODE_GAP,
+  MODEL_NODE_Y,
   defaultInputY,
 } from "./flowLayout";
 import type { SavedPositions } from "./layoutStorage";
@@ -12,6 +15,7 @@ import type { SavedPositions } from "./layoutStorage";
 export const ROOT_NODE_ID = "daffodil-intelligence";
 
 export const ROOT_INPUT_HANDLE = "input";
+export const ROOT_MODEL_HANDLE = "model";
 
 export const INPUT_INTEGRATIONS = [
   { id: "input-telegram", label: "Telegram", integration: "telegram" },
@@ -35,6 +39,9 @@ function defaultCategoryX(index: number): number {
 export interface SimulationOverlay {
   activeAgentIds: string[];
   activeInputId?: string | null;
+  modelActive?: boolean;
+  activeModelId?: string | null;
+  engine?: string;
 }
 
 export function buildAgentGraph(
@@ -42,8 +49,12 @@ export function buildAgentGraph(
   saved: SavedPositions,
   simulation: SimulationOverlay
 ): { nodes: Node[]; edges: Edge[] } {
-  const { activeAgentIds, activeInputId = null } = simulation;
+  const { activeAgentIds, activeInputId = null, modelActive = false, activeModelId = null, engine } =
+    simulation;
   const activeSet = new Set(activeAgentIds);
+  const orchestratorActive = modelActive || activeSet.size > 0;
+  const modelSpan = Math.max(DASHBOARD_MODELS.length - 1, 0) * MODEL_NODE_GAP;
+  const modelStartX = ROOT_DEFAULT_X + 72 - modelSpan / 2;
   const grouped = agents.reduce(
     (acc, agent) => {
       const cat = agent.category || "general";
@@ -56,8 +67,6 @@ export function buildAgentGraph(
 
   const pos = (id: string, x: number, y: number) => saved[id] ?? { x, y };
 
-  const rootActive = activeSet.size > 0;
-
   const nodes: Node[] = [
     {
       id: ROOT_NODE_ID,
@@ -66,14 +75,43 @@ export function buildAgentGraph(
       data: {
         label: "Daffodil Intelligence",
         inputs: [ROOT_INPUT_HANDLE],
+        modelInput: ROOT_MODEL_HANDLE,
         outputs: [...CATEGORY_ORDER],
-        working: rootActive,
+        working: orchestratorActive,
       },
       draggable: true,
     },
   ];
 
   const edges: Edge[] = [];
+
+  DASHBOARD_MODELS.forEach((model, index) => {
+    const nodeId = modelNodeId(model.id);
+    const isActive = modelActive && (activeModelId === model.id || (!activeModelId && index === 0));
+
+    nodes.unshift({
+      id: nodeId,
+      type: "model",
+      position: pos(nodeId, modelStartX + index * MODEL_NODE_GAP, MODEL_NODE_Y),
+      data: {
+        label: model.name,
+        modelName: model.name,
+        provider: model.provider,
+        engine: engine ?? "antigravity",
+        working: isActive,
+      },
+      draggable: true,
+    });
+
+    edges.push({
+      id: `e-${nodeId}-${ROOT_NODE_ID}`,
+      source: nodeId,
+      target: ROOT_NODE_ID,
+      targetHandle: ROOT_MODEL_HANDLE,
+      type: "activeBeam",
+      data: { active: isActive },
+    });
+  });
 
   INPUT_INTEGRATIONS.forEach((input, index) => {
     nodes.push({
@@ -83,7 +121,7 @@ export function buildAgentGraph(
       data: {
         label: input.label,
         integration: input.integration,
-        working: rootActive && activeInputId === input.id,
+        working: orchestratorActive && activeInputId === input.id,
       },
       draggable: true,
     });
@@ -94,7 +132,7 @@ export function buildAgentGraph(
       target: ROOT_NODE_ID,
       targetHandle: ROOT_INPUT_HANDLE,
       type: "activeBeam",
-      data: { active: rootActive && activeInputId === input.id },
+      data: { active: orchestratorActive && activeInputId === input.id },
     });
   });
 

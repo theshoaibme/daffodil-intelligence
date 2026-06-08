@@ -21,6 +21,7 @@ from .general import GeneralAgent
 from .computer_use import ComputerUseAgent
 from .copycat import CopyCatAgent
 from .planning import PlanningAgent
+from .routine import RoutineAgent
 
 AGENT_MAP = {
     "academic": AcademicAgent(),
@@ -44,4 +45,5 @@ AGENT_MAP = {
     "computer_use": ComputerUseAgent(),
     "copycat": CopyCatAgent(),
     "planning": PlanningAgent(),
+    "routine": RoutineAgent(),
 }

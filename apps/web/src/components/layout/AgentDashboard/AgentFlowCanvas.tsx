@@ -12,6 +12,7 @@ import "@xyflow/react/dist/style.css";
 import "./flowTheme.css";
 
 import type { Agent } from "../../../hooks/useAgents";
+import { useRuntimeStatus } from "../../../hooks/useRuntimeStatus";
 import { ActiveBeamEdge } from "./ActiveBeamEdge";
 import { AgentDetailDialog } from "./AgentDetailDialog";
 import { FlowZoomControls } from "./FlowZoomControls";
@@ -26,6 +27,10 @@ const edgeTypes = { activeBeam: ActiveBeamEdge };
 const EMPTY_SIMULATION: ParallelSimulationState = {
   activeAgentIds: [],
   activeInputId: "input-telegram",
+  activeModelId: "gemini-2.0-flash",
+  modelActive: false,
+  modelTask: "",
+  pipelineLabel: "",
   tasks: [],
 };
 
@@ -38,6 +43,7 @@ interface AgentFlowCanvasProps {
 
 export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(), []);
+  const { runtime } = useRuntimeStatus();
   const [simulation, setSimulation] = useState<ParallelSimulationState>(EMPTY_SIMULATION);
   const [dialogAgents, setDialogAgents] = useState<Agent[] | null>(null);
   const [selectedCount, setSelectedCount] = useState(0);
@@ -49,8 +55,19 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
       buildAgentGraph(agents, savedLayout, {
         activeAgentIds: simulation.activeAgentIds,
         activeInputId: simulation.activeInputId,
+        modelActive: simulation.modelActive,
+        activeModelId: simulation.activeModelId,
+        engine: runtime.engine,
       }),
-    [agents, savedLayout, simulation.activeAgentIds, simulation.activeInputId]
+    [
+      agents,
+      savedLayout,
+      simulation.activeAgentIds,
+      simulation.activeInputId,
+      simulation.activeModelId,
+      simulation.modelActive,
+      runtime.engine,
+    ]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
@@ -79,7 +96,7 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
     }
 
     const tick = () => {
-      const next = nextParallelSimulation(agents, simulationRound.current);
+      const next = nextParallelSimulation(agents, simulationRound.current, runtime);
       simulationRound.current += 1;
       setSimulation(next);
     };
@@ -87,7 +104,7 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
     tick();
     const interval = window.setInterval(tick, 3400);
     return () => window.clearInterval(interval);
-  }, [agents, editing]);
+  }, [agents, editing, runtime]);
 
   useEffect(() => {
     if (saveSignal === 0) return;
@@ -133,12 +150,9 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
     }
   }, [editing]);
 
-  const activeInputLabel =
-    simulation.activeInputId === "input-chat" ? "Chat Input" : "Telegram";
-
   return (
     <div className="agent-flow-canvas w-full h-full relative">
-      {!editing && <SimulatorPanel tasks={simulation.tasks} activeInputLabel={activeInputLabel} />}
+      {!editing && <SimulatorPanel simulation={simulation} />}
 
       {selectedCount > 1 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full bg-surface-container-lowest/95 border border-outline-variant/40 shadow-md text-xs font-medium text-on-surface">
