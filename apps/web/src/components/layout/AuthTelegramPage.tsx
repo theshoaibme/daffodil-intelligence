@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { ROUTES } from "../../lib/routes";
 
 export function AuthTelegramPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { completeOAuth } = useAuth();
   const [message, setMessage] = useState("Signing you in…");
 
   useEffect(() => {
@@ -21,14 +23,23 @@ export function AuthTelegramPage() {
       return;
     }
 
-    localStorage.setItem("di_access_token", token);
-    const email = searchParams.get("email");
-    if (email) {
-      localStorage.setItem("di_user_email", email);
-    }
-    setMessage("Signed in. Redirecting…");
-    navigate(ROUTES.home, { replace: true });
-  }, [navigate, searchParams]);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await completeOAuth(token);
+        if (!cancelled) navigate(ROUTES.home, { replace: true });
+      } catch (err) {
+        if (!cancelled) {
+          setMessage(err instanceof Error ? err.message : "Sign-in failed.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, searchParams, completeOAuth]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-on-surface font-sans p-6">

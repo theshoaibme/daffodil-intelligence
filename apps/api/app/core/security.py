@@ -38,9 +38,38 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 
+def decode_token_for_refresh(token: str, max_age_days: int = 7) -> dict:
+    """Accept a recently expired access token for refresh (signature still verified)."""
+    try:
+        payload = jwt.decode(
+            token,
+            jwt_secret(),
+            algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_exp": False},
+        )
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    exp = payload.get("exp")
+    if exp is not None:
+        expired_at = datetime.utcfromtimestamp(exp)
+        if datetime.utcnow() > expired_at + timedelta(days=max_age_days):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+
+    return payload
+
+
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ):
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return decode_token(credentials.credentials)
+
+
+async def get_refresh_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return decode_token_for_refresh(credentials.credentials)

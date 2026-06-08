@@ -68,7 +68,7 @@ export function GuidancePage() {
               <h2 className="font-medium mb-1">Your profile</h2>
               <p className="text-sm text-on-surface-variant">
                 {user?.department
-                  ? `${user.department}${user.semester ? ` · Semester ${user.semester}` : ""}`
+                  ? `${user.department}${user.semester ? ` · Batch ${user.semester}` : ""}`
                   : "Complete your student profile to unlock tailored guidance."}
               </p>
             </div>

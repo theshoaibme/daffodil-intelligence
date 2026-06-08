@@ -169,15 +169,15 @@ export function Sidebar({
         <div className="pt-4 border-t border-outline-variant/20">
           <button
             type="button"
-            onClick={() => navigate(ROUTES.settings)}
+            onClick={() => navigate(ROUTES.account)}
             className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left w-full border-0 cursor-pointer ${
-              location.pathname === ROUTES.settings
+              location.pathname === ROUTES.account
                 ? "bg-primary/10 text-primary"
                 : "bg-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
             }`}
           >
-            <Settings size={20} className={location.pathname === ROUTES.settings ? "text-primary" : "text-secondary"} />
-            <span className="text-sm font-semibold">Settings</span>
+            <Settings size={20} className={location.pathname === ROUTES.account ? "text-primary" : "text-secondary"} />
+            <span className="text-sm font-semibold">Account</span>
           </button>
         </div>
       </div>

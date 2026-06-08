@@ -26,7 +26,7 @@ import {
   RegisterPage,
   GuidancePage,
   GoogleCallbackPage,
-  SettingsPage,
+  AccountPage,
   LandingPage,
   TermsPage,
   PrivacyPage,
@@ -37,7 +37,10 @@ const LEGACY_REDIRECTS: { from: string; to: string }[] = [
   { from: "/intelligence/login", to: ROUTES.login },
   { from: "/intelligence/register", to: ROUTES.register },
   { from: "/guidance", to: ROUTES.guidance },
-  { from: "/settings", to: ROUTES.settings },
+  { from: "/settings", to: ROUTES.account },
+  { from: "/intelligence/settings", to: ROUTES.account },
+  { from: "/intelligence/accounts", to: ROUTES.account },
+  { from: "/intelligence/account", to: ROUTES.account },
   { from: "/agents", to: ROUTES.agents },
   { from: "/live", to: ROUTES.live },
   { from: "/computer", to: ROUTES.computer },
@@ -54,35 +57,31 @@ export default function App() {
         <Route key={from} path={from} element={<Navigate to={to} replace />} />
       ))}
 
-      <Route
-        path={ROUTES.home}
-        element={
-          <UiAnimationProvider>
-            <ChatHistoryProvider>
-              <ChatDashboard />
-            </ChatHistoryProvider>
-          </UiAnimationProvider>
-        }
-      />
-      <Route path={ROUTES.model} element={<ModelManagementPage />} />
-      <Route path={ROUTES.live} element={<LiveVoicePage />} />
-      <Route path={ROUTES.agents} element={<AgentDashboard />} />
-      <Route path={ROUTES.computer} element={<ComputerView />} />
       <Route path={ROUTES.login} element={<LoginPage />} />
       <Route path={ROUTES.register} element={<RegisterPage />} />
       <Route path={ROUTES.terms} element={<TermsPage />} />
       <Route path={ROUTES.privacy} element={<PrivacyPage />} />
       <Route path={ROUTES.googleCallback} element={<GoogleCallbackPage />} />
       <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
-      <Route
-        path={ROUTES.guidance}
-        element={
-          <ProtectedRoute>
-            <GuidancePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path={ROUTES.settings} element={<SettingsPage />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route
+          path={ROUTES.home}
+          element={
+            <UiAnimationProvider>
+              <ChatHistoryProvider>
+                <ChatDashboard />
+              </ChatHistoryProvider>
+            </UiAnimationProvider>
+          }
+        />
+        <Route path={ROUTES.model} element={<ModelManagementPage />} />
+        <Route path={ROUTES.live} element={<LiveVoicePage />} />
+        <Route path={ROUTES.agents} element={<AgentDashboard />} />
+        <Route path={ROUTES.computer} element={<ComputerView />} />
+        <Route path={ROUTES.guidance} element={<GuidancePage />} />
+        <Route path={ROUTES.account} element={<AccountPage />} />
+      </Route>
     </Routes>
   );
 }

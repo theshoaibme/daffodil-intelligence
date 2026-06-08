@@ -8,28 +8,31 @@ import { ROUTES } from "../../lib/routes";
 interface LoginLocationState {
   registered?: boolean;
   email?: string;
+  from?: string;
 }
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, sessionError } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const registrationSuccess = (location.state as LoginLocationState | null)?.registered;
-  const registeredEmail = (location.state as LoginLocationState | null)?.email;
+  const state = location.state as LoginLocationState | null;
+  const registrationSuccess = state?.registered;
+  const registeredEmail = state?.email;
+  const redirectTo = state?.from ?? ROUTES.home;
 
   React.useEffect(() => {
-    if (isAuthenticated) navigate(ROUTES.home, { replace: true });
-  }, [isAuthenticated, navigate]);
+    if (isAuthenticated) navigate(redirectTo, { replace: true });
+  }, [isAuthenticated, navigate, redirectTo]);
 
   const handleSubmit = async (data: { email: string; password: string }) => {
     setLoading(true);
     setError(null);
     try {
       await login(data.email, data.password);
-      navigate(ROUTES.home, { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed");
     } finally {
@@ -40,7 +43,6 @@ export function LoginPage() {
   return (
     <AuthLayout
       title="Sign in"
-      subtitle="Access your academic guidance workspace"
       footer={
         <>
           Don&apos;t have an account?{" "}
@@ -50,6 +52,11 @@ export function LoginPage() {
         </>
       }
     >
+      {sessionError && (
+        <p className="text-sm text-error bg-error/10 rounded-2xl px-4 py-2.5 mb-4 text-center" role="alert">
+          {sessionError}
+        </p>
+      )}
       {registrationSuccess && (
         <p className="text-sm text-primary bg-primary/10 rounded-2xl px-4 py-2.5 mb-4 text-center" role="status">
           Registration successful{registeredEmail ? ` for ${registeredEmail}` : ""}. Sign in with your credentials.

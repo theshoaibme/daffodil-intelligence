@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Menu, FileText, MessageSquare, Gift, Sun, Moon, ChevronDown, LogOut, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Menu, FileText, MessageSquare, Gift, Sun, Moon, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeaderIcon } from "../ui";
 import { useThemeMode } from "../ThemeProvider";
 import { useAuth } from "../../context/AuthContext";
 import { ROUTES } from "../../lib/routes";
+import { dropdownPanelVariants, modeSpringSoft } from "../../lib/motion";
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -69,7 +70,6 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
     [user]
   );
   const email = user?.email ?? "";
-  const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "";
   const initials = userInitials(name);
   const avatarUrl = user?.avatar_url;
 
@@ -109,79 +109,90 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
 
         <div className="relative" ref={dropdownRef}>
           <button
+            type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 p-1 pr-3 rounded-full bg-surface-container-high/60 hover:bg-surface-container-high border border-outline-variant/20 hover:border-outline-variant/40 transition-all cursor-pointer text-on-surface shadow-sm focus:outline-none"
+            aria-label="User menu"
+            aria-expanded={isOpen}
+            className="p-0 rounded-full cursor-pointer border-0 outline-none transition-all hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             <UserAvatar
               avatarUrl={isAuthenticated ? avatarUrl : null}
               initials={isAuthenticated ? initials : "?"}
               size="sm"
             />
-            <div className="hidden sm:flex flex-col items-start text-left ml-1.5">
-              <span className="text-xs font-semibold leading-tight text-on-surface">{name}</span>
-              <span className="text-[10px] text-on-surface-variant leading-none">
-                {isAuthenticated ? roleLabel : "Not signed in"}
-              </span>
-            </div>
-            <ChevronDown
-              size={14}
-              className={`text-on-surface-variant ml-1.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-            />
           </button>
 
-          <AnimatePresence>
+          <AnimatePresence initial={false}>
             {isOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute right-0 mt-3 w-[280px] sm:w-[320px] bg-surface-container-highest border border-outline-variant/40 rounded-[28px] shadow-2xl z-50 overflow-hidden p-0 text-on-surface"
+                key="user-menu"
+                variants={dropdownPanelVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                style={{ transformOrigin: "top right" }}
+                className="absolute right-0 top-full mt-2 w-[280px] sm:w-[300px] glass-gradient-panel border border-outline-variant/40 rounded-[28px] shadow-md z-50 overflow-hidden text-on-surface will-change-[transform,opacity]"
               >
-                <div className="flex items-center justify-between px-6 pt-5 pb-3">
-                  <span className="text-[11px] font-medium text-on-surface-variant/70 tracking-wide uppercase select-none truncate max-w-[200px]">
-                    {isAuthenticated ? email : "Sign in to continue"}
-                  </span>
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="p-1.5 hover:bg-surface-container-high rounded-full transition-colors cursor-pointer text-on-surface-variant flex items-center justify-center border-0 outline-none"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="flex flex-col items-center text-center px-6 pb-6 pt-2">
+                <div className="flex flex-col items-center text-center px-6 pt-6 pb-5">
                   <UserAvatar avatarUrl={avatarUrl} initials={initials} size="lg" />
 
-                  <span className="text-xl font-medium text-on-surface select-none">
-                    {isAuthenticated ? `Hi, ${name.split(" ")[0]}!` : "Welcome"}
+                  <span
+                    className="text-lg font-medium text-on-surface select-none mt-4 max-w-full truncate px-2"
+                    title={isAuthenticated ? name : undefined}
+                  >
+                    {isAuthenticated ? name : "Welcome"}
                   </span>
-                  <span className="text-xs text-on-surface-variant/80 mt-0.5 mb-5 select-none">{name}</span>
 
-                  {!isAuthenticated ? (
+                  {isAuthenticated && email && (
+                    <span className="text-xs text-on-surface-variant/80 mt-1 select-none normal-case">
+                      {email}
+                    </span>
+                  )}
+
+                  {!isAuthenticated && (
+                    <span className="text-xs text-on-surface-variant/80 mt-1 select-none">
+                      Sign in to continue
+                    </span>
+                  )}
+                </div>
+
+                {!isAuthenticated ? (
+                  <div className="px-6 pb-5 flex justify-center">
                     <button
                       onClick={() => {
                         setIsOpen(false);
                         navigate(ROUTES.login);
                       }}
-                      className="px-6 py-2.5 rounded-full bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 text-xs font-semibold transition-all duration-200 cursor-pointer outline-none shadow-sm border-none"
+                      className="w-full px-6 py-2.5 rounded-full bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 text-xs font-semibold transition-all duration-200 cursor-pointer outline-none shadow-sm border-0"
                     >
                       Sign in
                     </button>
-                  ) : (
+                  </div>
+                ) : (
+                  <div className="px-6 pb-4 flex flex-col gap-2">
                     <button
-                      onClick={() => navigate(ROUTES.settings)}
-                      className="px-6 py-2.5 rounded-full border border-outline-variant/40 hover:bg-primary/5 text-xs font-semibold text-primary transition-all duration-200 cursor-pointer outline-none shadow-sm"
+                      onClick={() => {
+                        setIsOpen(false);
+                        navigate(ROUTES.account);
+                      }}
+                      className="w-full px-4 py-2.5 rounded-full bg-primary text-on-primary hover:opacity-90 text-xs font-semibold transition-opacity duration-200 cursor-pointer outline-none border-0"
                     >
                       Account settings
                     </button>
-                  )}
-                </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#d93025] text-white hover:bg-[#c5221f] text-xs font-semibold transition-colors duration-200 cursor-pointer outline-none border-0"
+                    >
+                      <LogOut size={14} />
+                      <span>Sign out</span>
+                    </button>
+                  </div>
+                )}
 
-                <div className="bg-surface-container-high/40 border-t border-outline-variant/20 px-6 py-3 flex flex-col gap-1">
+                <div className="px-4 pb-3">
                   <div
                     onClick={toggleTheme}
-                    className="flex items-center justify-between p-2 hover:bg-surface-container-high rounded-xl transition-colors cursor-pointer select-none"
+                    className="flex items-center justify-between p-2.5 bg-surface-container-highest/70 hover:bg-surface-container-highest rounded-xl transition-colors cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-3 text-on-surface">
                       {mode === "dark" ? (
@@ -192,39 +203,31 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
                       <span className="text-xs font-semibold">Dark Theme</span>
                     </div>
                     <div
-                      className={`w-9 h-5 rounded-full p-0.5 flex items-center border transition-colors ${
+                      className={`w-9 h-5 rounded-full p-0.5 flex items-center transition-colors ${
                         mode === "dark"
-                          ? "bg-primary/20 border-primary/40 justify-end"
-                          : "bg-surface-container border-outline-variant/40 justify-start"
+                          ? "bg-primary justify-end"
+                          : "bg-surface-container justify-start"
                       }`}
                     >
                       <motion.div
                         layout
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm ${
-                          mode === "dark" ? "bg-primary" : "bg-outline-variant"
+                        transition={modeSpringSoft}
+                        className={`w-3.5 h-3.5 rounded-full shadow-sm ${
+                          mode === "dark" ? "bg-on-primary" : "bg-outline-variant"
                         }`}
                       />
                     </div>
                   </div>
                 </div>
 
-                {isAuthenticated && (
-                  <div className="border-t border-outline-variant/20 px-6 py-4 flex justify-center bg-surface-container-high/20">
-                    <button
-                      onClick={handleSignOut}
-                      className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full border border-outline-variant/40 hover:bg-error-container/15 hover:text-error hover:border-error/40 text-xs font-semibold text-on-surface-variant transition-all duration-200 cursor-pointer outline-none bg-surface-container-highest shadow-sm"
-                    >
-                      <LogOut size={14} />
-                      <span>Sign out</span>
-                    </button>
-                  </div>
-                )}
-
-                <div className="border-t border-outline-variant/10 py-3 flex items-center justify-center gap-3 text-[10px] text-on-surface-variant/40 select-none">
-                  <span className="hover:underline cursor-pointer">Privacy Policy</span>
+                <div className="py-3 flex items-center justify-center gap-3 text-[10px] text-on-surface-variant/50 select-none">
+                  <Link to={ROUTES.privacy} className="hover:underline" onClick={() => setIsOpen(false)}>
+                    Privacy Policy
+                  </Link>
                   <span>•</span>
-                  <span className="hover:underline cursor-pointer">Terms of Service</span>
+                  <Link to={ROUTES.terms} className="hover:underline" onClick={() => setIsOpen(false)}>
+                    Terms of Service
+                  </Link>
                 </div>
               </motion.div>
             )}

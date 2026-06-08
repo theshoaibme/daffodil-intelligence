@@ -108,3 +108,28 @@ class StreamResponse(BaseModel):
 class OAuthRequest(BaseModel):
     code: str
     redirect_uri: str
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = Field(default=None, max_length=255)
+    student_id: Optional[str] = Field(default=None, max_length=50)
+    department: Optional[str] = Field(default=None, max_length=100)
+    semester: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=999,
+        description="Batch ID (e.g. 64, 65, 67)",
+    )
+    avatar_url: Optional[str] = Field(default=None, max_length=512)
+
+
+DELETE_ACCOUNT_PHRASE = "Delete my account"
+
+
+class DeleteAccountRequest(BaseModel):
+    confirmation_phrase: str = Field(min_length=1, max_length=64)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=6, max_length=128)

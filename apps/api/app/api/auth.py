@@ -13,9 +13,18 @@ from ..core.web_registration import pending_registration_store
 from ..integrations.telegram.otp import otp_service
 from ..integrations.telegram.tokens import frontend_base
 from ..core.database import get_db
-from ..core.security import create_access_token, get_current_user, get_password_hash, verify_password
-from ..models.user import User
+from ..core.security import (
+    create_access_token,
+    get_current_user,
+    get_password_hash,
+    get_refresh_user,
+    verify_password,
+)
+from ..models.user import Chat, Message, Session, Ticket, User
 from ..schemas.user import (
+    ChangePasswordRequest,
+    DELETE_ACCOUNT_PHRASE,
+    DeleteAccountRequest,
     LoginRequest,
     OAuthRequest,
     RegisterOtpResponse,
@@ -24,6 +33,7 @@ from ..schemas.user import (
     Token,
     UserCreate,
     UserResponse,
+    UserUpdate,
 )
 
 settings = get_settings()
@@ -273,6 +283,24 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     return user_obj
 
 
+@router.post("/refresh", response_model=Token)
+async def refresh_token(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_refresh_user),
+):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    user_id = int(user.get("sub"))
+    result = await db.execute(select(User).where(User.id == user_id))
+    user_obj = result.scalar_one_or_none()
+    if not user_obj:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    token = create_access_token({"sub": str(user_obj.id), "email": user_obj.email})
+    return {"access_token": token, "token_type": "bearer"}
+
+
 @router.post("/login", response_model=Token)
 async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == credentials.email))
@@ -285,14 +313,104 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     return {"access_token": token, "token_type": "bearer"}
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_me(db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    user_id = int(user.get("sub"))
+async def _get_user_or_404(db: AsyncSession, user_id: int) -> User:
     result = await db.execute(select(User).where(User.id == user_id))
     user_obj = result.scalar_one_or_none()
     if not user_obj:
         raise HTTPException(status_code=404, detail="User not found")
     return user_obj
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    return await _get_user_or_404(db, int(user.get("sub")))
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    data: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    user_obj = await _get_user_or_404(db, int(user.get("sub")))
+    updates = data.model_dump(exclude_unset=True)
+
+    if "student_id" in updates and updates["student_id"]:
+        existing = await db.execute(
+            select(User).where(User.student_id == updates["student_id"], User.id != user_obj.id)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Student ID already in use")
+
+    for field, value in updates.items():
+        setattr(user_obj, field, value.strip() if isinstance(value, str) else value)
+
+    await db.commit()
+    await db.refresh(user_obj)
+    return user_obj
+
+
+async def _delete_user_account(db: AsyncSession, user_obj: User) -> None:
+    chat_ids = (
+        await db.execute(select(Chat.id).where(Chat.user_id == user_obj.id))
+    ).scalars().all()
+
+    if chat_ids:
+        await db.execute(Message.__table__.delete().where(Message.chat_id.in_(chat_ids)))
+        await db.execute(Chat.__table__.delete().where(Chat.user_id == user_obj.id))
+
+    await db.execute(Session.__table__.delete().where(Session.user_id == user_obj.id))
+    await db.execute(Ticket.__table__.delete().where(Ticket.user_id == user_obj.id))
+    await db.delete(user_obj)
+    await db.commit()
+
+
+@router.post("/account/password")
+async def change_password(
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    if data.current_password == data.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from current password")
+
+    user_obj = await _get_user_or_404(db, int(user.get("sub")))
+
+    if not verify_password(data.current_password, user_obj.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    user_obj.password_hash = get_password_hash(data.new_password)
+    await db.commit()
+    return {"message": "Password updated successfully"}
+
+
+@router.post("/account/delete")
+async def delete_account(
+    data: DeleteAccountRequest,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    user_obj = await _get_user_or_404(db, int(user.get("sub")))
+
+    if data.confirmation_phrase.strip() != DELETE_ACCOUNT_PHRASE:
+        raise HTTPException(
+            status_code=400,
+            detail=f'Type "{DELETE_ACCOUNT_PHRASE}" to confirm deletion',
+        )
+
+    await _delete_user_account(db, user_obj)
+    return {"message": "Account deleted successfully"}
 
 
 @router.post("/oauth/google")
