@@ -57,8 +57,9 @@ async def root():
     return RedirectResponse(url="/health", status_code=302)
 
 
-@router.get("/api/agents/list")
+@router.get("/api/agents/list", deprecated=True)
 async def list_agents():
+    """Deprecated — use GET /api/agents/hub instead."""
     return {"agents": _agent_catalog(), "count": len(AGENT_MAP)}
 
 

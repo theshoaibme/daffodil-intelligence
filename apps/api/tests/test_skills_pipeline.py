@@ -4,23 +4,15 @@ import pytest
 
 from app.skills.copycat import create_skill_from_recording
 from app.skills.resolver import resolve_runtime_config
-from app.skills.store import skill_store, ruleset_store, global_config_store, agent_profile_store
+from app.skills.store import skill_store, ruleset_store, global_config_store, agent_profile_store, _memory
 from app.skills.models import AgentProfile, GlobalAgentConfig
 from app.runtime import pipeline
 
 
 @pytest.fixture(autouse=True)
-def isolated_stores(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    for store in (skill_store, ruleset_store, agent_profile_store):
-        store._data_loaded = False
-        if hasattr(store, "_skills"):
-            store._skills = {}
-        if hasattr(store, "_rulesets"):
-            store._rulesets = {}
-        if hasattr(store, "_profiles"):
-            store._profiles = {}
-    global_config_store._config = GlobalAgentConfig()
+def isolated_stores(monkeypatch):
+    monkeypatch.setattr("app.core.database._use_mock", True)
+    _memory.reset()
     yield
 
 
@@ -32,7 +24,8 @@ def test_copycat_creates_skill():
     assert "replay_recording" in skill["tool_names"]
 
 
-def test_resolver_merges_global_rules_and_skills():
+@pytest.mark.asyncio
+async def test_resolver_merges_global_rules_and_skills():
     rs = ruleset_store.create("Safety", "Global rules", ["Never share passwords"], is_public=True)
     sk = skill_store.create(
         "Notes",
@@ -52,7 +45,7 @@ def test_resolver_merges_global_rules_and_skills():
         extra_system="Focus on DIU academic policies.",
     ))
 
-    cfg = resolve_runtime_config(agent_id="academic", user_id=1)
+    cfg = await resolve_runtime_config(agent_id="academic", user_id=1)
     assert cfg.agent_id == "academic"
     assert "Always be concise." in cfg.extra_system
     assert "Safety" in cfg.extra_system
@@ -60,6 +53,7 @@ def test_resolver_merges_global_rules_and_skills():
     assert "Academic Agent" in cfg.extra_system or "specialist" in cfg.extra_system
 
 
+@pytest.mark.asyncio
 async def test_pipeline_delegates_to_orchestrator(monkeypatch):
     captured = {}
 

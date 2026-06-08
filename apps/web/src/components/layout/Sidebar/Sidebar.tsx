@@ -16,7 +16,7 @@ const iconBtn =
   "shrink-0 p-2 rounded-full transition-colors cursor-pointer flex items-center justify-center border-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 
 const SIDEBAR_NAV = [
-  { to: ROUTES.agents, label: "Agents", icon: LayoutGrid },
+  { to: ROUTES.agentHub, label: "Agents", icon: LayoutGrid },
   { to: ROUTES.skills, label: "Skills", icon: Sparkles },
 ] as const;
 
@@ -92,8 +92,6 @@ export function Sidebar({
   onDeleteHistory,
   onShareHistory,
   onNewChat,
-  agentModeActive = false,
-  onAgentsClick,
 }: SidebarProps) {
   const { histories } = useChatHistory();
   const navigate = useNavigate();
@@ -194,18 +192,8 @@ export function Sidebar({
                 key={item.to}
                 label={item.label}
                 icon={item.icon}
-                active={
-                  item.to === ROUTES.agents
-                    ? agentModeActive
-                    : location.pathname === item.to
-                }
-                onClick={() => {
-                  if (item.to === ROUTES.agents) {
-                    onAgentsClick?.();
-                    return;
-                  }
-                  navigate(item.to);
-                }}
+                active={location.pathname === item.to}
+                onClick={() => navigate(item.to)}
               />
             ))}
           </nav>

@@ -21,18 +21,14 @@ import { FitViewOnUpdate } from "./FitViewOnUpdate";
 import { buildAgentGraph } from "./graphBuilder";
 import { loadLayout, saveLayout } from "./layoutStorage";
 import { FLOW_FIT_OPTIONS } from "./flowLayout";
-import { nextParallelSimulation, type ParallelSimulationState } from "./parallelSimulator";
 
 const edgeTypes = { activeBeam: ActiveBeamEdge };
 
-const EMPTY_SIMULATION: ParallelSimulationState = {
-  activeAgentIds: [],
+const IDLE_OVERLAY = {
+  activeAgentIds: [] as string[],
   activeInputId: "input-telegram",
   activeModelId: "gemini-2.0-flash",
   modelActive: false,
-  modelTask: "",
-  pipelineLabel: "",
-  tasks: [],
 };
 
 const HOVER_LEAVE_MS = 140;
@@ -42,18 +38,15 @@ interface AgentFlowCanvasProps {
   editing: boolean;
   onSave: () => void;
   saveSignal: number;
-  onSimulationChange?: (state: ParallelSimulationState) => void;
 }
 
-export function AgentFlowCanvas({ agents, editing, onSave, saveSignal, onSimulationChange }: AgentFlowCanvasProps) {
+export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(agents), [agents]);
   const { runtime } = useRuntimeStatus();
   const [fitTrigger, setFitTrigger] = useState(0);
-  const [simulation, setSimulation] = useState<ParallelSimulationState>(EMPTY_SIMULATION);
   const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null);
   const [hoverAnchor, setHoverAnchor] = useState<HoverAnchor | null>(null);
   const [selectedCount, setSelectedCount] = useState(0);
-  const simulationRound = useRef(0);
   const nodesRef = useRef<Node[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const hoverLeaveTimer = useRef<number | null>(null);
@@ -62,21 +55,13 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal, onSimulat
   const graph = useMemo(
     () =>
       buildAgentGraph(agents, savedLayout, {
-        activeAgentIds: simulation.activeAgentIds,
-        activeInputId: simulation.activeInputId,
-        modelActive: simulation.modelActive,
-        activeModelId: simulation.activeModelId,
+        activeAgentIds: IDLE_OVERLAY.activeAgentIds,
+        activeInputId: IDLE_OVERLAY.activeInputId,
+        modelActive: IDLE_OVERLAY.modelActive,
+        activeModelId: IDLE_OVERLAY.activeModelId,
         engine: runtime.engine,
       }),
-    [
-      agents,
-      savedLayout,
-      simulation.activeAgentIds,
-      simulation.activeInputId,
-      simulation.activeModelId,
-      simulation.modelActive,
-      runtime.engine,
-    ]
+    [agents, savedLayout, runtime.engine]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
@@ -97,27 +82,6 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal, onSimulat
     });
     setEdges(graph.edges);
   }, [graph.nodes, graph.edges, editing, setNodes, setEdges]);
-
-  useEffect(() => {
-    if (editing || agents.length === 0) {
-      setSimulation(EMPTY_SIMULATION);
-      return;
-    }
-
-    const tick = () => {
-      const next = nextParallelSimulation(agents, simulationRound.current, runtime);
-      simulationRound.current += 1;
-      setSimulation(next);
-    };
-
-    tick();
-    const interval = window.setInterval(tick, 3400);
-    return () => window.clearInterval(interval);
-  }, [agents, editing, runtime]);
-
-  useEffect(() => {
-    onSimulationChange?.(simulation);
-  }, [simulation, onSimulationChange]);
 
   useEffect(() => {
     if (saveSignal === 0) return;

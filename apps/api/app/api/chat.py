@@ -84,16 +84,35 @@ async def add_message(
         engine = "antigravity"
         resolved_agent = agent_id
         try:
-            async for chunk in run_turn_stream(
+            async for event in run_turn_stream(
                 message.content,
                 user_id=user_id,
                 chat_id=chat_id,
                 agent_id=agent_id,
             ):
-                if not chunk:
+                if not event:
                     continue
-                full_response += chunk
-                yield f'data: {json.dumps({"content": chunk})}\n\n'
+                if isinstance(event, str):
+                    event = {"type": "content", "content": event}
+                event_type = event.get("type", "content")
+                if event_type == "content":
+                    chunk = event.get("content") or ""
+                    if not chunk:
+                        continue
+                    full_response += chunk
+                    yield f'data: {json.dumps({"type": "content", "content": chunk})}\n\n'
+                elif event_type == "thinking":
+                    thinking = event.get("content") or ""
+                    if thinking:
+                        yield f'data: {json.dumps({"type": "thinking", "content": thinking})}\n\n'
+                elif event_type == "tool":
+                    tool_name = event.get("name")
+                    if not tool_name:
+                        continue
+                    status = event.get("status", "active")
+                    if status == "active" and tool_name not in tool_calls:
+                        tool_calls.append(tool_name)
+                    yield f'data: {json.dumps({"type": "tool", "name": tool_name, "status": status})}\n\n'
             if not full_response.strip():
                 result = await run_turn(
                     message.content,

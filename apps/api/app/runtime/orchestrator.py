@@ -41,7 +41,7 @@ async def run(
     """Run one turn and return {content, tool_calls/agents, engine}."""
     if extra_system is None and agent_id:
         from ..skills.resolver import resolve_runtime_config
-        cfg = resolve_runtime_config(agent_id=agent_id, user_id=user_id)
+        cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
         extra_system = cfg.extra_system or None
         persona = cfg.persona
 
@@ -68,22 +68,22 @@ async def run_stream(
     lang: Optional[str] = None,
     agent_id: Optional[str] = None,
     extra_system: Optional[str] = None,
-) -> AsyncIterator[str]:
-    """Yield text tokens for one turn (Antigravity, else legacy word-stream)."""
+) -> AsyncIterator[dict]:
+    """Yield structured stream events for one turn (Antigravity, else legacy)."""
     if extra_system is None and agent_id:
         from ..skills.resolver import resolve_runtime_config
-        cfg = resolve_runtime_config(agent_id=agent_id, user_id=user_id)
+        cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
         extra_system = cfg.extra_system or None
         persona = cfg.persona
 
     if session_manager.available():
         try:
-            async for token in session_manager.stream(
+            async for event in session_manager.stream(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
                 extra_system=extra_system,
             ):
-                yield token
+                yield event
             return
         except Exception as e:
             logger.error(f"Antigravity stream failed, falling back to legacy: {e}")
@@ -91,4 +91,4 @@ async def run_stream(
     result = await _legacy_run(message, user_id)
     content = result["content"] or ""
     for word in content.split(" "):
-        yield word + " "
+        yield {"type": "content", "content": word + " "}

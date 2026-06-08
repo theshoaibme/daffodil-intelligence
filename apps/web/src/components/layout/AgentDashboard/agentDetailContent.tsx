@@ -8,7 +8,7 @@ import {
   resolveAgentDescription,
 } from "./agentConstants";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+import { getAuthHeaders } from "../../../lib/api";
 
 export interface SkillInfo {
   id: string;
@@ -27,7 +27,9 @@ async function loadSkillCatalog(): Promise<Record<string, SkillInfo>> {
   if (skillCatalogCache) return skillCatalogCache;
   const catalog: Record<string, SkillInfo> = {};
   try {
-    const res = await fetch(`${API_BASE}/api/skills/`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/skills/`, {
+      headers: getAuthHeaders(),
+    });
     if (res.ok) {
       const data = await res.json();
       for (const skill of data.skills ?? []) {
@@ -50,7 +52,9 @@ async function fetchAgentSkills(agentId: string): Promise<SkillInfo[]> {
 
   const catalog = await loadSkillCatalog();
   try {
-    const res = await fetch(`${API_BASE}/api/skills/config/agent/${agentId}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/skills/config/agent/${agentId}`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) {
       skillsCache.set(agentId, []);
       return [];

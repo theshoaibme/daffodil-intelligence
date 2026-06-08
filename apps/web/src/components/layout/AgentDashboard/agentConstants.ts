@@ -25,7 +25,7 @@ export const AGENT_DESCRIPTION_FALLBACKS: Record<string, string> = {
 };
 
 export const ROOT_DESCRIPTION =
-  "The main orchestrator that routes student requests to specialized agents, merges responses, and coordinates tools across the platform. Workflow simulator cycles through agents to visualize routing.";
+  "The main orchestrator that routes student requests to specialized agents, merges responses, and coordinates tools across the platform.";
 
 export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   orchestration: "Plans tasks, delegates work, and coordinates multi-step workflows.",

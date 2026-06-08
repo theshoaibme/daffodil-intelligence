@@ -23,9 +23,21 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional, TypedDict, Literal
 
 from .agent_factory import build_agent, get_save_dir, AgentPersona, is_available
+
+try:
+    from google.antigravity.types import Text, Thought, ToolCall
+except Exception:  # pragma: no cover - import guard
+    Text = Thought = ToolCall = None  # type: ignore
+
+
+class StreamEvent(TypedDict, total=False):
+    type: Literal["content", "thinking", "tool"]
+    content: str
+    name: str
+    status: Literal["active", "success"]
 
 logger = logging.getLogger(__name__)
 
@@ -135,8 +147,8 @@ class SessionManager:
         attachments: Optional[List[Any]] = None,
         lang: Optional[str] = None,
         extra_system: Optional[str] = None,
-    ) -> AsyncIterator[str]:
-        """Run one turn and yield text tokens as they arrive."""
+    ) -> AsyncIterator[StreamEvent]:
+        """Run one turn and yield structured stream events as they arrive."""
         key = _key(user_id, chat_id)
         conv = self._index.get(key)
         prompt = _build_prompt(message, attachments)
@@ -144,9 +156,34 @@ class SessionManager:
         agent = build_agent(persona=persona, conversation_id=conv, lang=lang, extra_system=extra_system)
         async with agent:
             response = await agent.chat(prompt)
-            async for token in response:
-                if token:
-                    yield token
+            active_tools: List[str] = []
+
+            def _complete_tools() -> List[StreamEvent]:
+                events: List[StreamEvent] = []
+                for name in active_tools:
+                    events.append({"type": "tool", "name": name, "status": "success"})
+                active_tools.clear()
+                return events
+
+            async for chunk in response.chunks:
+                if Text is not None and isinstance(chunk, Text):
+                    for event in _complete_tools():
+                        yield event
+                    if chunk.text:
+                        yield {"type": "content", "content": chunk.text}
+                elif Thought is not None and isinstance(chunk, Thought):
+                    if chunk.text:
+                        yield {"type": "thinking", "content": chunk.text}
+                elif ToolCall is not None and isinstance(chunk, ToolCall):
+                    for event in _complete_tools():
+                        yield event
+                    name = chunk.name or "tool"
+                    active_tools.append(name)
+                    yield {"type": "tool", "name": name, "status": "active"}
+
+            for event in _complete_tools():
+                yield event
+
             new_conv = getattr(agent, "conversation_id", None)
 
         if new_conv:

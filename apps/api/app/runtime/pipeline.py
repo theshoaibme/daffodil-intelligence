@@ -31,7 +31,7 @@ async def run_turn(
     lang: Optional[str] = None,
 ) -> dict:
     """Run one non-streaming turn through the main agent runtime."""
-    cfg = resolve_runtime_config(agent_id=agent_id, user_id=user_id)
+    cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
     prompt = _compose_message(message, context_prefix)
     result = await orchestrator.run(
         prompt,
@@ -58,11 +58,11 @@ async def run_turn_stream(
     context_prefix: Optional[str] = None,
     attachments: Optional[List[Any]] = None,
     lang: Optional[str] = None,
-) -> AsyncIterator[str]:
+) -> AsyncIterator[dict]:
     """Stream one turn through the main agent runtime."""
-    cfg = resolve_runtime_config(agent_id=agent_id, user_id=user_id)
+    cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
     prompt = _compose_message(message, context_prefix)
-    async for token in orchestrator.run_stream(
+    async for event in orchestrator.run_stream(
         prompt,
         user_id=user_id,
         chat_id=chat_id,
@@ -72,4 +72,4 @@ async def run_turn_stream(
         agent_id=cfg.agent_id,
         extra_system=cfg.extra_system or None,
     ):
-        yield token
+        yield event

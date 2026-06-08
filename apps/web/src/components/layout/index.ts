@@ -14,6 +14,7 @@ export * from "./LoginPage";
 export * from "./RegisterPage";
 export * from "./GuidancePage";
 export * from "./SkillsPage";
+export * from "./AgentHubPage";
 export * from "./GoogleCallbackPage";
 export * from "./AccountPage";
 export * from "./LandingPage";

@@ -14,8 +14,7 @@ from .core.database import init_db, close_db
 from .core.logging import configure_logging, log_startup_banner, log_startup_ready, mark_startup_begin
 from .core.middleware import LoggingMiddleware
 from .mcp.client import mcp_client
-from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth, status, skills
-from .agents.builder import load_registry_from_disk
+from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth, status, skills, agent_hub
 from .api.computer_use import router as computer_use_router
 from .live_broadcaster import live_router
 from .messaging_gateway import messaging_router
@@ -39,7 +38,7 @@ OPENAPI_TAGS = [
     {"name": "computer-use", "description": "Desktop automation and recording"},
     {"name": "upload", "description": "File uploads"},
     {"name": "admin", "description": "Administration"},
-    {"name": "Agent Builder", "description": "Custom agent templates"},
+    {"name": "Agent Hub", "description": "Unified built-in + custom agent catalog"},
     {"name": "skills", "description": "Skill hub, rulesets, and global agent config"},
     {"name": "messaging", "description": "Telegram / WhatsApp webhooks"},
     {"name": "live", "description": "Gemini live sessions"},
@@ -49,7 +48,11 @@ OPENAPI_TAGS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    load_registry_from_disk()
+    try:
+        from .agents.builder import load_registry_from_db
+        await load_registry_from_db()
+    except Exception as e:
+        logging.getLogger("app.agents").warning(f"Could not load custom agents from DB: {e}")
 
     from .integrations.telegram import telegram_bot
 
@@ -110,6 +113,7 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(rag.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(agent_hub.router, prefix="/api")
 app.include_router(agent_builder.router, prefix="/api")
 app.include_router(skills.router, prefix="/api")
 app.include_router(voice.router, prefix="/api")

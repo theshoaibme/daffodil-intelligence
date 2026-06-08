@@ -2,6 +2,7 @@
  * useAgents — Hook for real-time agent status and management
  */
 import { useState, useEffect, useCallback } from "react";
+import { getAuthHeaders } from "../lib/api";
 
 export interface Agent {
   id: string;
@@ -10,6 +11,8 @@ export interface Agent {
   tools?: string[];
   status: "idle" | "thinking" | "executing" | "error";
   category: string;
+  kind?: "builtin" | "custom";
+  skill_count?: number;
   currentTask?: string;
   tasksCompleted: number;
   lastActive?: string;
@@ -29,14 +32,14 @@ export function useAgents() {
 
   const fetchAgents = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/agents/list`);
+      const res = await fetch(`${API_BASE}/api/agents/hub`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error("Failed to fetch agents");
       const data = await res.json();
       setAgents(
         (data.agents || []).map((a: any) => ({
           ...a,
           name: formatAgentDisplayName(a.name || a.id),
-          status: "idle",
+          status: a.status || "idle",
           tasksCompleted: 0,
         }))
       );

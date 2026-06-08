@@ -44,3 +44,4 @@ memory_store.json
 agent_memory.json
 telegram_profiles.json
 telegram_users.json
+apps/api/data/custom_agents.json

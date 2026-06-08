@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { enterOrSkip, modeSpring, overlayFade } from "./lib/motion";
 import { UiAnimationProvider, useUiAnimationReady } from "./context/UiAnimationContext";
@@ -12,13 +12,13 @@ import { getHistoryEntry } from "./lib/chatHistoryStorage";
 import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
 import type { TaskItem } from "./components/layout/TaskPanel/TaskPanel";
-import type { ParallelSimulationState } from "./components/layout/AgentDashboard/parallelSimulator";
 import { useChat } from "./hooks/useChat";
+import { hubApi } from "./lib/hubApi";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
 import { useAuth } from "./context/AuthContext";
 import { ROUTES } from "./lib/routes";
 
-import { Routes, Route, Navigate, useSearchParams, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import {
   ModelManagementPage,
   LiveVoicePage,
@@ -29,6 +29,7 @@ import {
   RegisterPage,
   GuidancePage,
   SkillsPage,
+  AgentHubPage,
   GoogleCallbackPage,
   AccountPage,
   LandingPage,
@@ -81,8 +82,9 @@ export default function App() {
         />
         <Route path={ROUTES.model} element={<ModelManagementPage />} />
         <Route path={ROUTES.live} element={<LiveVoicePage />} />
-        <Route path={ROUTES.agents} element={<Navigate to={`${ROUTES.home}?agents=1`} replace />} />
+        <Route path={ROUTES.agents} element={<Navigate to={ROUTES.agentHub} replace />} />
         <Route path={ROUTES.skills} element={<SkillsPage />} />
+        <Route path={ROUTES.agentHub} element={<AgentHubPage />} />
         <Route path={ROUTES.computer} element={<ComputerView />} />
         <Route path={ROUTES.guidance} element={<GuidancePage />} />
         <Route path={ROUTES.account} element={<AccountPage />} />
@@ -118,7 +120,6 @@ function greetingDisplayName(fullName: string | null | undefined, email: string)
 function ChatDashboard() {
   const uiReady = useUiAnimationReady();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     activeHistoryId,
@@ -152,6 +153,7 @@ function ChatDashboard() {
   const handledChatParam = useRef(false);
   const handledAgentsParam = useRef(false);
   const [agentLiveTasks, setAgentLiveTasks] = useState<TaskItem[] | null>(null);
+  const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
 
   const agentModeActive = selectedTools.includes("Agent") && !copycatMode;
 
@@ -163,14 +165,6 @@ function ChatDashboard() {
       }
       return next;
     });
-  };
-
-  const handleAgentsNav = () => {
-    navigate(ROUTES.home);
-    setSelectedTools((prev) =>
-      prev.includes("Agent") ? prev : [...prev, "Agent"]
-    );
-    setAgentViewOpen(true);
   };
 
   const handleCloseAgentView = () => {
@@ -192,6 +186,17 @@ function ChatDashboard() {
     initialChatId: initialSession?.chatId ?? null,
     initialMessages: initialSession?.messages ?? [],
   });
+
+  useEffect(() => {
+    hubApi
+      .listSkills({ limit: 3 })
+      .then((data) => {
+        setSuggestionSkills(
+          data.skills.slice(0, 3).map((skill) => ({ id: skill.id, name: skill.name }))
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (isStreaming) return;
@@ -247,26 +252,25 @@ function ChatDashboard() {
   const lastUserMessage = messages.filter((m) => m.role === "user").pop();
   const lastAssistantMessage = messages.filter((m) => m.role === "assistant").pop();
 
-  const handleAgentSimulation = useCallback((sim: ParallelSimulationState) => {
-    const items: TaskItem[] = [];
-    if (sim.modelActive && sim.modelTask) {
-      items.push({ id: "model", text: sim.modelTask, active: true });
-    }
-    sim.tasks.forEach((task, index) => {
-      items.push({
-        id: task.agentId,
-        text: `${task.agentName}: ${task.task}`,
-        active: !sim.modelActive && index === 0,
-      });
-    });
-    setAgentLiveTasks(items.length > 0 ? items : null);
-  }, []);
-
   useEffect(() => {
     if (!showAgentDashboard) {
       setAgentLiveTasks(null);
+      return;
     }
-  }, [showAgentDashboard]);
+    if (!isStreaming || thinkingSteps.length === 0) {
+      setAgentLiveTasks(null);
+      return;
+    }
+    setAgentLiveTasks(
+      thinkingSteps.map((step, index) => ({
+        id: step.id,
+        text: step.title,
+        active:
+          step.status === "active" ||
+          (index === thinkingSteps.length - 1 && step.status !== "success"),
+      }))
+    );
+  }, [showAgentDashboard, isStreaming, thinkingSteps]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -330,8 +334,6 @@ function ChatDashboard() {
         onDeleteHistory={handleDeleteHistory}
         onShareHistory={shareHistory}
         onNewChat={handleNewChat}
-        agentModeActive={agentModeActive}
-        onAgentsClick={handleAgentsNav}
       />
 
       <main className="relative flex flex-1 flex-col min-w-0 w-full h-screen overflow-hidden bg-background">
@@ -364,20 +366,15 @@ function ChatDashboard() {
                     {displayName}
                   </span>
                 </h1>
-                {!hasMessages && (
+                {!hasMessages && suggestionSkills.length > 0 && (
                   <div className="mt-10 flex flex-wrap justify-center gap-2">
-                    <SuggestionChip
-                      text="Mood-based movie picker"
-                      onClick={() => sendPrompt("Mood-based movie picker")}
-                    />
-                    <SuggestionChip
-                      text="Trip packing checklist"
-                      onClick={() => sendPrompt("Trip packing checklist")}
-                    />
-                    <SuggestionChip
-                      text="E-commerce platform mockup"
-                      onClick={() => sendPrompt("E-commerce platform mockup")}
-                    />
+                    {suggestionSkills.map((skill) => (
+                      <SuggestionChip
+                        key={skill.id}
+                        text={skill.name}
+                        onClick={() => sendPrompt(skill.name)}
+                      />
+                    ))}
                   </div>
                 )}
                 </div>
@@ -411,11 +408,7 @@ function ChatDashboard() {
                 className={`${MAIN_STAGE} z-20`}
               >
                 <div className="w-full max-w-4xl mx-auto h-[min(480px,calc(100%-1rem))] pointer-events-auto">
-                  <AgentDashboard
-                    embedded
-                    onClose={handleCloseAgentView}
-                    onSimulationChange={handleAgentSimulation}
-                  />
+                  <AgentDashboard embedded onClose={handleCloseAgentView} />
                 </div>
               </motion.div>
             )}

@@ -9,6 +9,4 @@ export interface SidebarProps {
   onDeleteHistory?: (id: string) => void;
   onShareHistory?: (id: string) => Promise<void>;
   onNewChat?: () => void;
-  agentModeActive?: boolean;
-  onAgentsClick?: () => void;
 }

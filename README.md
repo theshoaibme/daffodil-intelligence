@@ -73,6 +73,26 @@ Start infrastructure:
 docker compose up -d postgres redis minio adminer qdrant
 ```
 
+## Database migrations
+
+Skills, rulesets, custom agents, and agent profiles are stored in PostgreSQL. Use the project virtualenv (not system `apt install alembic`) from `apps/api`:
+
+```bash
+cd apps/api
+../../.venv/bin/alembic upgrade head
+../../.venv/bin/python scripts/archive/migrate_json_to_postgres.py   # one-time JSON backfill (idempotent)
+```
+
+Or from the repo root:
+
+```bash
+pnpm db:migrate
+```
+
+`apps/api/data/examples/` holds sample JSON for reference only — it is **not** loaded at runtime.
+
+On deploy, run `alembic upgrade head` before starting the API (do not rely on `create_all` alone in production).
+
 ## API Endpoints
 
 - `POST /api/auth/register` - Register user

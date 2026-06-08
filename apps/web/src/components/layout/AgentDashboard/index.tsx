@@ -7,15 +7,12 @@ import { ROUTES } from "../../../lib/routes";
 import { modeSpringSoft } from "../../../lib/motion";
 import { AgentFlowCanvas } from "./AgentFlowCanvas";
 import { clearLayout } from "./layoutStorage";
-import type { ParallelSimulationState } from "./parallelSimulator";
-
 export interface AgentDashboardProps {
   embedded?: boolean;
   onClose?: () => void;
-  onSimulationChange?: (state: ParallelSimulationState) => void;
 }
 
-export default function AgentDashboard({ embedded = false, onClose, onSimulationChange }: AgentDashboardProps) {
+export default function AgentDashboard({ embedded = false, onClose }: AgentDashboardProps) {
   const { agents, loading, error, refetch } = useAgents();
   const [editing, setEditing] = useState(false);
   const [saveSignal, setSaveSignal] = useState(0);
@@ -137,7 +134,6 @@ export default function AgentDashboard({ embedded = false, onClose, onSimulation
           editing={editing}
           onSave={handleSave}
           saveSignal={saveSignal}
-          onSimulationChange={onSimulationChange}
         />
       </div>
 
