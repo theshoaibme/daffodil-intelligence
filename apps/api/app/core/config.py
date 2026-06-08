@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
+    # Optional override; default matches /api/auth/telegram/google/callback on API_PUBLIC_URL
+    GOOGLE_OAUTH_REDIRECT_URI: str = ""
     MICROSOFT_CLIENT_ID: str = ""
     MICROSOFT_CLIENT_SECRET: str = ""
     APPLE_CLIENT_ID: str = ""

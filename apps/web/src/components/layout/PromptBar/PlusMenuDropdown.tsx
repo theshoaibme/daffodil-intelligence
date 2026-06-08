@@ -1,8 +1,9 @@
 import { useRef, useEffect } from "react";
-import { Plus, Compass, Monitor, CheckCircle2, Mic } from "lucide-react";
+import { Plus, Compass, Monitor, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DropdownItem } from "../../ui";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../../lib/routes";
 
 interface PlusMenuDropdownProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export function PlusMenuDropdown({ isOpen, setIsOpen, selectedTools, onToggleToo
   ];
 
   const modes = [
-    { text: "Copycat Mode", icon: <Monitor className="text-tertiary" size={20} />, path: "/computer" },
+    { text: "Copycat Mode", icon: <Monitor className="text-tertiary" size={20} />, path: ROUTES.computer },
   ];
 
   return (

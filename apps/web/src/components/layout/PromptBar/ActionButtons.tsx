@@ -1,5 +1,6 @@
 import { ImagePlus, Sparkles, ArrowUp, Loader2, Mic } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../../lib/routes";
 
 export function ImageAttachmentButton({ onImageClick }: { onImageClick?: () => void }) {
   return (
@@ -27,7 +28,7 @@ export function LiveVoiceButton() {
   const navigate = useNavigate();
   return (
     <button 
-      onClick={() => navigate("/live")}
+      onClick={() => navigate(ROUTES.live)}
       className="w-10 h-10 flex items-center justify-center bg-secondary-container/50 text-secondary hover:bg-secondary-container rounded-full transition-all cursor-pointer border-0 outline-none"
       title="Live Voice"
     >

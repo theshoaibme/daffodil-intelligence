@@ -6,21 +6,24 @@ import logging
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
+from ..core.database import get_db
+from ..core.google_oauth_urls import google_oauth_redirect_uri, is_web_oauth_state
 from ..core.security import create_access_token
 from ..integrations.telegram.auth_store import auth_store
 from ..integrations.telegram.profiles import profile_store, STEP_COMPLETE
-from ..integrations.telegram.tokens import frontend_base, oauth_redirect_base, verify_state
+from ..integrations.telegram.tokens import frontend_base, verify_state
 logger = logging.getLogger(__name__)
 settings = get_settings()
 router = APIRouter(prefix="/auth/telegram", tags=["telegram-auth"])
 
 
 def _redirect_uri() -> str:
-    return f"{oauth_redirect_base()}/api/auth/telegram/google/callback"
+    return google_oauth_redirect_uri()
 
 
 async def _notify_telegram_login(telegram_id: int, account, photo_url: str = ""):
@@ -43,7 +46,7 @@ def _success_redirect(account, telegram_id: int) -> RedirectResponse:
         "role": account.role,
         "source": "telegram_google",
     })
-    target = f"{frontend_base()}/auth/telegram?token={jwt}"
+    target = f"{frontend_base()}/intelligence/auth/telegram?token={jwt}"
     return RedirectResponse(target, status_code=302)
 
 
@@ -78,7 +81,19 @@ async def google_callback(
     state: str = Query(...),
     code: str = Query(None),
     error: str = Query(None),
+    db: AsyncSession = Depends(get_db),
 ):
+    if is_web_oauth_state(state):
+        login_url = f"{frontend_base()}/login"
+        if error:
+            return RedirectResponse(f"{login_url}?google_error={error}")
+        if not code:
+            return RedirectResponse(f"{login_url}?google_error=missing_code")
+        if db is None:
+            return RedirectResponse(f"{login_url}?google_error=service_unavailable")
+        from .auth import finish_web_google_oauth
+        return await finish_web_google_oauth(code, db)
+
     if error:
         hint = (
             "Your Google account must be added as a <b>Test user</b> on the OAuth consent screen "

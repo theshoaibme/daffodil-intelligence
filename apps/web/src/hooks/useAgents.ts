@@ -15,6 +15,11 @@ export interface Agent {
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+/** Strip trailing " Agent" from API names for card labels. */
+export function formatAgentDisplayName(name: string): string {
+  return (name || "").replace(/\s+Agent$/i, "").trim() || name;
+}
+
 export function useAgents() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +33,7 @@ export function useAgents() {
       setAgents(
         (data.agents || []).map((a: any) => ({
           ...a,
+          name: formatAgentDisplayName(a.name || a.id),
           status: "idle",
           tasksCompleted: 0,
         }))

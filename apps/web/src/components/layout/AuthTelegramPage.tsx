@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ROUTES } from "../../lib/routes";
 
 export function AuthTelegramPage() {
   const [searchParams] = useSearchParams();
@@ -26,7 +27,7 @@ export function AuthTelegramPage() {
       localStorage.setItem("di_user_email", email);
     }
     setMessage("Signed in. Redirecting…");
-    navigate("/", { replace: true });
+    navigate(ROUTES.home, { replace: true });
   }, [navigate, searchParams]);
 
   return (

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Check, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../../lib/routes";
 import { motion, AnimatePresence } from "framer-motion";
 
 export interface ModelInfo {
@@ -103,7 +104,7 @@ export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps)
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  navigate("/model");
+                  navigate(ROUTES.model);
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-surface-container-highest transition-colors text-primary text-left cursor-pointer border-0 outline-none font-medium"
               >

@@ -122,7 +122,7 @@ export function ModelManagementPage() {
       <header className="px-6 py-4 flex items-center justify-between border-b border-outline-variant/20 bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/intelligence")}
             className="p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all cursor-pointer border-0 outline-none"
           >
             <ArrowLeft size={20} />

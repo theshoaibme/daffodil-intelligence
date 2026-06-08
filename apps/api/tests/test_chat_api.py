@@ -1,5 +1,7 @@
 """Chat API integration test (SSE) with the runtime mocked for determinism."""
 
+import uuid
+
 import pytest
 
 pytest.importorskip("fastapi")
@@ -26,14 +28,39 @@ def client(monkeypatch):
         yield c
 
 
-def test_create_chat_and_stream_message(client):
-    # Create a chat (dev mode allows anonymous auth).
-    res = client.post("/api/chats/", json={"title": "Test", "agent_type": "supervisor"})
+@pytest.fixture()
+def auth_headers(client):
+    email = f"chat-test-{uuid.uuid4().hex[:12]}@example.com"
+    password = "testpass123"
+    res = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": password, "full_name": "Test User"},
+    )
+    assert res.status_code == 200, res.text
+    res = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert res.status_code == 200, res.text
+    token = res.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_create_chat_and_stream_message(client, auth_headers):
+    res = client.post(
+        "/api/chats/",
+        json={"title": "Test", "agent_type": "supervisor"},
+        headers=auth_headers,
+    )
     assert res.status_code == 200, res.text
     chat_id = res.json()["id"]
 
     # Send a message; response is an SSE stream.
-    res = client.post(f"/api/chats/{chat_id}/messages", json={"content": "hi", "metadata": {}})
+    res = client.post(
+        f"/api/chats/{chat_id}/messages",
+        json={"content": "hi", "metadata": {}},
+        headers=auth_headers,
+    )
     assert res.status_code == 200
     body = res.text
     assert "Hello" in body

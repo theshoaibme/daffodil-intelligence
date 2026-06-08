@@ -9,42 +9,87 @@ import { AnimatePresence, motion } from "framer-motion";
 import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
 import { useChat } from "./hooks/useChat";
+import { ROUTES } from "./lib/routes";
 
-import { Routes, Route } from "react-router-dom";
-import { ModelManagementPage, LiveVoicePage, AgentDashboard, ComputerView, AuthTelegramPage } from "./components/layout";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import {
+  ModelManagementPage,
+  LiveVoicePage,
+  AgentDashboard,
+  ComputerView,
+  AuthTelegramPage,
+  LoginPage,
+  RegisterPage,
+  GuidancePage,
+  GoogleCallbackPage,
+  SettingsPage,
+  LandingPage,
+} from "./components/layout";
+import { ProtectedRoute } from "./components/auth";
+
+const LEGACY_REDIRECTS: { from: string; to: string }[] = [
+  { from: "/intelligence/login", to: ROUTES.login },
+  { from: "/intelligence/register", to: ROUTES.register },
+  { from: "/guidance", to: ROUTES.guidance },
+  { from: "/settings", to: ROUTES.settings },
+  { from: "/agents", to: ROUTES.agents },
+  { from: "/live", to: ROUTES.live },
+  { from: "/computer", to: ROUTES.computer },
+  { from: "/model", to: ROUTES.model },
+  { from: "/auth/google/callback", to: ROUTES.googleCallback },
+  { from: "/auth/telegram", to: ROUTES.telegramAuth },
+];
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<ChatDashboard />} />
-      <Route path="/model" element={<ModelManagementPage />} />
-      <Route path="/live" element={<LiveVoicePage />} />
-      <Route path="/agents" element={<AgentDashboard />} />
-      <Route path="/computer" element={<ComputerView />} />
-      <Route path="/auth/telegram" element={<AuthTelegramPage />} />
+      <Route path={ROUTES.landing} element={<LandingPage />} />
+      {LEGACY_REDIRECTS.map(({ from, to }) => (
+        <Route key={from} path={from} element={<Navigate to={to} replace />} />
+      ))}
+
+      <Route path={ROUTES.home} element={<ChatDashboard />} />
+      <Route path={ROUTES.model} element={<ModelManagementPage />} />
+      <Route path={ROUTES.live} element={<LiveVoicePage />} />
+      <Route path={ROUTES.agents} element={<AgentDashboard />} />
+      <Route path={ROUTES.computer} element={<ComputerView />} />
+      <Route path={ROUTES.login} element={<LoginPage />} />
+      <Route path={ROUTES.register} element={<RegisterPage />} />
+      <Route path={ROUTES.googleCallback} element={<GoogleCallbackPage />} />
+      <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
+      <Route
+        path={ROUTES.guidance}
+        element={
+          <ProtectedRoute>
+            <GuidancePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path={ROUTES.settings} element={<SettingsPage />} />
     </Routes>
   );
 }
 
 function ChatDashboard() {
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [prompt, setPrompt] = useState("");
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { 
-    messages, 
-    isLoading, 
-    isStreaming, 
+  const {
+    messages,
+    isLoading,
+    isStreaming,
     thinkingSteps,
     error,
     send,
   } = useChat();
 
   const hasMessages = messages.length > 0;
-  const lastUserMessage = messages.filter(m => m.role === "user").pop();
-  const lastAssistantMessage = messages.filter(m => m.role === "assistant").pop();
+  const lastUserMessage = messages.filter((m) => m.role === "user").pop();
+  const lastAssistantMessage = messages.filter((m) => m.role === "assistant").pop();
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -68,20 +113,16 @@ function ChatDashboard() {
     if (lastUserMessage) {
       setPrompt(lastUserMessage.content);
       setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-        }
+        textareaRef.current?.focus();
       }, 50);
     }
   };
 
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
-      {/* Sidebar with AnimatePresence */}
       <AnimatePresence mode="wait">
         {sidebarOpen && (
           <>
-            {/* Backdrop overlay for mobile */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -94,22 +135,18 @@ function ChatDashboard() {
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-background dot-pattern transition-all">
-        {/* Header */}
         <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
         <div className="flex-1 flex flex-col items-center px-6 h-full pt-12 overflow-y-auto custom-scrollbar pb-32">
           {!hasMessages ? (
             <div className="max-w-3xl w-full flex flex-col items-center gap-10">
-              {/* Hero */}
               <div className="text-center px-4">
                 <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight text-on-surface mb-4">
                   Welcome to Daffodil <br className="hidden sm:inline" /> Intelligence
                 </h1>
               </div>
 
-              {/* Suggestions */}
               <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
                 <SuggestionChip
                   text="Mood-based movie picker"
@@ -127,12 +164,8 @@ function ChatDashboard() {
             </div>
           ) : (
             <div className="w-full max-w-7xl relative flex flex-col md:flex-row gap-6 items-center md:items-start justify-center">
-              {/* Left/Center Canvas: Open workspace canvas with dot pattern */}
-              <div className="flex-1 w-full flex items-center justify-center md:pr-[420px] min-h-[180px] md:min-h-[300px]">
-                {/* Clean workspace area */}
-              </div>
+              <div className="flex-1 w-full flex items-center justify-center md:pr-[420px] min-h-[180px] md:min-h-[300px]" />
 
-              {/* Mobile View Stack: Stack AI Card and Task Panel below the Canvas on small viewports */}
               <div className="w-full max-w-md flex flex-col gap-4 md:hidden pb-8">
                 <AiResponseCard
                   prompt={lastUserMessage?.content || ""}
@@ -152,7 +185,6 @@ function ChatDashboard() {
           )}
         </div>
 
-        {/* Prompt Bar Overlay */}
         <PromptBar
           prompt={prompt}
           setPrompt={setPrompt}
@@ -164,9 +196,7 @@ function ChatDashboard() {
           isLoading={isLoading || isStreaming}
         />
 
-        {/* Right Sidebar Panel: AI Response Card on top, Task Panel at the bottom */}
         <div className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-30 pointer-events-none">
-          {/* AI Response Card (only shows when hasMessages is true) */}
           <AnimatePresence>
             {hasMessages && (
               <motion.div
@@ -189,7 +219,6 @@ function ChatDashboard() {
             )}
           </AnimatePresence>
 
-          {/* Task Panel (always sits at the bottom) */}
           <div className="pointer-events-auto mt-auto">
             <TaskPanel
               tasksCollapsed={tasksCollapsed}
@@ -198,9 +227,13 @@ function ChatDashboard() {
           </div>
         </div>
 
-        {/* Desktop Indicator */}
         <div className="absolute bottom-6 left-8 z-20">
-          <button className="p-2 text-on-surface-variant/50 hover:text-on-surface-variant transition-all">
+          <button
+            type="button"
+            onClick={() => navigate(ROUTES.computer)}
+            className="p-2 text-on-surface-variant/50 hover:text-on-surface-variant transition-all"
+            aria-label="Open computer view"
+          >
             <Monitor size={20} />
           </button>
         </div>

@@ -9,6 +9,5 @@ API_ROOT = Path(__file__).resolve().parents[1]
 if str(API_ROOT) not in sys.path:
     sys.path.insert(0, str(API_ROOT))
 
-# Use development/mock-friendly defaults so tests never require external infra.
-os.environ.setdefault("NODE_ENV", "development")
+# University-data mocks only; auth always requires real register/login + JWT.
 os.environ.setdefault("USE_MOCK_DATA", "true")

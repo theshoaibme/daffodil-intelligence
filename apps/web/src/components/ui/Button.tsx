@@ -5,7 +5,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'contained' | 'outlined' | 'text' | 'tonal';
   color?: 'primary' | 'secondary' | 'error';
   size?: 'sm' | 'md' | 'lg';
-  loading?: boolean; // Add the premium loading state prop!
+  loading?: boolean;
+  loadingDiameter?: number;
+  loadingStrokeWidth?: number;
 }
 
 export const Button: React.FC<ButtonProps> = ({ 
@@ -13,6 +15,8 @@ export const Button: React.FC<ButtonProps> = ({
   color = 'primary',
   size = 'md',
   loading = false,
+  loadingDiameter,
+  loadingStrokeWidth,
   disabled,
   className = '', 
   children, 
@@ -37,7 +41,8 @@ export const Button: React.FC<ButtonProps> = ({
     } else if (color === 'error') {
       variantStyles = 'bg-error text-white hover:opacity-90 active:opacity-80';
     } else {
-      variantStyles = 'bg-primary text-on-primary hover:opacity-90 active:opacity-80';
+      variantStyles =
+        'bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 border-none active:from-blue-700 active:to-blue-800';
     }
   } else if (variant === 'outlined') {
     if (color === 'secondary') {
@@ -68,8 +73,8 @@ export const Button: React.FC<ButtonProps> = ({
   const disabledStyles = (disabled && !loading) ? 'opacity-50 pointer-events-none' : '';
 
   // Calculate spinner size dynamically based on the button size
-  const loaderDiameter = size === 'sm' ? 24 : size === 'lg' ? 36 : 30;
-  const strokeWidth = size === 'sm' ? 2.5 : size === 'lg' ? 3.5 : 3;
+  const loaderDiameter = loadingDiameter ?? (size === 'sm' ? 24 : size === 'lg' ? 36 : 30);
+  const strokeWidth = loadingStrokeWidth ?? (size === 'sm' ? 2.5 : size === 'lg' ? 3.5 : 3);
 
   const showLoader = loading && (variant === 'contained' || variant === 'outlined' || variant === 'tonal');
 
