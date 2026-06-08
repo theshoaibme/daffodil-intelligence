@@ -23,6 +23,7 @@ const config: Config = {
         
         // Comprehensive Stitch Light & Dark System surface levels
         'surface-lowest': 'var(--color-surface-container-lowest)',
+        'surface-container-lowest': 'var(--color-surface-container-lowest)',
         'surface-low': 'var(--color-surface-container-low)',
         'surface-container': 'var(--color-surface-container)',
         'surface-high': 'var(--color-surface-container-high)',

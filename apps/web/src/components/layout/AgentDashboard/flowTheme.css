@@ -33,6 +33,18 @@
   border-color: var(--color-surface-container-low);
 }
 
+.agent-flow-canvas .react-flow__handle.handle-primary {
+  background: var(--color-primary);
+  border-color: #fff;
+}
+
+.agent-flow-canvas .root-node-shell,
+.agent-flow-canvas .root-node-icon {
+  border-width: 2px;
+  border-style: solid;
+  border-color: var(--color-outline-variant);
+}
+
 .agent-flow-canvas .react-flow__background {
   background-color: var(--color-surface-container-low);
 }

@@ -114,7 +114,7 @@ export function nextParallelSimulation(
     modelTask: tasks.length > 0 ? getSimulatedModelTask(engine) : "",
     pipelineLabel:
       tasks.length > 0
-        ? `${inputLabel(activeInputId)} → ${modelName} (${engine}) → Orchestrator → ${tasks.length} agents → Response`
+        ? `${inputLabel(activeInputId)} → ${modelName} → Orchestrator → ${tasks.length} agents → Response`
         : "",
     tasks,
   };

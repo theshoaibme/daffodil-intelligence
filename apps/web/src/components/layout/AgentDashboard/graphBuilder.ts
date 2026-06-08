@@ -6,18 +6,16 @@ import {
   ROOT_DEFAULT_X,
   ROOT_DEFAULT_Y,
   INPUT_NODE_X,
-  MODEL_NODE_GAP,
-  MODEL_NODE_Y,
-  defaultInputY,
-  defaultOutputY,
   OUTPUT_NODE_X,
+  modelNodeX,
+  modelNodeY,
+  sideNodeY,
 } from "./flowLayout";
 import type { SavedPositions } from "./layoutStorage";
 
 export const ROOT_NODE_ID = "daffodil-intelligence";
 
 export const ROOT_INPUT_HANDLE = "input";
-export const ROOT_MODEL_HANDLE = "model";
 export const ROOT_OUTPUT_HANDLE = "output";
 
 export const INPUT_INTEGRATIONS = [
@@ -60,8 +58,6 @@ export function buildAgentGraph(
     simulation;
   const activeSet = new Set(activeAgentIds);
   const orchestratorActive = modelActive || activeSet.size > 0;
-  const modelSpan = Math.max(DASHBOARD_MODELS.length - 1, 0) * MODEL_NODE_GAP;
-  const modelStartX = ROOT_DEFAULT_X + 72 - modelSpan / 2;
   const grouped = agents.reduce(
     (acc, agent) => {
       const cat = agent.category || "general";
@@ -73,16 +69,30 @@ export function buildAgentGraph(
   );
 
   const pos = (id: string, x: number, y: number) => saved[id] ?? { x, y };
+  const rootPosition = pos(ROOT_NODE_ID, ROOT_DEFAULT_X, ROOT_DEFAULT_Y);
+  const rootX = rootPosition.x;
+  const rootY = rootPosition.y;
+  const modelCount = DASHBOARD_MODELS.length;
+
+  const sidePos = (id: string, defaultX: number, index: number, total: number) => ({
+    x: saved[id]?.x ?? defaultX,
+    y: sideNodeY(index, total, rootY),
+  });
+
+  const modelPos = (nodeId: string, index: number) => ({
+    x: saved[nodeId]?.x ?? modelNodeX(index, modelCount, rootX),
+    y: modelNodeY(rootY),
+  });
 
   const nodes: Node[] = [
     {
       id: ROOT_NODE_ID,
       type: "root",
-      position: pos(ROOT_NODE_ID, ROOT_DEFAULT_X, ROOT_DEFAULT_Y),
+      position: rootPosition,
       data: {
         label: "Daffodil Intelligence",
         inputs: [ROOT_INPUT_HANDLE],
-        modelInput: ROOT_MODEL_HANDLE,
+        modelInputs: DASHBOARD_MODELS.map((model) => modelNodeId(model.id)),
         outputHandle: ROOT_OUTPUT_HANDLE,
         outputs: [...CATEGORY_ORDER],
         working: orchestratorActive,
@@ -100,7 +110,7 @@ export function buildAgentGraph(
     nodes.unshift({
       id: nodeId,
       type: "model",
-      position: pos(nodeId, modelStartX + index * MODEL_NODE_GAP, MODEL_NODE_Y),
+      position: modelPos(nodeId, index),
       data: {
         label: model.name,
         modelName: model.name,
@@ -115,7 +125,7 @@ export function buildAgentGraph(
       id: `e-${nodeId}-${ROOT_NODE_ID}`,
       source: nodeId,
       target: ROOT_NODE_ID,
-      targetHandle: ROOT_MODEL_HANDLE,
+      targetHandle: nodeId,
       type: "activeBeam",
       data: { active: isActive },
     });
@@ -125,7 +135,7 @@ export function buildAgentGraph(
     nodes.push({
       id: input.id,
       type: "integration",
-      position: pos(input.id, INPUT_NODE_X, defaultInputY(index, INPUT_INTEGRATIONS.length)),
+      position: sidePos(input.id, INPUT_NODE_X, index, INPUT_INTEGRATIONS.length),
       data: {
         label: input.label,
         integration: input.integration,
@@ -150,7 +160,7 @@ export function buildAgentGraph(
     nodes.push({
       id: output.id,
       type: "response",
-      position: pos(output.id, OUTPUT_NODE_X, defaultOutputY(index, OUTPUT_INTEGRATIONS.length)),
+      position: sidePos(output.id, OUTPUT_NODE_X, index, OUTPUT_INTEGRATIONS.length),
       data: {
         label: output.label,
         integration: output.integration,

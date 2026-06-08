@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Settings2 } from "lucide-react";
 import { PlusMenuDropdown } from "./PlusMenuDropdown";
 import { McpConfigureDialog } from "./McpConfigureDialog";
 import { ModelSelector } from "./ModelSelector";
@@ -52,9 +51,6 @@ export function PromptBar({
     refreshLocal,
   } = useMcpStatus();
 
-  const mcpSelected = selectedTools.includes("MCP");
-  const showMcpBanner = mcpSelected && !mcpConfigured;
-
   const handleToggleTool = (tool: string) => {
     setSelectedTools(prev => 
       prev.includes(tool)
@@ -82,19 +78,6 @@ export function PromptBar({
         transition={modeSpring}
         className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto"
       >
-        {showMcpBanner && (
-          <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-2xl bg-primary/10 text-primary text-xs">
-            <span>MCP is not configured yet.</span>
-            <button
-              type="button"
-              onClick={() => setMcpDialogOpen(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary text-on-primary font-semibold border-0 cursor-pointer hover:opacity-90"
-            >
-              <Settings2 size={12} />
-              Configure
-            </button>
-          </div>
-        )}
         <textarea 
           ref={textareaRef}
           rows={1}

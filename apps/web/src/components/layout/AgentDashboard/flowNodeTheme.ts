@@ -7,10 +7,10 @@ export interface NodeTheme {
 
 export const CATEGORY_NODE_THEME: Record<string, NodeTheme> = {
   university: {
-    bg: "bg-secondary/10",
-    text: "text-secondary",
-    border: "border-secondary/25",
-    iconBg: "bg-secondary/10",
+    bg: "bg-primary/10",
+    text: "text-primary",
+    border: "border-primary/30",
+    iconBg: "bg-primary/10",
   },
   computer: {
     bg: "bg-primary/10",
@@ -44,18 +44,25 @@ export const CATEGORY_NODE_THEME: Record<string, NodeTheme> = {
   },
 };
 
+export const DEFAULT_NODE_THEME: NodeTheme = {
+  bg: "bg-surface-container-lowest",
+  text: "text-on-surface",
+  border: "border-outline-variant",
+  iconBg: "bg-surface-container-lowest",
+};
+
 export const MODEL_NODE_THEME: NodeTheme = {
-  bg: "bg-primary/10",
-  text: "text-primary",
-  border: "border-primary/30",
-  iconBg: "bg-primary/15",
+  bg: "bg-surface-container-lowest",
+  text: "text-on-surface",
+  border: "border-outline-variant",
+  iconBg: "bg-surface-container-lowest",
 };
 
 export const ROOT_NODE_THEME: NodeTheme = {
-  bg: "bg-primary/12",
+  bg: "bg-surface-container-lowest",
   text: "text-on-surface",
-  border: "border-primary/45",
-  iconBg: "bg-primary/20",
+  border: "border-outline-variant",
+  iconBg: "bg-surface-container-low",
 };
 
 export const RESPONSE_NODE_THEME: NodeTheme = {
