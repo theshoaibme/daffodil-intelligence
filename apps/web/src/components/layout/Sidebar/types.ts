@@ -10,6 +10,11 @@ export interface SidebarProject {
 
 export interface SidebarProps {
   sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
+  setSidebarOpen?: (open: boolean) => void;
   uiReady?: boolean;
+  activeHistoryId?: string | null;
+  onSelectHistory?: (id: string) => void;
+  onDeleteHistory?: (id: string) => void;
+  onShareHistory?: (id: string) => Promise<void>;
+  onNewChat?: () => void;
 }

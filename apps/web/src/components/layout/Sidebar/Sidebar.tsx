@@ -1,24 +1,37 @@
 import { useMemo } from "react";
-import { Search, LayoutGrid, Users, Settings } from "lucide-react";
+import { Search, MessageSquare, Users, Settings, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { SidebarItem } from "../../ui";
 import { ROUTES } from "../../../lib/routes";
-import { recentProjects, sharedProjects } from "./projects";
-import { SidebarProps, SidebarTab } from "./types";
+import { sharedProjects } from "./projects";
+import type { SidebarProps, SidebarTab } from "./types";
+
+export type { SidebarProps } from "./types";
 import { useLocalStorageState } from "../../../hooks/useLocalStorageState";
 import { enterOrSkip } from "../../../lib/motion";
+import { useChatHistory } from "../../../context/ChatHistoryContext";
+import { ChatHistoryItem } from "./ChatHistoryItem";
 
-function matchesSearch(project: { title: string; sharedBy?: string }, query: string) {
+function matchesSearch(item: { title: string; sharedBy?: string }, query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
   return (
-    project.title.toLowerCase().includes(normalized) ||
-    (project.sharedBy?.toLowerCase().includes(normalized) ?? false)
+    item.title.toLowerCase().includes(normalized) ||
+    (item.sharedBy?.toLowerCase().includes(normalized) ?? false)
   );
 }
 
-export function Sidebar({ sidebarOpen, uiReady = true }: SidebarProps) {
+export function Sidebar({
+  sidebarOpen,
+  uiReady = true,
+  activeHistoryId = null,
+  onSelectHistory,
+  onDeleteHistory,
+  onShareHistory,
+  onNewChat,
+}: SidebarProps) {
+  const { histories } = useChatHistory();
   const [activeTab, setActiveTab] = useLocalStorageState<SidebarTab>(
     "di-dashboard-sidebar-tab",
     "projects"
@@ -30,16 +43,21 @@ export function Sidebar({ sidebarOpen, uiReady = true }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const visibleProjects = useMemo(() => {
-    const source = activeTab === "projects" ? recentProjects : sharedProjects;
-    return source.filter((project) => matchesSearch(project, searchQuery));
-  }, [activeTab, searchQuery]);
+  const visibleHistories = useMemo(
+    () => histories.filter((entry) => matchesSearch(entry, searchQuery)),
+    [histories, searchQuery]
+  );
 
-  const sectionLabel = activeTab === "projects" ? "Recent" : "Shared with you";
+  const visibleShared = useMemo(
+    () => sharedProjects.filter((project) => matchesSearch(project, searchQuery)),
+    [searchQuery]
+  );
+
+  const sectionLabel = activeTab === "projects" ? "Chat history" : "Shared with you";
   const emptyLabel =
     activeTab === "projects"
-      ? "No projects match your search."
-      : "No shared projects match your search.";
+      ? "No chats match your search."
+      : "No shared chats match your search.";
 
   return (
     <motion.aside
@@ -64,8 +82,8 @@ export function Sidebar({ sidebarOpen, uiReady = true }: SidebarProps) {
                 : "text-on-surface-variant hover:text-on-surface"
             }`}
           >
-            <LayoutGrid size={18} />
-            Projects
+            <MessageSquare size={18} />
+            Chats
           </button>
           <button
             type="button"
@@ -87,19 +105,51 @@ export function Sidebar({ sidebarOpen, uiReady = true }: SidebarProps) {
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={activeTab === "projects" ? "Search projects..." : "Search shared..."}
+            placeholder={activeTab === "projects" ? "Search chats..." : "Search shared..."}
             className="w-full bg-surface-container-high/50 border border-outline-variant/20 rounded-xl pl-10 pr-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none transition-all"
           />
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
           <div className="mb-8">
+            {activeTab === "projects" && (
+              <button
+                type="button"
+                onClick={() => onNewChat?.()}
+                className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-outline-variant/30 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer bg-transparent"
+              >
+                <Plus size={16} />
+                New chat
+              </button>
+            )}
             <h3 className="text-[11px] uppercase tracking-widest text-on-surface-variant font-bold mb-4 px-2">
               {sectionLabel}
             </h3>
-            {visibleProjects.length > 0 ? (
+            {activeTab === "projects" ? (
+              visibleHistories.length > 0 ? (
+                <div className="space-y-1">
+                  {visibleHistories.map((entry) => (
+                    <ChatHistoryItem
+                      key={entry.id}
+                      id={entry.id}
+                      title={entry.title}
+                      updatedAt={entry.updatedAt}
+                      active={activeHistoryId === entry.id}
+                      onSelect={() => {
+                        onSelectHistory?.(entry.id);
+                        navigate(ROUTES.home);
+                      }}
+                      onDelete={() => onDeleteHistory?.(entry.id)}
+                      onShare={() => onShareHistory?.(entry.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="px-2 text-sm text-on-surface-variant">{emptyLabel}</p>
+              )
+            ) : visibleShared.length > 0 ? (
               <div className="space-y-1">
-                {visibleProjects.map((project) => (
+                {visibleShared.map((project) => (
                   <SidebarItem
                     key={project.id}
                     title={project.title}

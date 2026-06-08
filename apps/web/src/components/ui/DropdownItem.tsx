@@ -2,7 +2,7 @@ import React from "react";
 import { Check } from "lucide-react";
 
 interface DropdownItemProps {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   text: string;
   onClick?: () => void;
   active?: boolean;
@@ -19,8 +19,10 @@ export function DropdownItem({ icon, text, onClick, active }: DropdownItemProps)
           : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
       }`}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <span className="shrink-0 text-on-surface-variant [&>svg]:size-4">{icon}</span>
+      <div className={`flex items-center min-w-0 ${icon ? "gap-2.5" : ""}`}>
+        {icon && (
+          <span className="shrink-0 text-on-surface-variant [&>svg]:size-4">{icon}</span>
+        )}
         <span className="text-sm font-normal truncate">{text}</span>
       </div>
       {active && (

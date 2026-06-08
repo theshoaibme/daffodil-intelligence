@@ -1,4 +1,5 @@
-export * from "./Sidebar/Sidebar";
+export * from "./Sidebar";
+export type { SidebarProps, SidebarTab, SidebarProject } from "./Sidebar/types";
 export * from "./Header";
 export * from "./PromptBar/PromptBar";
 export * from "./TaskPanel/TaskPanel";

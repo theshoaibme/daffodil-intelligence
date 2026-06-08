@@ -1,9 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { 
   createChat, 
   sendMessage 
 } from "../lib/api";
-import { clearChatSession, loadChatSession, saveChatSession } from "../lib/chatStorage";
 
 export interface ChatMessage {
   id: string;
@@ -24,19 +23,29 @@ export interface ThinkingStep {
   status: "pending" | "active" | "success";
 }
 
-export function useChat() {
-  const [chatId, setChatId] = useState<number | null>(() => loadChatSession()?.chatId ?? null);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => loadChatSession()?.messages ?? []);
+interface UseChatOptions {
+  initialChatId?: number | null;
+  initialMessages?: ChatMessage[];
+}
+
+export function useChat(options?: UseChatOptions) {
+  const [chatId, setChatId] = useState<number | null>(options?.initialChatId ?? null);
+  const [messages, setMessages] = useState<ChatMessage[]>(options?.initialMessages ?? []);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStreamingContent, setCurrentStreamingContent] = useState("");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isStreaming) return;
-    saveChatSession(chatId, messages);
-  }, [chatId, messages, isStreaming]);
+  const loadSession = useCallback((nextChatId: number | null, nextMessages: ChatMessage[]) => {
+    setChatId(nextChatId);
+    setMessages(nextMessages);
+    setThinkingSteps([]);
+    setCurrentStreamingContent("");
+    setError(null);
+    setIsLoading(false);
+    setIsStreaming(false);
+  }, []);
 
   const initializeChat = useCallback(async () => {
     try {
@@ -136,13 +145,8 @@ export function useChat() {
   }, [chatId]);
 
   const clearChat = useCallback(() => {
-    setChatId(null);
-    setMessages([]);
-    setThinkingSteps([]);
-    setCurrentStreamingContent("");
-    setError(null);
-    clearChatSession();
-  }, []);
+    loadSession(null, []);
+  }, [loadSession]);
 
   return {
     chatId,
@@ -154,6 +158,7 @@ export function useChat() {
     error,
     send,
     clearChat,
+    loadSession,
     initializeChat,
   };
 }

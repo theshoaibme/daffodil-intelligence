@@ -7,13 +7,15 @@ import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { enterOrSkip, modeSpring, overlayFade } from "./lib/motion";
 import { UiAnimationProvider, useUiAnimationReady } from "./context/UiAnimationContext";
+import { ChatHistoryProvider, useChatHistory } from "./context/ChatHistoryContext";
+import { getHistoryEntry } from "./lib/chatHistoryStorage";
 import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
 import { useChat } from "./hooks/useChat";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
 import { ROUTES } from "./lib/routes";
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import {
   ModelManagementPage,
   LiveVoicePage,
@@ -56,7 +58,9 @@ export default function App() {
         path={ROUTES.home}
         element={
           <UiAnimationProvider>
-            <ChatDashboard />
+            <ChatHistoryProvider>
+              <ChatDashboard />
+            </ChatHistoryProvider>
           </UiAnimationProvider>
         }
       />
@@ -91,6 +95,15 @@ const DASHBOARD_STORAGE_KEYS = {
 
 function ChatDashboard() {
   const uiReady = useUiAnimationReady();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const {
+    activeHistoryId,
+    syncActiveSession,
+    selectHistory,
+    startNewChat,
+    deleteHistory,
+    shareHistory,
+  } = useChatHistory();
   const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
     DASHBOARD_STORAGE_KEYS.sidebarOpen,
     true
@@ -103,15 +116,58 @@ function ChatDashboard() {
     false
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const handledChatParam = useRef(false);
 
+  const initialSession = activeHistoryId ? getHistoryEntry(activeHistoryId) : null;
   const {
+    chatId,
     messages,
     isLoading,
     isStreaming,
     thinkingSteps,
     error,
     send,
-  } = useChat();
+    loadSession,
+  } = useChat({
+    initialChatId: initialSession?.chatId ?? null,
+    initialMessages: initialSession?.messages ?? [],
+  });
+
+  useEffect(() => {
+    if (isStreaming) return;
+    syncActiveSession(chatId, messages);
+  }, [chatId, messages, isStreaming, syncActiveSession]);
+
+  useEffect(() => {
+    if (handledChatParam.current) return;
+    const chatParam = searchParams.get("chat");
+    if (!chatParam) return;
+
+    handledChatParam.current = true;
+    const session = selectHistory(chatParam);
+    loadSession(session.chatId, session.messages);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, selectHistory, loadSession, setSearchParams]);
+
+  const handleSelectHistory = (id: string) => {
+    const session = selectHistory(id);
+    loadSession(session.chatId, session.messages);
+  };
+
+  const handleNewChat = () => {
+    const session = startNewChat();
+    loadSession(session.chatId, session.messages);
+    setPrompt("");
+  };
+
+  const handleDeleteHistory = (id: string) => {
+    const wasActive = activeHistoryId === id;
+    deleteHistory(id);
+    if (wasActive) {
+      loadSession(null, []);
+      setPrompt("");
+    }
+  };
 
   const hasMessages = messages.length > 0;
   const lastUserMessage = messages.filter((m) => m.role === "user").pop();
@@ -125,10 +181,15 @@ function ChatDashboard() {
   }, [prompt]);
 
   const sendPrompt = async (text: string) => {
-    if (text.trim()) {
-      setPrompt("");
-      await send(text);
+    if (!text.trim()) return;
+
+    if (!activeHistoryId) {
+      const session = startNewChat();
+      loadSession(session.chatId, session.messages);
     }
+
+    setPrompt("");
+    await send(text);
   };
 
   const handleSend = () => {
@@ -157,7 +218,16 @@ function ChatDashboard() {
               onClick={() => setSidebarOpen(false)}
               className="fixed inset-0 bg-background/50 backdrop-blur-sm z-45 lg:hidden"
             />
-            <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} uiReady={uiReady} />
+            <Sidebar
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+              uiReady={uiReady}
+              activeHistoryId={activeHistoryId}
+              onSelectHistory={handleSelectHistory}
+              onDeleteHistory={handleDeleteHistory}
+              onShareHistory={shareHistory}
+              onNewChat={handleNewChat}
+            />
           </>
         )}
       </AnimatePresence>

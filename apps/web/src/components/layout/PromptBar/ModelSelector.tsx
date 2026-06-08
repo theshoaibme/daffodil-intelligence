@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Check, Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../../lib/routes";
 import { motion, AnimatePresence } from "framer-motion";
 import { DEFAULT_MODELS, getModels, type ModelInfo } from "../../../lib/models";
+import { DropdownItem } from "../../ui";
 
 export type { ModelInfo };
 export { DEFAULT_MODELS, getModels };
@@ -11,6 +12,14 @@ export { DEFAULT_MODELS, getModels };
 interface ModelSelectorProps {
   selectedModelId: string;
   onChange: (modelId: string) => void;
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-2.5 pt-1 pb-1.5 text-[11px] font-medium text-on-surface-variant/70 tracking-wide">
+      {children}
+    </p>
+  );
 }
 
 export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps) {
@@ -43,60 +52,56 @@ export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps)
   return (
     <div className="relative" ref={containerRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-surface-container-highest/60 hover:bg-surface-container-highest px-3 py-1 text-on-surface transition-colors rounded-full cursor-pointer outline-none"
+        aria-label="Select model"
+        aria-expanded={isOpen}
+        className="flex items-center gap-1.5 bg-surface-container-highest/60 hover:bg-surface-container-highest px-2.5 py-1 text-on-surface-variant hover:text-on-surface transition-colors rounded-full cursor-pointer outline-none border-0"
       >
         <span className="text-xs font-medium">{currentModel.name}</span>
-        <ChevronDown size={14} />
+        <ChevronDown size={14} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.97, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.12, ease: "easeOut" }}
-            className="absolute bottom-full right-0 mb-2 w-64 bg-surface-container-high border border-outline-variant/40 rounded-2xl shadow-xl z-[60] overflow-hidden p-2"
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
+            className="absolute bottom-full right-0 mb-2 w-56 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
           >
-            <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-2 pr-1">
-              {Object.entries(grouped).map(([provider, providerModels]) => (
+            <div className="max-h-72 overflow-y-auto custom-scrollbar px-1 pb-0.5">
+              {Object.entries(grouped).map(([provider, providerModels], index) => (
                 <div key={provider}>
-                  <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/60">
-                    {provider}
-                  </p>
-                  <div className="space-y-0.5">
-                    {providerModels.map((model) => (
-                      <button
-                        key={model.id}
-                        onClick={() => {
-                          onChange(model.id);
-                          setIsOpen(false);
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-surface-container-highest transition-colors text-on-surface text-left cursor-pointer border-0 outline-none"
-                      >
-                        <span className="text-xs font-medium">{model.name}</span>
-                        {selectedModelId === model.id && (
-                          <Check size={14} className="text-primary shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  {index > 0 && <div className="mx-1.5 my-1 border-t border-outline-variant/30" />}
+                  <SectionLabel>{provider}</SectionLabel>
+                  {providerModels.map((model) => (
+                    <DropdownItem
+                      key={model.id}
+                      text={model.name}
+                      active={selectedModelId === model.id}
+                      onClick={() => {
+                        onChange(model.id);
+                        setIsOpen(false);
+                      }}
+                    />
+                  ))}
                 </div>
               ))}
             </div>
 
-            <div className="border-t border-outline-variant/20 my-1 pt-1">
-              <button
+            <div className="mx-2.5 my-1 border-t border-outline-variant/30" />
+
+            <div className="px-1 pt-0.5 pb-1">
+              <DropdownItem
+                icon={<Plus size={16} strokeWidth={1.75} />}
+                text="Add model"
                 onClick={() => {
                   setIsOpen(false);
                   navigate(ROUTES.model);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-surface-container-highest transition-colors text-primary text-left cursor-pointer border-0 outline-none font-medium"
-              >
-                <Plus size={14} />
-                <span className="text-xs">Add model</span>
-              </button>
+              />
             </div>
           </motion.div>
         )}
