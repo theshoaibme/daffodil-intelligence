@@ -2,7 +2,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, Set
 import json
 import logging
-from ..agents.supervisor import detect_intent, process_with_agents, synthesize_response
+from ..runtime import orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +35,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             message_data = json.loads(data)
             message = message_data.get("message", "")
 
-            agents = detect_intent(message)
-            results = await process_with_agents(message, agents)
-            response = await synthesize_response(results, message)
+            result = await orchestrator.run(message, user_id=user_id, chat_id=f"ws-{user_id}")
 
             await manager.send_message(json.dumps({
                 "type": "response",
-                "agent": ", ".join(agents),
-                "content": response
+                "agent": ", ".join(result.get("agents") or [result.get("engine", "main")]),
+                "content": result.get("content", ""),
+                "tools_used": result.get("tool_calls", []),
             }), user_id)
 
     except WebSocketDisconnect:

@@ -11,7 +11,7 @@ from ..core.database import get_db
 from ..core.security import get_current_user
 from ..models.user import Chat, Message
 from ..schemas.user import ChatCreate, ChatResponse, MessageResponse, MessageCreate
-from ..agents.supervisor import detect_intent, process_with_agents, synthesize_response
+from ..runtime import orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -73,44 +73,37 @@ async def add_message(
     await db.commit()
     await db.refresh(user_message)
     
-    # Detect agent intent
-    agents = detect_intent(message.content)
-    
     async def generate():
         full_response = ""
+        tool_calls = []
+        engine = "antigravity"
         try:
-            # Execute agents in the background
-            results = await process_with_agents(message.content, agents, {"user_id": user_id})
-            
-            # Synthesize for UI (preserving markdown and newlines)
-            if not results:
-                synthesized = "I'm not sure how to help with that. Can you be more specific?"
-            elif len(results) == 1:
-                synthesized = list(results.values())[0]
-            else:
-                response_parts = []
-                for agent_name, result in results.items():
-                    if isinstance(result, str) and not result.startswith("Error"):
-                        response_parts.append(result)
-                synthesized = "\n\n".join(response_parts)
-        except Exception as e:
-            logger.error(f"Error processing agents: {e}")
-            synthesized = f"I encountered an error while processing your request: {str(e)}"
-            
-        # Stream the synthesized response line-by-line and word-by-word (preserving newlines)
-        lines = synthesized.splitlines(keepends=True)
-        for line in lines:
-            words = line.split(" ")
-            for i, word in enumerate(words):
-                chunk = word + (" " if i < len(words) - 1 else "")
+            # Stream the answer through the unified runtime (Antigravity -> tools,
+            # falling back to the legacy supervisor when unavailable).
+            async for chunk in orchestrator.run_stream(
+                message.content, user_id=user_id, chat_id=chat_id,
+            ):
+                if not chunk:
+                    continue
                 full_response += chunk
                 yield f'data: {json.dumps({"content": chunk})}\n\n'
-                await asyncio.sleep(0.02)
-            
+            if not full_response.strip():
+                # No tokens streamed (e.g. tool-only turn) — fetch the full result.
+                result = await orchestrator.run(message.content, user_id=user_id, chat_id=chat_id)
+                full_response = result.get("content", "")
+                tool_calls = result.get("tool_calls", [])
+                engine = result.get("engine", engine)
+                if full_response:
+                    yield f'data: {json.dumps({"content": full_response})}\n\n'
+        except Exception as e:
+            logger.error(f"Error processing turn: {e}")
+            full_response = f"I encountered an error while processing your request: {str(e)}"
+            yield f'data: {json.dumps({"content": full_response})}\n\n'
+
         # Save assistant message to the database
         assistant_metadata = {
-            "agent": ", ".join(agents),
-            "tools_used": [],
+            "engine": engine,
+            "tools_used": tool_calls,
             "sources": []
         }
         

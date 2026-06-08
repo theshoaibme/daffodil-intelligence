@@ -122,9 +122,8 @@ If query is complex (multiple topics), call multiple agents in parallel.
                     has_other_keywords = True
                     break
             if not has_other_keywords:
-                if lang == "bn":
-                    return "হ্যালো! আমি ড্যাফোডিল ইন্টেলিজেন্স। আজ আপনাকে কীভাবে সাহায্য করতে পারি?"
-                return "Hello! I am Daffodil Intelligence. How can I assist you today?"
+                from ..prompts.manager import get_greeting
+                return get_greeting(lang)
 
         agents = await self.detect_intent_ai(message)
         results = await process_with_agents(message, agents, context)

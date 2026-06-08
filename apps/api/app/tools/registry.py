@@ -95,8 +95,13 @@ class ToolRegistry:
         return len(self._tools)
 
     def _auto_discover(self):
-        """Auto-import all submodules to trigger tool registration."""
-        import apps.api.app.tools as tools_pkg
+        """Auto-import all submodules to trigger tool registration.
+
+        Resolves the tools package relative to this module so discovery works
+        regardless of whether the app is imported as ``app.tools`` (uvicorn
+        ``app.main:app`` from ``apps/api``) or ``apps.api.app.tools``.
+        """
+        tools_pkg = importlib.import_module(__package__)
 
         package_path = tools_pkg.__path__
         package_name = tools_pkg.__name__

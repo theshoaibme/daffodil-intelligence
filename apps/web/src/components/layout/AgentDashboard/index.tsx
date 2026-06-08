@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useLayoutEffect } from "react";
+import React, { useCallback, useRef, useState, useLayoutEffect } from "react";
 import { useAgents } from "../../../hooks/useAgents";
 import { Bot, Zap, Brain, Monitor, Cpu, RefreshCw, Circle, User } from "lucide-react";
 

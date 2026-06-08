@@ -8,8 +8,8 @@ import json
 from ..core.database import get_db
 from ..core.security import get_current_user
 from ..schemas.user import AgentRequest, AgentResponse
-from ..agents.supervisor import detect_intent, process_with_agents, synthesize_response
-from ..graph.orchestrator import di_graph
+from ..runtime import orchestrator
+from ..tools.registry import get_registry
 from ..core.config import get_settings
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -21,46 +21,36 @@ settings = get_settings()
 async def test_chat(data: dict, user: dict = Depends(get_current_user)):
     message = data.get("message", "")
     user_id = int(user.get("sub"))
-    
-    agents = detect_intent(message)
-    results = await process_with_agents(message, agents, {"user_id": user_id})
-    response = await synthesize_response(results, message)
-    
+
+    result = await orchestrator.run(message, user_id=user_id)
     return {
         "message": message,
-        "detected_agents": agents,
-        "response": response
+        "detected_agents": result.get("agents") or result.get("tool_calls", []),
+        "response": result.get("content", ""),
+        "engine": result.get("engine"),
     }
 
 
 @router.get("/tools")
 async def list_tools():
-    from ..mcp.client import TOOL_REGISTRY
-    return {"tools": list(TOOL_REGISTRY.keys()), "count": len(TOOL_REGISTRY)}
+    """List all live tools from the real tool registry."""
+    registry = get_registry()
+    return {"tools": registry.list_all(), "count": registry.count}
 
 
 @router.post("/tools/execute")
-async def execute_tool(data: dict):
-    from ..mcp.client import TOOL_REGISTRY
-    from ..core.university_data import university_data
-    
-    tool_name = data.get("tool")
-    args = data.get("arguments", {})
-    
-    if tool_name == "get_cgpa":
-        result = await university_data.get_cgpa(args.get("user_id", "STU00001"))
-        return {"result": result}
-    elif tool_name == "search_books":
-        result = await university_data.search_books(args.get("query", ""))
-        return {"result": result}
-    elif tool_name == "get_shuttle_schedule":
-        result = await university_data.get_shuttle_schedule()
-        return {"result": result}
-    elif tool_name == "get_jobs":
-        result = await university_data.get_jobs(args.get("query"))
-        return {"result": result}
-    else:
-        return {"error": "Tool not found"}
+async def execute_tool(data: dict, user: dict = Depends(get_current_user)):
+    """Execute any registered tool by name via the real registry."""
+    tool_name = data.get("tool") or data.get("name")
+    args = data.get("arguments", {}) or {}
+    if not tool_name:
+        return {"error": "Missing 'tool' name"}
+
+    registry = get_registry()
+    result = await registry.execute(tool_name, **args)
+    if result.success:
+        return {"success": True, "result": result.data, "duration_ms": result.duration_ms}
+    return {"success": False, "error": result.error}
 
 
 @router.post("/vision/analyze")
@@ -90,14 +80,12 @@ async def chat(
     user: dict = Depends(get_current_user)
 ):
     user_id = int(user.get("sub"))
-    agents = detect_intent(request.message)
-    results = await process_with_agents(request.message, agents, {"user_id": user_id})
-    response = await synthesize_response(results, request.message)
+    result = await orchestrator.run(request.message, user_id=user_id)
 
     return AgentResponse(
-        response=response,
-        agent=", ".join(agents),
-        tools_used=[],
+        response=result.get("content", ""),
+        agent=", ".join(result.get("agents") or [result.get("engine", "main")]),
+        tools_used=result.get("tool_calls", []),
         sources=[]
     )
 
@@ -105,23 +93,14 @@ async def chat(
 @router.post("/chat/stream")
 async def chat_stream(request: AgentRequest, user: dict = Depends(get_current_user)):
     user_id = int(user.get("sub"))
-    agents = detect_intent(request.message)
     logger.info(f"Stream request from user {user_id}: {request.message[:100]}...")
 
     async def generate():
         try:
-            async for event in di_graph.astream({
-                "message": request.message,
-                "user_id": user_id,
-                "agents": agents
-            }):
-                if "synthesize" in event:
-                    response_text = event['synthesize'].get('final_response', '')
-                    if response_text:
-                        yield f"data: {response_text}\n\n"
-                elif "error" in event:
-                    yield f"data: [ERROR] {event['error']}\n\n"
-                    break
+            async for token in orchestrator.run_stream(request.message, user_id=user_id):
+                if token:
+                    yield f"data: {token}\n\n"
+            yield "data: [DONE]\n\n"
         except asyncio.CancelledError:
             logger.info(f"Stream cancelled for user {user_id}")
             raise

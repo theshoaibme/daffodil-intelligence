@@ -13,7 +13,7 @@ from .core.config import get_settings
 from .core.database import init_db, close_db
 from .core.middleware import LoggingMiddleware
 from .mcp.client import mcp_client
-from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice
+from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth
 from .api.computer_use import router as computer_use_router
 from .live_broadcaster import live_router
 from .messaging_gateway import messaging_router
@@ -28,7 +28,20 @@ Path("uploads").mkdir(exist_ok=True)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+
+    # Start the interactive Telegram bot (in-process polling) if configured.
+    from .integrations.telegram import telegram_bot
+    try:
+        await telegram_bot.start()
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Telegram bot failed to start: {e}")
+
     yield
+
+    try:
+        await telegram_bot.stop()
+    except Exception:
+        pass
     await mcp_client.close()
     await close_db()
 
@@ -77,6 +90,7 @@ async def list_agents():
     }
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(telegram_auth.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(rag.router, prefix="/api")
@@ -84,6 +98,7 @@ app.include_router(upload.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(agent_builder.router, prefix="/api")
 app.include_router(voice.router, prefix="/api")
+app.include_router(memory.router, prefix="/api")
 app.include_router(live_router)
 app.include_router(messaging_router)
 app.include_router(computer_use_router)
@@ -103,7 +118,18 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "di-api", "tools": len(mcp_client.registry) if hasattr(mcp_client, 'registry') else 0}
+    from .tools.registry import get_registry
+    try:
+        tool_count = get_registry().count
+    except Exception:
+        tool_count = 0
+    from .runtime.agent_factory import is_available as agent_available
+    return {
+        "status": "healthy",
+        "service": "di-api",
+        "tools": tool_count,
+        "agent_runtime": "antigravity" if agent_available() else "unavailable",
+    }
 
 
 

@@ -35,3 +35,11 @@ ENV/
 .pytest_cache/
 .mypy_cache/
 .eggs/
+
+# Daffodil runtime artifacts
+conversations/
+recordings/
+memory_store.json
+agent_memory.json
+telegram_profiles.json
+telegram_users.json

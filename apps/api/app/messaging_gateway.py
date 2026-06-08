@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from typing import Optional
-import httpx
+
+from .runtime import orchestrator
 
 messaging_router = APIRouter(prefix="/api/messaging", tags=["messaging"])
 
@@ -12,17 +13,16 @@ class MessageRequest(BaseModel):
     platform: str
 
 
-async def send_to_api(message: str) -> str:
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                "http://localhost:8000/api/agents/chat",
-                json={"message": message, "agent_type": "supervisor"},
-                timeout=10.0
-            )
-            return response.json().get("response", "Error processing message")
-        except Exception:
-            return "Error: Could not reach agent service"
+async def send_to_api(message: str, chat_id: str = "messaging") -> str:
+    """Route a message straight through the unified runtime (in-process).
+
+    Avoids the previous self-HTTP call to a JWT-protected endpoint (which 401'd).
+    """
+    try:
+        result = await orchestrator.run(message, user_id=chat_id, chat_id=f"msg-{chat_id}")
+        return result.get("content", "") or "(no response)"
+    except Exception as e:
+        return f"Error: {e}"
 
 
 @messaging_router.post("/send")
@@ -40,7 +40,7 @@ async def telegram_webhook(request: Request):
     if text.startswith("/"):
         return {"ok": True}
 
-    response = await send_to_api(text)
+    response = await send_to_api(text, chat_id=chat_id)
     return {"method": "sendMessage", "chat_id": chat_id, "text": response}
 
 
@@ -59,7 +59,7 @@ async def whatsapp_webhook(request: Request):
     from_number = message.get("from")
     text = message.get("text", {}).get("body", "")
 
-    response = await send_to_api(text)
+    response = await send_to_api(text, chat_id=from_number or "whatsapp")
 
     return {
         "messaging_product": "whatsapp",

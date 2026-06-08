@@ -9,7 +9,7 @@
     "dev": "turbo dev --ui=tui",
     "dev:api": "pnpm --filter daffodil-api dev",
     "dev:web": "pnpm --filter daffodil-web dev",
-    "dev:mcp": "pnpm --filter daffodil-mcp dev",
+    "dev:mcp": "pnpm --filter daffodil-api mcp",
     "dev:live": "pnpm --filter daffodil-live dev",
     "dev:messaging": "pnpm --filter daffodil-messaging dev",
     "dev:worker": "pnpm --filter daffodil-worker dev",

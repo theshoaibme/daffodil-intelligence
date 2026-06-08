@@ -84,6 +84,19 @@ class MemoryManager:
             self._conversation[session_id].append(entry)
             if len(self._conversation[session_id]) > 50:
                 self._conversation[session_id] = self._conversation[session_id][-50:]
+
+        # Bridge to the unified MemoryService so user turns also land in the
+        # shared long-term semantic store (best-effort, never blocks the path).
+        if role == "user" and content:
+            try:
+                from .memory import memory_service
+                memory_service.remember(
+                    content,
+                    user_id=(metadata or {}).get("user_id", session_id),
+                    metadata={"session_id": session_id, "source": "master_agent"},
+                )
+            except Exception:
+                pass
         return entry["id"]
     
     async def get_conversation(self, session_id: str, turns: int = 10) -> List[Dict]:
@@ -236,14 +249,9 @@ class MasterAgent:
         self.tools = {
             "get_cgpa": {"name": "Get CGPA", "category": "academic", "color": "#06B6D4", "icon": "📈"},
             "get_courses": {"name": "Get Courses", "category": "academic", "color": "#06B6D4", "icon": "📚"},
-            "check_prerequisites": {"name": "Check Prerequisites", "category": "academic", "color": "#06B6D4", "icon": "✅"},
             "search_books": {"name": "Search Books", "category": "library", "color": "#84CC16", "icon": "📖"},
-            "get_notices": {"name": "Get Notices", "category": "admin", "color": "#F97316", "icon": "📢"},
-            "search_jobs": {"name": "Search Jobs", "category": "career", "color": "#EC4899", "icon": "💼"},
-            "analyze_cv": {"name": "Analyze CV", "category": "career", "color": "#EC4899", "icon": "📋"},
-            "calculate_tuition": {"name": "Calculate Tuition", "category": "financial", "color": "#14B8A6", "icon": "💰"},
-            "get_scholarships": {"name": "Get Scholarships", "category": "financial", "color": "#14B8A6", "icon": "🎓"},
-            "get_shuttle_schedule": {"name": "Get Shuttle Schedule", "category": "transport", "color": "#A855F7", "icon": "🚌"}
+            "get_jobs": {"name": "Search Jobs", "category": "career", "color": "#EC4899", "icon": "💼"},
+            "get_shuttle_schedule": {"name": "Get Shuttle Schedule", "category": "transport", "color": "#A855F7", "icon": "🚌"},
         }
         
         self.intents = {
@@ -287,14 +295,9 @@ class MasterAgent:
         tool_keywords = {
             "get_cgpa": ["cgpa", "gpa", "grade", "grades", "performance"],
             "get_courses": ["course", "courses", "subject", "classes"],
-            "check_prerequisites": ["prerequisite", "required course"],
             "search_books": ["book", "books", "library"],
-            "get_notices": ["notice", "notices", "announcement"],
-            "search_jobs": ["job", "jobs", "career", "internship"],
-            "analyze_cv": ["cv", "resume", "check my cv"],
-            "calculate_tuition": ["tuition", "fee", "fees", "payment"],
-            "get_scholarships": ["scholarship", "scholarships", "financial aid"],
-            "get_shuttle_schedule": ["shuttle", "bus", "transport", "schedule"]
+            "get_jobs": ["job", "jobs", "career", "internship"],
+            "get_shuttle_schedule": ["shuttle", "bus", "transport", "schedule"],
         }
         
         for tool_name, keywords in tool_keywords.items():
@@ -338,7 +341,13 @@ class MasterAgent:
         
         for tool_name in tools:
             task_id = f"{session_id}_{tool_name}_{int(time.time()*1000000)}"
-            task = TaskContext(task_id=task_id, session_id=session_id, task_type="tool", name=self.tools[tool_name]["name"], priority=priority)
+            task = TaskContext(
+                task_id=task_id,
+                session_id=session_id,
+                task_type="tool",
+                name=tool_name,
+                priority=priority,
+            )
             session["tasks"].append(task)
             await self._task_runner.submit(task_id, self._execute_tool(task, prompt))
         
@@ -349,48 +358,103 @@ class MasterAgent:
     async def _execute_agent(self, task: TaskContext, prompt: str):
         task.status = "running"
         task.started_at = time.time()
-        
+
         try:
-            await asyncio.sleep(0.05)
-            
+            # Delegate to the unified runtime so the response is REAL (Antigravity
+            # main agent with tools, or legacy supervisor fallback).
+            from .runtime import orchestrator
+            result = await orchestrator.run(
+                prompt, user_id=task.session_id, chat_id=task.session_id
+            )
+            response_text = result.get("content", "")
+
             task.result = {
                 "task_id": task.task_id,
                 "type": "agent",
                 "agent_name": task.name,
                 "status": "completed",
                 "intent_detected": self._detect_intent(prompt),
+                "response": response_text,
+                "tools_used": result.get("tool_calls", []),
+                "engine": result.get("engine"),
                 "timestamp": time.time(),
-                "duration_ms": 50
+                "duration_ms": round((time.time() - task.started_at) * 1000, 2),
             }
             task.status = "completed"
+
+            # Surface a session-level response for callers that read it.
+            session = self._sessions.get(task.session_id)
+            if session is not None and response_text and not session.get("response"):
+                session["response"] = response_text
         except Exception as e:
             task.status = "failed"
             task.error = str(e)
-        
+
         task.completed_at = time.time()
         return task.task_id
-    
+
     async def _execute_tool(self, task: TaskContext, prompt: str):
         task.status = "running"
         task.started_at = time.time()
-        
+
         try:
-            await asyncio.sleep(0.03)
-            
-            task.result = {
-                "task_id": task.task_id,
-                "type": "tool",
-                "tool_name": task.name,
-                "category": "general",
-                "status": "executed",
-                "timestamp": time.time(),
-                "duration_ms": 30
-            }
+            from .tools.registry import get_registry
+            from .tools.arg_inference import infer_tool_kwargs, missing_required
+
+            registry = get_registry()
+            tool = registry.get(task.name)
+
+            if tool is not None:
+                session = self._sessions.get(task.session_id, {})
+                context = {
+                    "student_id": session.get("student_id"),
+                    "user_id": session.get("user_id"),
+                }
+                kwargs = infer_tool_kwargs(tool, prompt, context)
+                missing = missing_required(tool, kwargs)
+                if missing:
+                    task.result = {
+                        "task_id": task.task_id,
+                        "type": "tool",
+                        "tool_name": tool.name,
+                        "category": tool.category,
+                        "status": "failed",
+                        "error": f"Missing required arguments: {', '.join(missing)}",
+                        "inferred_args": kwargs,
+                        "timestamp": time.time(),
+                        "duration_ms": round((time.time() - task.started_at) * 1000, 2),
+                    }
+                else:
+                    exec_result = await registry.execute(tool.name, **kwargs)
+                    task.result = {
+                        "task_id": task.task_id,
+                        "type": "tool",
+                        "tool_name": tool.name,
+                        "category": tool.category,
+                        "status": "executed" if exec_result.success else "failed",
+                        "args": kwargs,
+                        "data": exec_result.data,
+                        "error": exec_result.error,
+                        "timestamp": time.time(),
+                        "duration_ms": exec_result.duration_ms,
+                    }
+            else:
+                meta = self.tools.get(task.name, {})
+                task.result = {
+                    "task_id": task.task_id,
+                    "type": "tool",
+                    "tool_name": task.name,
+                    "category": meta.get("category", "general"),
+                    "status": "skipped",
+                    "note": "No matching registry tool",
+                    "timestamp": time.time(),
+                    "duration_ms": round((time.time() - task.started_at) * 1000, 2),
+                }
             task.status = "completed"
         except Exception as e:
             task.status = "failed"
             task.error = str(e)
-        
+
         task.completed_at = time.time()
         return task.task_id
     

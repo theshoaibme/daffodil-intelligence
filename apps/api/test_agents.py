@@ -1,54 +1,61 @@
+"""
+Daffodil Intelligence — Agent / Runtime smoke script.
+
+Updated for the Antigravity runtime. Verifies:
+  - the tool registry discovers all tools
+  - tools are adapted for the Antigravity agent
+  - the runtime reports availability
+  - (optional) a live agent turn when GEMINI_API_KEY + RUN_LIVE_AGENT=1
+
+Run:  python test_agents.py
+"""
+
 import os
 import sys
 import asyncio
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app.agents.academic import AcademicAgent
-from app.agents.library import LibraryAgent
-from app.agents.campus import CampusAgent
-from app.agents.career import CareerAgent
-from app.agents.coding import CodingAgent
-from app.agents.research import ResearchAgent
-from app.agents.wellness import WellnessAgent
-from app.agents.finance import FinanceAgent
-from app.agents.vision import VisionAgent
-from app.agents.voice import VoiceAgent
-from app.agents.supervisor import SupervisorAgent
+from app.tools.registry import get_registry
+from app.runtime.tool_adapter import get_antigravity_tools
+from app.runtime.agent_factory import is_available
+from app.runtime import session_manager, orchestrator
 
 
-async def test_all_agents():
-    print("\n" + "="*60)
-    print("DAFFODIL INTELLIGENCE - AGENT TEST SUITE")
-    print("="*60)
-    
-    agents = [
-        ("Academic Agent", AcademicAgent(), "What's my CGPA?"),
-        ("Library Agent", LibraryAgent(), "Find books on Machine Learning"),
-        ("Campus Agent", CampusAgent(), "What's the shuttle schedule?"),
-        ("Career Agent", CareerAgent(), "Show me available jobs"),
-        ("Coding Agent", CodingAgent(), "Debug: undefined is not a function"),
-        ("Research Agent", ResearchAgent(), "Find papers on Deep Learning"),
-        ("Wellness Agent", WellnessAgent(), "I'm feeling stressed"),
-        ("Finance Agent", FinanceAgent(), "What's my pending fees?"),
-        ("Vision Agent", VisionAgent(), "Analyze this image"),
-        ("Voice Agent", VoiceAgent(), "Convert speech to text"),
-        ("Supervisor Agent", SupervisorAgent(), "What is my CGPA and are there books on deep learning?"),
-    ]
-    
-    for name, agent, query in agents:
-        print(f"\n{'='*50}")
-        print(f"TESTING: {name}")
-        print(f"{'='*50}")
-        print(f"Query: {query}")
-        try:
-            result = await agent.process(query)
-            print(f"\n✓ Response: {result[:300]}...")
-        except Exception as e:
-            print(f"\n✗ Error: {e}")
-    
-    print("\n" + "="*60)
-    print("ALL TESTS COMPLETED")
-    print("="*60)
+async def main():
+    print("\n" + "=" * 60)
+    print("DAFFODIL INTELLIGENCE — RUNTIME TEST SUITE")
+    print("=" * 60)
+
+    registry = get_registry()
+    print(f"\nTool registry: {registry.count} tools across {len(registry.categories())} categories")
+    for cat in sorted(registry.categories()):
+        names = [t.name for t in registry.list_by_category(cat)]
+        print(f"  - {cat}: {', '.join(names)}")
+
+    tools = get_antigravity_tools()
+    print(f"\nAdapted {len(tools)} tools for the Antigravity agent.")
+
+    print(f"\nAntigravity runtime available: {is_available()}")
+
+    # A couple of offline tool executions.
+    print("\nSample tool calls:")
+    cgpa = await registry.execute("get_cgpa", student_id="221-15-1234")
+    print(f"  get_cgpa -> success={cgpa.success} data={cgpa.data}")
+    books = await registry.execute("search_books", query="Clean")
+    print(f"  search_books -> success={books.success}")
+
+    if os.environ.get("RUN_LIVE_AGENT") == "1" and is_available():
+        print("\nLive agent turn:")
+        res = await orchestrator.run("Say hello in one short sentence.", user_id=1, chat_id="agents-script")
+        print(f"  engine={res.get('engine')} content={res.get('content')[:200]!r}")
+    else:
+        print("\n(Set RUN_LIVE_AGENT=1 with a quota-enabled GEMINI_API_KEY for a live turn.)")
+
+    print("\n" + "=" * 60)
+    print("RUNTIME TESTS COMPLETED")
+    print("=" * 60)
+
 
 if __name__ == "__main__":
-    asyncio.run(test_all_agents())
+    asyncio.run(main())
