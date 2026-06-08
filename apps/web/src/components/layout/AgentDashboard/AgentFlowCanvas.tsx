@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
-  Controls,
   useNodesState,
   useEdgesState,
   type Node,
@@ -12,6 +11,7 @@ import "@xyflow/react/dist/style.css";
 
 import type { Agent } from "../../../hooks/useAgents";
 import { ActiveBeamEdge } from "./ActiveBeamEdge";
+import { FlowZoomControls } from "./FlowZoomControls";
 import { flowNodeTypes } from "./FlowNodes";
 import { buildAgentGraph } from "./graphBuilder";
 import { loadLayout, saveLayout } from "./layoutStorage";
@@ -109,10 +109,7 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
         className={editing ? "cursor-default" : "cursor-grab active:cursor-grabbing"}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#c5c5d9" />
-        <Controls
-          showInteractive={false}
-          className="!bg-surface-container-lowest !border-outline-variant/40 !shadow-md !rounded-xl overflow-hidden"
-        />
+        <FlowZoomControls />
       </ReactFlow>
     </div>
   );

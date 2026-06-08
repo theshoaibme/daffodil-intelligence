@@ -91,12 +91,6 @@ export default function AgentDashboard() {
         )}
       </div>
 
-      {editing && (
-        <div className="absolute top-4 left-4 z-30 px-3 py-1.5 rounded-lg bg-surface-container-lowest/90 border border-primary/30 text-xs font-medium text-primary">
-          Editing — drag nodes to reposition
-        </div>
-      )}
-
       {savedToast && (
         <div className="absolute top-16 right-4 z-40 px-4 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm text-on-surface shadow-md">
           Layout saved

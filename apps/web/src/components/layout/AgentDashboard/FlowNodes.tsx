@@ -1,6 +1,7 @@
-import { memo, type ElementType } from "react";
+import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Bot, Brain, Cpu, Monitor, Zap } from "lucide-react";
+import { Brain } from "lucide-react";
+import { getAgentIconStyle } from "./agentIcons";
 
 const categoryColors: Record<string, string> = {
   university: "text-secondary bg-secondary-container/50 border-secondary/30",
@@ -11,34 +12,33 @@ const categoryColors: Record<string, string> = {
   general: "text-on-surface-variant bg-surface-container border-outline-variant",
 };
 
-const categoryIcons: Record<string, ElementType> = {
-  university: Bot,
-  computer: Monitor,
-  orchestration: Brain,
-  productivity: Zap,
-  ai: Cpu,
-  general: Bot,
-};
-
-const statusDots: Record<string, string> = {
-  idle: "bg-outline-variant",
-  thinking: "bg-primary animate-pulse",
-  executing: "bg-tertiary animate-pulse",
-  error: "bg-error",
-};
-
 function RootNode({ data }: NodeProps) {
+  const outputs = (data.outputs as string[] | undefined) ?? [];
+
   return (
     <div
       className={`relative px-5 py-4 min-w-[200px] rounded-2xl border-2 border-primary bg-surface-container-lowest shadow-md text-center ${
         data.working ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-[#f4f2ff]" : ""
       }`}
     >
-      <Handle type="source" position={Position.Bottom} className="!bg-primary !w-2 !h-2 !border-0" />
       <div className="w-14 h-14 mx-auto rounded-full bg-primary/15 flex items-center justify-center mb-2">
         <Brain size={28} className="text-primary" />
       </div>
       <p className="text-sm font-semibold text-on-surface">{data.label as string}</p>
+
+      {outputs.map((outputId, index) => {
+        const left = ((index + 0.5) / outputs.length) * 100;
+        return (
+          <Handle
+            key={outputId}
+            id={outputId}
+            type="source"
+            position={Position.Bottom}
+            className="!bg-primary !w-2.5 !h-2.5 !border-2 !border-white"
+            style={{ left: `${left}%` }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -46,46 +46,34 @@ function RootNode({ data }: NodeProps) {
 function CategoryNode({ data }: NodeProps) {
   const category = (data.category as string) || "general";
   const catColor = categoryColors[category] || categoryColors.general;
-  const Icon = categoryIcons[category] || Bot;
 
   return (
-    <div className={`relative flex items-center gap-2 px-4 py-2 rounded-xl border-2 bg-surface-container-lowest shadow-sm ${catColor}`}>
+    <div className={`relative px-3 py-2 min-w-[88px] rounded-xl border-2 bg-surface-container-lowest shadow-sm ${catColor}`}>
       <Handle type="target" position={Position.Top} className="!bg-outline-variant !w-2 !h-2 !border-0" />
       <Handle type="source" position={Position.Bottom} className="!bg-outline-variant !w-2 !h-2 !border-0" />
-      <Icon size={16} />
-      <span className="text-xs font-bold uppercase tracking-wider">{data.label as string}</span>
+      <span className="text-[10px] font-bold text-center leading-tight block">{data.label as string}</span>
     </div>
   );
 }
 
-function AgentNode({ data }: NodeProps) {
+function AgentNode({ data, id }: NodeProps) {
   const category = (data.category as string) || "general";
-  const catColor = categoryColors[category] || categoryColors.general;
-  const Icon = categoryIcons[category] || Bot;
-  const status = (data.status as string) || "idle";
+  const { icon: Icon, iconColor } = getAgentIconStyle(id, category);
   const working = Boolean(data.working);
 
   return (
-    <div
-      className={`relative w-44 p-3 rounded-2xl border-2 bg-surface-container-lowest shadow-sm transition-shadow ${
-        working
-          ? "border-primary shadow-md ring-2 ring-primary/30"
-          : "border-outline-variant hover:border-primary/40"
-      }`}
-    >
+    <div className="relative flex flex-col items-center gap-2">
       <Handle type="target" position={Position.Top} className="!bg-outline-variant !w-2 !h-2 !border-0" />
-      <div className={`w-11 h-11 mx-auto rounded-full flex items-center justify-center mb-2 ${catColor}`}>
-        <Icon size={22} />
+      <div
+        className={`w-14 h-14 rounded-full flex items-center justify-center bg-surface-container-lowest border border-outline-variant/50 shadow-sm transition-shadow ${
+          working ? "ring-2 ring-primary ring-offset-2 ring-offset-[#f4f2ff]" : ""
+        }`}
+      >
+        <Icon size={28} className={iconColor} />
       </div>
-      <p className="text-sm font-semibold text-on-surface text-center leading-snug line-clamp-2">
+      <p className="text-xs font-medium text-on-surface text-center max-w-[96px] leading-tight line-clamp-2">
         {data.label as string}
       </p>
-      <span className={`mt-1.5 block text-center text-[10px] font-medium px-2 py-0.5 rounded-full capitalize mx-auto w-fit ${catColor}`}>
-        {category}
-      </span>
-      <div className="absolute -top-1 -right-1 flex items-center bg-surface-container-lowest border border-outline-variant rounded-full px-1.5 py-0.5 shadow-sm">
-        <div className={`w-2 h-2 rounded-full ${statusDots[status] || statusDots.idle}`} />
-      </div>
     </div>
   );
 }
