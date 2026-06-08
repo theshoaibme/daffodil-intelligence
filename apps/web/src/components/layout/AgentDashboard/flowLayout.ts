@@ -1,4 +1,6 @@
-export const ICON_SIZE = 56;
+export type SavedPositions = Record<string, { x: number; y: number }>;
+
+export const ICON_SIZE = 48;
 export const ROOT_BORDER = 2;
 export const ROOT_PADDING_Y = 8;
 export const ROOT_ICON_SIZE = ICON_SIZE;
@@ -12,14 +14,22 @@ export const ROOT_HUB_Y = ROOT_BORDER + ROOT_PADDING_Y + ROOT_ICON_SIZE / 2;
 /** Top of the brain icon — AI model nodes connect here. */
 export const ROOT_HUB_TOP = ROOT_BORDER + ROOT_PADDING_Y;
 
+/** Horizontal anchor for the orchestrator — categories fan out from here. */
 export const ROOT_DEFAULT_X = 480;
-export const ROOT_DEFAULT_Y = 40;
-export const INPUT_NODE_X = 240;
-export const OUTPUT_NODE_X = ROOT_DEFAULT_X + 240;
-export const INPUT_ICON_GAP = 124;
-export const ROOT_CARD_MIN_WIDTH = 220;
-export const MODEL_NODE_GAP = 108;
-export const MODEL_EDGE_GAP = 28;
+/** Keeps model row above the root in positive Y space. */
+export const ROOT_DEFAULT_Y = 64;
+export const INPUT_OFFSET_X = 200;
+export const OUTPUT_OFFSET_X = 200;
+export const CATEGORY_ROW_OFFSET_Y = 140;
+export const AGENT_ROW_OFFSET_Y = 260;
+export const CATEGORY_COL_GAP = 168;
+export const AGENT_COL_GAP = 88;
+export const INPUT_ICON_GAP = 96;
+export const ROOT_CARD_MIN_WIDTH = 180;
+export const MODEL_NODE_GAP = 80;
+export const MODEL_EDGE_GAP = 20;
+
+export const FLOW_FIT_OPTIONS = { padding: 0.14, maxZoom: 1.15, duration: 240 } as const;
 
 export function sideNodeY(index: number, total: number, rootY: number): number {
   const hubCenterY = rootY + ROOT_HUB_Y;

@@ -1,5 +1,6 @@
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Panel, useReactFlow } from "@xyflow/react";
+import { FLOW_FIT_OPTIONS } from "./flowLayout";
 
 export function FlowZoomControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
@@ -24,7 +25,7 @@ export function FlowZoomControls() {
       </button>
       <button
         type="button"
-        onClick={() => fitView({ padding: 0.22, maxZoom: 1 })}
+        onClick={() => fitView(FLOW_FIT_OPTIONS)}
         className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
         aria-label="Fit view"
       >

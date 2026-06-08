@@ -17,10 +17,11 @@ import { ActiveBeamEdge } from "./ActiveBeamEdge";
 import { AgentHoverCard, type HoverAnchor } from "./AgentHoverCard";
 import { FlowZoomControls } from "./FlowZoomControls";
 import { flowNodeTypes } from "./FlowNodes";
+import { FitViewOnUpdate } from "./FitViewOnUpdate";
 import { buildAgentGraph } from "./graphBuilder";
 import { loadLayout, saveLayout } from "./layoutStorage";
+import { FLOW_FIT_OPTIONS } from "./flowLayout";
 import { nextParallelSimulation, type ParallelSimulationState } from "./parallelSimulator";
-import { SimulatorPanel } from "./SimulatorPanel";
 
 const edgeTypes = { activeBeam: ActiveBeamEdge };
 
@@ -41,18 +42,22 @@ interface AgentFlowCanvasProps {
   editing: boolean;
   onSave: () => void;
   saveSignal: number;
+  onSimulationChange?: (state: ParallelSimulationState) => void;
 }
 
-export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFlowCanvasProps) {
-  const savedLayout = useMemo(() => loadLayout(), []);
+export function AgentFlowCanvas({ agents, editing, onSave, saveSignal, onSimulationChange }: AgentFlowCanvasProps) {
+  const savedLayout = useMemo(() => loadLayout(agents), [agents]);
   const { runtime } = useRuntimeStatus();
+  const [fitTrigger, setFitTrigger] = useState(0);
   const [simulation, setSimulation] = useState<ParallelSimulationState>(EMPTY_SIMULATION);
   const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null);
   const [hoverAnchor, setHoverAnchor] = useState<HoverAnchor | null>(null);
   const [selectedCount, setSelectedCount] = useState(0);
   const simulationRound = useRef(0);
   const nodesRef = useRef<Node[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
   const hoverLeaveTimer = useRef<number | null>(null);
+  const resizeTimer = useRef<number | null>(null);
 
   const graph = useMemo(
     () =>
@@ -111,10 +116,42 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
   }, [agents, editing, runtime]);
 
   useEffect(() => {
+    onSimulationChange?.(simulation);
+  }, [simulation, onSimulationChange]);
+
+  useEffect(() => {
     if (saveSignal === 0) return;
     saveLayout(nodesRef.current);
     onSave();
   }, [saveSignal, onSave]);
+
+  useEffect(() => {
+    if (agents.length > 0) {
+      setFitTrigger((n) => n + 1);
+    }
+  }, [agents.length]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver(() => {
+      if (resizeTimer.current !== null) {
+        window.clearTimeout(resizeTimer.current);
+      }
+      resizeTimer.current = window.setTimeout(() => {
+        setFitTrigger((n) => n + 1);
+      }, 120);
+    });
+
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (resizeTimer.current !== null) {
+        window.clearTimeout(resizeTimer.current);
+      }
+    };
+  }, []);
 
   const clearHoverLeaveTimer = useCallback(() => {
     if (hoverLeaveTimer.current !== null) {
@@ -180,9 +217,7 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
   useEffect(() => () => clearHoverLeaveTimer(), [clearHoverLeaveTimer]);
 
   return (
-    <div className="agent-flow-canvas w-full h-full relative">
-      {!editing && <SimulatorPanel simulation={simulation} />}
-
+    <div ref={containerRef} className="agent-flow-canvas w-full h-full relative min-h-0">
       {selectedCount > 1 && editing && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full bg-surface-container-lowest/95 border border-outline-variant/40 shadow-md text-xs font-medium text-on-surface">
           {selectedCount} agents selected — Shift+click to add more
@@ -215,12 +250,13 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
         minZoom={0.25}
         maxZoom={1.75}
         fitView
-        fitViewOptions={{ padding: 0.22, maxZoom: 1 }}
+        fitViewOptions={FLOW_FIT_OPTIONS}
         proOptions={{ hideAttribution: true }}
         className={editing ? "cursor-default" : "cursor-grab active:cursor-grabbing"}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#c5c5d9" />
         <FlowZoomControls />
+        {!editing && <FitViewOnUpdate trigger={fitTrigger} />}
       </ReactFlow>
 
       {!editing && (

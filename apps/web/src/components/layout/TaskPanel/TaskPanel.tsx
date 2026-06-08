@@ -15,6 +15,9 @@ export interface TaskPanelProps {
   tasksCollapsed: boolean;
   setTasksCollapsed: (collapsed: boolean) => void;
   uiReady?: boolean;
+  /** Live agent tasks — when set, overrides stored tasks and is not persisted. */
+  liveTasks?: TaskItem[] | null;
+  agentMode?: boolean;
 }
 
 export const initialTasks: TaskItem[] = [];
@@ -54,23 +57,29 @@ export function TaskPanel({
   tasksCollapsed,
   setTasksCollapsed,
   uiReady = true,
+  liveTasks = null,
+  agentMode = false,
 }: TaskPanelProps) {
-  const [tasks, setTasks] = useLocalStorageState<TaskItem[]>(TASKS_STORAGE_KEY, initialTasks);
+  const [storedTasks, setStoredTasks] = useLocalStorageState<TaskItem[]>(TASKS_STORAGE_KEY, initialTasks);
+  const usingLiveTasks = agentMode;
+  const tasks = usingLiveTasks ? (liveTasks ?? []) : storedTasks;
   const activeTask = tasks.find(t => t.active);
 
   const handleTaskClick = (taskId: string) => {
-    setTasks(prev => prev.map(t => ({
+    if (usingLiveTasks) return;
+    setStoredTasks(prev => prev.map(t => ({
       ...t,
       active: t.id === taskId
     })));
   };
 
   useEffect(() => {
-    setTasks((prev) => {
+    if (usingLiveTasks) return;
+    setStoredTasks((prev) => {
       if (!prev.some((task) => task.active)) return prev;
       return prev.map((task) => ({ ...task, active: false }));
     });
-  }, [setTasks]);
+  }, [setStoredTasks, usingLiveTasks]);
 
   return (
     <div 
@@ -101,7 +110,9 @@ export function TaskPanel({
                   onClick={() => handleTaskClick(activeTask.id)} 
                 />
               ) : (
-                <span className="text-xs font-medium text-on-surface-variant/50">No active tasks</span>
+                <span className="text-xs font-medium text-on-surface-variant/50">
+                  {agentMode ? "Waiting for agents…" : "No active tasks"}
+                </span>
               )}
             </motion.div>
           ) : (
@@ -123,7 +134,9 @@ export function TaskPanel({
                   />
                 ))
               ) : (
-                <span className="text-xs font-medium text-on-surface-variant/50">No tasks active</span>
+                <span className="text-xs font-medium text-on-surface-variant/50">
+                  {agentMode ? "Waiting for agents…" : "No tasks active"}
+                </span>
               )}
             </motion.div>
           )}
@@ -134,7 +147,9 @@ export function TaskPanel({
       <div className="flex items-center justify-between border-t border-outline-variant/20 bg-surface-container-highest/20 p-2.5 px-3">
         <div className="flex items-center gap-2">
           <Compass size={18} className="text-primary" />
-          <span className="text-sm font-semibold text-on-surface">Task</span>
+          <span className="text-sm font-semibold text-on-surface">
+            {agentMode ? "Agent tasks" : "Task"}
+          </span>
         </div>
         <button 
           onClick={() => setTasksCollapsed(!tasksCollapsed)}

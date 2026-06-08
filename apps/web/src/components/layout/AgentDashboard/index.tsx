@@ -1,12 +1,21 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Check, Pencil, RefreshCw, X } from "lucide-react";
 import { useAgents } from "../../../hooks/useAgents";
 import { ROUTES } from "../../../lib/routes";
+import { modeSpringSoft } from "../../../lib/motion";
 import { AgentFlowCanvas } from "./AgentFlowCanvas";
 import { clearLayout } from "./layoutStorage";
+import type { ParallelSimulationState } from "./parallelSimulator";
 
-export default function AgentDashboard() {
+export interface AgentDashboardProps {
+  embedded?: boolean;
+  onClose?: () => void;
+  onSimulationChange?: (state: ParallelSimulationState) => void;
+}
+
+export default function AgentDashboard({ embedded = false, onClose, onSimulationChange }: AgentDashboardProps) {
   const { agents, loading, error, refetch } = useAgents();
   const [editing, setEditing] = useState(false);
   const [saveSignal, setSaveSignal] = useState(0);
@@ -33,15 +42,40 @@ export default function AgentDashboard() {
     window.location.reload();
   };
 
+  const shellClass = embedded
+    ? "relative w-full h-full min-h-0 flex flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-[#f4f2ff] shadow-md"
+    : "flex flex-col h-screen bg-[#f4f2ff] overflow-hidden relative";
+
+  const Shell = embedded ? motion.div : "div";
+  const shellProps = embedded
+    ? {
+        initial: { opacity: 0, y: 20, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 12, scale: 0.99 },
+        transition: modeSpringSoft,
+      }
+    : {};
+
   return (
-    <div className="flex flex-col h-screen bg-[#f4f2ff] overflow-hidden relative">
-      <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
-        <Link
-          to={ROUTES.home}
-          className="hidden sm:inline-flex text-xs font-medium text-on-surface-variant hover:text-on-surface px-3 py-2 rounded-lg"
-        >
-          Back
-        </Link>
+    <Shell className={shellClass} {...shellProps}>
+      <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+        {!embedded ? (
+          <Link
+            to={ROUTES.home}
+            className="hidden sm:inline-flex text-xs font-medium text-on-surface-variant hover:text-on-surface px-3 py-2 rounded-lg"
+          >
+            Back
+          </Link>
+        ) : onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-lowest/80 transition-colors"
+            aria-label="Close agents view"
+          >
+            <X size={16} />
+          </button>
+        ) : null}
 
         {!editing ? (
           <>
@@ -92,7 +126,7 @@ export default function AgentDashboard() {
       </div>
 
       {savedToast && (
-        <div className="absolute top-16 right-4 z-40 px-4 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm text-on-surface shadow-md">
+        <div className="absolute top-14 right-3 z-40 px-4 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm text-on-surface shadow-md">
           Layout saved
         </div>
       )}
@@ -103,21 +137,22 @@ export default function AgentDashboard() {
           editing={editing}
           onSave={handleSave}
           saveSignal={saveSignal}
+          onSimulationChange={onSimulationChange}
         />
       </div>
 
       {loading && agents.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f4f2ff]/80 z-50">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f4f2ff]/80 z-50 rounded-2xl">
           <RefreshCw size={32} className="animate-spin text-primary mb-4" />
           <p className="text-on-surface-variant font-medium">Loading agents…</p>
         </div>
       )}
 
       {error && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-error-container text-on-error-container px-4 py-2 rounded-xl text-sm z-50 shadow-lg">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-error-container text-on-error-container px-4 py-2 rounded-xl text-sm z-50 shadow-lg">
           {error}
         </div>
       )}
-    </div>
+    </Shell>
   );
 }

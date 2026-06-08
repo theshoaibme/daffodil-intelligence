@@ -1,17 +1,20 @@
 import type { Node } from "@xyflow/react";
-import { DEFAULT_CANVAS_LAYOUT } from "./defaultLayout";
+import type { Agent } from "../../../hooks/useAgents";
+import { computeDefaultPositions } from "./graphBuilder";
+import type { SavedPositions } from "./flowLayout";
 
 const STORAGE_KEY = "di-agent-canvas-layout";
 
-export type SavedPositions = Record<string, { x: number; y: number }>;
+export type { SavedPositions } from "./flowLayout";
 
-export function loadLayout(): SavedPositions {
+export function loadLayout(agents: Agent[] = []): SavedPositions {
+  const defaults = computeDefaultPositions(agents);
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const custom = raw ? (JSON.parse(raw) as SavedPositions) : {};
-    return { ...DEFAULT_CANVAS_LAYOUT, ...custom };
+    return { ...defaults, ...custom };
   } catch {
-    return { ...DEFAULT_CANVAS_LAYOUT };
+    return defaults;
   }
 }
 

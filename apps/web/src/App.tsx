@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { enterOrSkip, modeSpring, overlayFade } from "./lib/motion";
 import { UiAnimationProvider, useUiAnimationReady } from "./context/UiAnimationContext";
@@ -11,11 +11,14 @@ import { ChatHistoryProvider, useChatHistory } from "./context/ChatHistoryContex
 import { getHistoryEntry } from "./lib/chatHistoryStorage";
 import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
+import type { TaskItem } from "./components/layout/TaskPanel/TaskPanel";
+import type { ParallelSimulationState } from "./components/layout/AgentDashboard/parallelSimulator";
 import { useChat } from "./hooks/useChat";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
+import { useAuth } from "./context/AuthContext";
 import { ROUTES } from "./lib/routes";
 
-import { Routes, Route, Navigate, useSearchParams } from "react-router-dom";
+import { Routes, Route, Navigate, useSearchParams, useNavigate } from "react-router-dom";
 import {
   ModelManagementPage,
   LiveVoicePage,
@@ -78,7 +81,7 @@ export default function App() {
         />
         <Route path={ROUTES.model} element={<ModelManagementPage />} />
         <Route path={ROUTES.live} element={<LiveVoicePage />} />
-        <Route path={ROUTES.agents} element={<AgentDashboard />} />
+        <Route path={ROUTES.agents} element={<Navigate to={`${ROUTES.home}?agents=1`} replace />} />
         <Route path={ROUTES.skills} element={<SkillsPage />} />
         <Route path={ROUTES.computer} element={<ComputerView />} />
         <Route path={ROUTES.guidance} element={<GuidancePage />} />
@@ -92,10 +95,30 @@ const DASHBOARD_STORAGE_KEYS = {
   sidebarOpen: "di-dashboard-sidebar-open",
   tasksCollapsed: "di-dashboard-tasks-collapsed",
   promptDraft: "di-dashboard-prompt-draft",
+  selectedTools: "di-dashboard-selected-tools",
 } as const;
+
+/** Horizontal column width — shared by welcome hero and prompt bar. */
+const MAIN_COLUMN = "w-full max-w-xl mx-auto";
+
+/** Fills main below header; pb reserves prompt bar (bottom-6 + bar height). */
+const MAIN_STAGE =
+  "absolute inset-0 flex items-center justify-center px-4 pb-[8.5rem] pointer-events-none";
+
+/** Prompt bar slot — pinned to bottom of main stage, same horizontal axis as hero. */
+const PROMPT_SLOT =
+  "absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 z-30 pointer-events-none";
+
+function greetingDisplayName(fullName: string | null | undefined, email: string): string {
+  if (fullName?.trim()) return fullName.trim();
+  const local = email.split("@")[0]?.trim();
+  return local || "there";
+}
 
 function ChatDashboard() {
   const uiReady = useUiAnimationReady();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     activeHistoryId,
@@ -114,6 +137,11 @@ function ChatDashboard() {
     ""
   );
   const [copycatMode, setCopycatMode] = useState(false);
+  const [agentViewOpen, setAgentViewOpen] = useState(false);
+  const [selectedTools, setSelectedTools] = useLocalStorageState<string[]>(
+    DASHBOARD_STORAGE_KEYS.selectedTools,
+    ["Agent", "Task"]
+  );
   const [prompt, setPrompt] = useLocalStorageState(DASHBOARD_STORAGE_KEYS.promptDraft, "");
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useLocalStorageState(
@@ -122,6 +150,33 @@ function ChatDashboard() {
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const handledChatParam = useRef(false);
+  const handledAgentsParam = useRef(false);
+  const [agentLiveTasks, setAgentLiveTasks] = useState<TaskItem[] | null>(null);
+
+  const agentModeActive = selectedTools.includes("Agent") && !copycatMode;
+
+  const handleToggleTool = (tool: string) => {
+    setSelectedTools((prev) => {
+      const next = prev.includes(tool) ? prev.filter((t) => t !== tool) : [...prev, tool];
+      if (tool === "Agent") {
+        setAgentViewOpen(next.includes("Agent"));
+      }
+      return next;
+    });
+  };
+
+  const handleAgentsNav = () => {
+    navigate(ROUTES.home);
+    setSelectedTools((prev) =>
+      prev.includes("Agent") ? prev : [...prev, "Agent"]
+    );
+    setAgentViewOpen(true);
+  };
+
+  const handleCloseAgentView = () => {
+    setAgentViewOpen(false);
+    setSelectedTools((prev) => prev.filter((t) => t !== "Agent"));
+  };
 
   const initialSession = activeHistoryId ? getHistoryEntry(activeHistoryId) : null;
   const {
@@ -154,6 +209,18 @@ function ChatDashboard() {
     setSearchParams({}, { replace: true });
   }, [searchParams, selectHistory, loadSession, setSearchParams]);
 
+  useEffect(() => {
+    if (handledAgentsParam.current) return;
+    if (searchParams.get("agents") !== "1") return;
+
+    handledAgentsParam.current = true;
+    setSelectedTools((prev) =>
+      prev.includes("Agent") ? prev : [...prev, "Agent"]
+    );
+    setAgentViewOpen(true);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams, setSelectedTools]);
+
   const handleSelectHistory = (id: string) => {
     const session = selectHistory(id);
     loadSession(session.chatId, session.messages);
@@ -163,6 +230,7 @@ function ChatDashboard() {
     const session = startNewChat();
     loadSession(session.chatId, session.messages);
     setPrompt("");
+    setAgentViewOpen(false);
   };
 
   const handleDeleteHistory = (id: string) => {
@@ -175,8 +243,30 @@ function ChatDashboard() {
   };
 
   const hasMessages = messages.length > 0;
+  const showAgentDashboard = agentModeActive && (hasMessages || agentViewOpen);
   const lastUserMessage = messages.filter((m) => m.role === "user").pop();
   const lastAssistantMessage = messages.filter((m) => m.role === "assistant").pop();
+
+  const handleAgentSimulation = useCallback((sim: ParallelSimulationState) => {
+    const items: TaskItem[] = [];
+    if (sim.modelActive && sim.modelTask) {
+      items.push({ id: "model", text: sim.modelTask, active: true });
+    }
+    sim.tasks.forEach((task, index) => {
+      items.push({
+        id: task.agentId,
+        text: `${task.agentName}: ${task.task}`,
+        active: !sim.modelActive && index === 0,
+      });
+    });
+    setAgentLiveTasks(items.length > 0 ? items : null);
+  }, []);
+
+  useEffect(() => {
+    if (!showAgentDashboard) {
+      setAgentLiveTasks(null);
+    }
+  }, [showAgentDashboard]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -210,6 +300,9 @@ function ChatDashboard() {
     }
   };
 
+  const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
+  const showWelcomeHero = !showAgentDashboard;
+
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
       <AnimatePresence>
@@ -237,51 +330,64 @@ function ChatDashboard() {
         onDeleteHistory={handleDeleteHistory}
         onShareHistory={shareHistory}
         onNewChat={handleNewChat}
+        agentModeActive={agentModeActive}
+        onAgentsClick={handleAgentsNav}
       />
 
-      <main className="flex flex-1 flex-col min-w-0 h-screen overflow-hidden bg-background">
-        <Header />
+      <main className="relative flex flex-1 flex-col min-w-0 w-full h-screen overflow-hidden bg-background">
+        <Header sidebarOpen={sidebarOpen} />
 
-        <motion.div
-          className="flex-1 min-h-0 flex flex-col items-center px-6 overflow-y-auto custom-scrollbar pb-32"
-          animate={{
-            opacity: copycatMode ? 0.35 : 1,
-            scale: copycatMode ? 0.985 : 1,
-            filter: copycatMode ? "blur(6px)" : "blur(0px)",
-          }}
-          transition={overlayFade}
-          style={{ pointerEvents: copycatMode ? "none" : "auto" }}
-        >
-          {!hasMessages ? (
-            <div className="fixed inset-x-0 top-16 bottom-32 z-10 flex flex-col items-center justify-center px-6 pointer-events-none">
-              <div className="max-w-3xl w-full flex flex-col items-center gap-10 pointer-events-auto">
-                <div className="text-center px-4">
-                  <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight text-on-surface mb-4">
-                    Welcome to Daffodil <br className="hidden sm:inline" /> Intelligence
-                  </h1>
+        <div className="relative flex-1 min-h-0">
+          <AnimatePresence>
+            {showWelcomeHero && (
+              <motion.div
+                key="welcome-hero"
+                initial={enterOrSkip(uiReady, { opacity: 0, y: 12 })}
+                animate={{
+                  opacity: copycatMode ? 0.35 : 1,
+                  y: 0,
+                  scale: copycatMode ? 0.985 : 1,
+                  filter: copycatMode ? "blur(6px)" : "blur(0px)",
+                }}
+                exit={{ opacity: 0, y: -8, scale: 0.99 }}
+                transition={overlayFade}
+                className={`${MAIN_STAGE} z-10`}
+              >
+                <div
+                  className={`${MAIN_COLUMN} text-center ${
+                    copycatMode ? "pointer-events-none" : "pointer-events-auto"
+                  }`}
+                >
+                <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight px-2">
+                  <span className="text-on-surface-variant">Hello, </span>
+                  <span className="bg-gradient-to-r from-[#4285F4] via-[#9B72CB] to-[#D96570] bg-clip-text text-transparent">
+                    {displayName}
+                  </span>
+                </h1>
+                {!hasMessages && (
+                  <div className="mt-10 flex flex-wrap justify-center gap-2">
+                    <SuggestionChip
+                      text="Mood-based movie picker"
+                      onClick={() => sendPrompt("Mood-based movie picker")}
+                    />
+                    <SuggestionChip
+                      text="Trip packing checklist"
+                      onClick={() => sendPrompt("Trip packing checklist")}
+                    />
+                    <SuggestionChip
+                      text="E-commerce platform mockup"
+                      onClick={() => sendPrompt("E-commerce platform mockup")}
+                    />
+                  </div>
+                )}
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-                <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
-                  <SuggestionChip
-                    text="Mood-based movie picker"
-                    onClick={() => sendPrompt("Mood-based movie picker")}
-                  />
-                  <SuggestionChip
-                    text="Trip packing checklist"
-                    onClick={() => sendPrompt("Trip packing checklist")}
-                  />
-                  <SuggestionChip
-                    text="E-commerce platform mockup"
-                    onClick={() => sendPrompt("E-commerce platform mockup")}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="w-full max-w-7xl relative flex flex-col md:flex-row gap-6 items-center md:items-start justify-center">
-              <div className="flex-1 w-full flex items-center justify-center md:pr-[420px] min-h-[180px] md:min-h-[300px]" />
-
-              <div className="w-full max-w-md flex flex-col gap-4 md:hidden pb-36">
+          {hasMessages && (
+            <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-6`}>
+              <div className={`${MAIN_COLUMN} flex flex-col gap-4`}>
                 <AiResponseCard
                   prompt={lastUserMessage?.content || ""}
                   response={lastAssistantMessage?.content || ""}
@@ -294,41 +400,67 @@ function ChatDashboard() {
               </div>
             </div>
           )}
-        </motion.div>
-
-        <LayoutGroup id="mode-switch">
-          <AnimatePresence mode="popLayout">
-            {!copycatMode && (
-              <PromptBar
-                key="chat-mode-bar"
-                uiReady={uiReady}
-                prompt={prompt}
-                setPrompt={setPrompt}
-                isSent={hasMessages}
-                handleSend={handleSend}
-                plusMenuOpen={plusMenuOpen}
-                setPlusMenuOpen={setPlusMenuOpen}
-                textareaRef={textareaRef}
-                isLoading={isLoading || isStreaming}
-                onCopycatMode={() => setCopycatMode(true)}
-                copycatActive={copycatMode}
-              />
-            )}
-          </AnimatePresence>
 
           <AnimatePresence>
-            {copycatMode && (
-              <ComputerView
-                key="copycat-mode"
-                embedded
-                onExitCopycat={() => setCopycatMode(false)}
-              />
+            {showAgentDashboard && (
+              <motion.div
+                key="agent-mode-shell"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={overlayFade}
+                className={`${MAIN_STAGE} z-20`}
+              >
+                <div className="w-full max-w-4xl mx-auto h-[min(480px,calc(100%-1rem))] pointer-events-auto">
+                  <AgentDashboard
+                    embedded
+                    onClose={handleCloseAgentView}
+                    onSimulationChange={handleAgentSimulation}
+                  />
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
-        </LayoutGroup>
+
+          <LayoutGroup id="mode-switch">
+            <AnimatePresence>
+              {copycatMode && (
+                <ComputerView
+                  key="copycat-mode"
+                  embedded
+                  onExitCopycat={() => setCopycatMode(false)}
+                />
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence mode="popLayout">
+              {!copycatMode && (
+                <div className={PROMPT_SLOT}>
+                  <PromptBar
+                    key="chat-mode-bar"
+                    embedded
+                    uiReady={uiReady}
+                    prompt={prompt}
+                    setPrompt={setPrompt}
+                    isSent={hasMessages}
+                    handleSend={handleSend}
+                    plusMenuOpen={plusMenuOpen}
+                    setPlusMenuOpen={setPlusMenuOpen}
+                    textareaRef={textareaRef}
+                    isLoading={isLoading || isStreaming}
+                    onCopycatMode={() => setCopycatMode(true)}
+                    copycatActive={copycatMode}
+                    selectedTools={selectedTools}
+                    onToggleTool={handleToggleTool}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
+          </LayoutGroup>
+        </div>
 
         <motion.div
-          className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-30 pointer-events-none"
+          className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-40 pointer-events-none"
           animate={{
             opacity: copycatMode ? 0 : 1,
             x: copycatMode ? 24 : 0,
@@ -362,6 +494,8 @@ function ChatDashboard() {
               tasksCollapsed={tasksCollapsed}
               setTasksCollapsed={setTasksCollapsed}
               uiReady={uiReady}
+              liveTasks={showAgentDashboard ? agentLiveTasks : null}
+              agentMode={showAgentDashboard}
             />
           </div>
         </motion.div>
@@ -372,6 +506,8 @@ function ChatDashboard() {
               tasksCollapsed={tasksCollapsed}
               setTasksCollapsed={setTasksCollapsed}
               uiReady={uiReady}
+              liveTasks={showAgentDashboard ? agentLiveTasks : null}
+              agentMode={showAgentDashboard}
             />
           </div>
         </div>

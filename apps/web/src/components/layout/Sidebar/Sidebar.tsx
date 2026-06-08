@@ -92,6 +92,8 @@ export function Sidebar({
   onDeleteHistory,
   onShareHistory,
   onNewChat,
+  agentModeActive = false,
+  onAgentsClick,
 }: SidebarProps) {
   const { histories } = useChatHistory();
   const navigate = useNavigate();
@@ -109,7 +111,7 @@ export function Sidebar({
       initial={enterOrSkip(uiReady, { width: SIDEBAR_WIDTH_COLLAPSED })}
       animate={{ width: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED }}
       transition={sidebarWidthTransition}
-      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low border-r border-outline-variant/40 shadow-sm will-change-[width] lg:static lg:z-auto lg:flex-shrink-0"
+      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width]"
     >
       <div
         className="relative h-full"
@@ -160,7 +162,7 @@ export function Sidebar({
             sidebarOpen ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
-          <div className="shrink-0 flex items-center gap-2 px-4 pt-4 pb-3 border-b border-outline-variant/30">
+          <div className="shrink-0 flex items-center gap-2 px-4 pt-4 pb-3">
             <button
               type="button"
               onClick={toggleSidebar}
@@ -181,7 +183,7 @@ export function Sidebar({
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search chats..."
                 tabIndex={sidebarOpen ? 0 : -1}
-                className="w-full bg-surface-container-high/50 border border-outline-variant/20 rounded-xl pl-9 pr-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:ring-1 focus:ring-primary outline-none transition-all"
+                className="w-full bg-surface-container-high/50 rounded-xl pl-9 pr-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:ring-1 focus:ring-primary outline-none transition-all"
               />
             </div>
           </div>
@@ -192,8 +194,18 @@ export function Sidebar({
                 key={item.to}
                 label={item.label}
                 icon={item.icon}
-                active={location.pathname === item.to}
-                onClick={() => navigate(item.to)}
+                active={
+                  item.to === ROUTES.agents
+                    ? agentModeActive
+                    : location.pathname === item.to
+                }
+                onClick={() => {
+                  if (item.to === ROUTES.agents) {
+                    onAgentsClick?.();
+                    return;
+                  }
+                  navigate(item.to);
+                }}
               />
             ))}
           </nav>
@@ -203,7 +215,7 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={() => onNewChat?.()}
-                className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-outline-variant/30 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer bg-transparent"
+                className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer bg-transparent"
               >
                 <Plus size={16} />
                 New chat
@@ -235,7 +247,7 @@ export function Sidebar({
             </div>
           </div>
 
-          <div className="shrink-0 px-6 py-4 border-t border-outline-variant/20 bg-surface-container-low">
+          <div className="shrink-0 px-6 py-4 bg-surface-container-low">
             <button
               type="button"
               onClick={() => navigate(ROUTES.account)}

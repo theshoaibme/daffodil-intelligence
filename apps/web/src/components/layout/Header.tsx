@@ -6,7 +6,11 @@ import { HeaderIcon } from "../ui";
 import { useThemeMode } from "../ThemeProvider";
 import { useAuth } from "../../context/AuthContext";
 import { ROUTES } from "../../lib/routes";
-import { dropdownPanelVariants, modeSpringSoft } from "../../lib/motion";
+import { dropdownPanelVariants, modeSpringSoft, sidebarWidthTransition } from "../../lib/motion";
+import {
+  SIDEBAR_WIDTH_COLLAPSED,
+  SIDEBAR_WIDTH_EXPANDED,
+} from "./Sidebar/Sidebar";
 
 function userInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -38,7 +42,7 @@ function UserAvatar({
         src={avatarUrl}
         alt=""
         referrerPolicy="no-referrer"
-        className={`${sizeClass} rounded-full object-cover border border-outline-variant/30 flex-shrink-0`}
+        className={`${sizeClass} rounded-full object-cover flex-shrink-0`}
         onError={() => setFailed(true)}
       />
     );
@@ -46,14 +50,18 @@ function UserAvatar({
 
   return (
     <div
-      className={`${sizeClass} rounded-full overflow-hidden border border-outline-variant/30 flex-shrink-0 bg-primary/15 flex items-center justify-center`}
+      className={`${sizeClass} rounded-full overflow-hidden flex-shrink-0 bg-primary/15 flex items-center justify-center`}
     >
       <span className={`${textClass} font-bold text-primary`}>{initials}</span>
     </div>
   );
 }
 
-export function Header() {
+export interface HeaderProps {
+  sidebarOpen?: boolean;
+}
+
+export function Header({ sidebarOpen = false }: HeaderProps) {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
@@ -85,12 +93,27 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 shrink-0 flex justify-between items-center h-16 px-4 sm:px-6 w-full border-b border-outline-variant/30 bg-background/90 backdrop-blur-md">
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="text-base sm:text-lg font-semibold tracking-tight text-on-surface truncate">
-          Daffodil Intelligence
-        </span>
-      </div>
+    <header className="sticky top-0 z-30 shrink-0 flex justify-between items-center h-16 pr-4 sm:pr-6 w-full bg-background/90 backdrop-blur-md">
+      <motion.div
+        className="flex items-center gap-2.5 min-w-0"
+        initial={false}
+        animate={{
+          paddingLeft: (sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED) + 16,
+        }}
+        transition={sidebarWidthTransition}
+      >
+        <Link
+          to={ROUTES.home}
+          className="flex items-center gap-2.5 min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <span className="text-xl sm:text-2xl font-bold tracking-tight truncate leading-none">
+            <span className="bg-gradient-to-b from-blue-500 to-blue-600 bg-clip-text text-transparent">
+              Daffodil
+            </span>
+            <span className="text-on-surface"> Intelligence</span>
+          </span>
+        </Link>
+      </motion.div>
 
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         <div className="hidden sm:flex items-center gap-1.5">

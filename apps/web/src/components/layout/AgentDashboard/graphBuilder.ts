@@ -5,13 +5,17 @@ import { DASHBOARD_MODELS, modelNodeId } from "../../../lib/models";
 import {
   ROOT_DEFAULT_X,
   ROOT_DEFAULT_Y,
-  INPUT_NODE_X,
-  OUTPUT_NODE_X,
+  INPUT_OFFSET_X,
+  OUTPUT_OFFSET_X,
+  CATEGORY_ROW_OFFSET_Y,
+  AGENT_ROW_OFFSET_Y,
+  CATEGORY_COL_GAP,
+  AGENT_COL_GAP,
   modelNodeX,
   modelNodeY,
   sideNodeY,
 } from "./flowLayout";
-import type { SavedPositions } from "./layoutStorage";
+import type { SavedPositions } from "./flowLayout";
 
 export const ROOT_NODE_ID = "daffodil-intelligence";
 
@@ -36,9 +40,9 @@ export const CATEGORY_ORDER = [
   "general",
 ] as const;
 
-function defaultCategoryX(index: number): number {
-  const span = (CATEGORY_ORDER.length - 1) * 240;
-  return 520 - span / 2 + index * 240;
+function defaultCategoryX(index: number, rootX: number): number {
+  const span = (CATEGORY_ORDER.length - 1) * CATEGORY_COL_GAP;
+  return rootX - span / 2 + index * CATEGORY_COL_GAP;
 }
 
 export interface SimulationOverlay {
@@ -127,7 +131,7 @@ export function buildAgentGraph(
       type: "integration",
       position: pos(
         input.id,
-        INPUT_NODE_X,
+        rootX - INPUT_OFFSET_X,
         sideNodeY(index, INPUT_INTEGRATIONS.length, rootY)
       ),
       data: {
@@ -156,7 +160,7 @@ export function buildAgentGraph(
       type: "response",
       position: pos(
         output.id,
-        OUTPUT_NODE_X,
+        rootX + OUTPUT_OFFSET_X,
         sideNodeY(index, OUTPUT_INTEGRATIONS.length, rootY)
       ),
       data: {
@@ -179,11 +183,11 @@ export function buildAgentGraph(
 
   CATEGORY_ORDER.forEach((category, catIndex) => {
     const catId = `cat-${category}`;
-    const catX = defaultCategoryX(catIndex);
+    const catX = defaultCategoryX(catIndex, rootX);
     nodes.push({
       id: catId,
       type: "category",
-      position: pos(catId, catX, 240),
+      position: pos(catId, catX, rootY + CATEGORY_ROW_OFFSET_Y),
       data: { label: CATEGORY_LABELS[category] ?? category, category },
       draggable: true,
     });
@@ -199,7 +203,7 @@ export function buildAgentGraph(
       type: "activeBeam",
       data: { active: rootToCatActive },
     });
-    const agentSpan = Math.max(list.length - 1, 0) * 130;
+    const agentSpan = Math.max(list.length - 1, 0) * AGENT_COL_GAP;
     const startX = catX - agentSpan / 2;
 
     list.forEach((agent, agentIndex) => {
@@ -211,7 +215,7 @@ export function buildAgentGraph(
       nodes.push({
         id: agent.id,
         type: "agent",
-        position: pos(agent.id, startX + agentIndex * 130, 420),
+        position: pos(agent.id, startX + agentIndex * AGENT_COL_GAP, rootY + AGENT_ROW_OFFSET_Y),
         data: {
           label: agent.name,
           category: agent.category,
@@ -232,4 +236,13 @@ export function buildAgentGraph(
   });
 
   return { nodes, edges };
+}
+
+export function computeDefaultPositions(agents: Agent[]): SavedPositions {
+  const { nodes } = buildAgentGraph(agents, {}, { activeAgentIds: [] });
+  const positions: SavedPositions = {};
+  for (const node of nodes) {
+    positions[node.id] = { x: node.position.x, y: node.position.y };
+  }
+  return positions;
 }
