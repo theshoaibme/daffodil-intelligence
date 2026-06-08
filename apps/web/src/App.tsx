@@ -4,14 +4,13 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { Monitor } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SuggestionChip } from "./components/ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
 import { useChat } from "./hooks/useChat";
 import { ROUTES } from "./lib/routes";
 
-import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import {
   ModelManagementPage,
   LiveVoicePage,
@@ -75,8 +74,8 @@ export default function App() {
 }
 
 function ChatDashboard() {
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [copycatMode, setCopycatMode] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
@@ -189,16 +188,42 @@ function ChatDashboard() {
           )}
         </div>
 
-        <PromptBar
-          prompt={prompt}
-          setPrompt={setPrompt}
-          isSent={hasMessages}
-          handleSend={handleSend}
-          plusMenuOpen={plusMenuOpen}
-          setPlusMenuOpen={setPlusMenuOpen}
-          textareaRef={textareaRef}
-          isLoading={isLoading || isStreaming}
-        />
+        <AnimatePresence>
+          {!copycatMode && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <PromptBar
+                prompt={prompt}
+                setPrompt={setPrompt}
+                isSent={hasMessages}
+                handleSend={handleSend}
+                plusMenuOpen={plusMenuOpen}
+                setPlusMenuOpen={setPlusMenuOpen}
+                textareaRef={textareaRef}
+                isLoading={isLoading || isStreaming}
+                onCopycatMode={() => setCopycatMode(true)}
+                copycatActive={copycatMode}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {copycatMode && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ComputerView embedded onExitCopycat={() => setCopycatMode(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-30 pointer-events-none">
           <AnimatePresence>
@@ -231,16 +256,6 @@ function ChatDashboard() {
           </div>
         </div>
 
-        <div className="absolute bottom-6 left-8 z-20">
-          <button
-            type="button"
-            onClick={() => navigate(ROUTES.computer)}
-            className="p-2 text-on-surface-variant/50 hover:text-on-surface-variant transition-all"
-            aria-label="Open computer view"
-          >
-            <Monitor size={20} />
-          </button>
-        </div>
       </main>
     </div>
   );

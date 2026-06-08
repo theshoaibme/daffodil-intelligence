@@ -13,6 +13,8 @@ interface PromptBarProps {
   setPlusMenuOpen: (open: boolean) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   isLoading?: boolean;
+  onCopycatMode?: () => void;
+  copycatActive?: boolean;
 }
 
 export function PromptBar({
@@ -22,7 +24,9 @@ export function PromptBar({
   plusMenuOpen,
   setPlusMenuOpen,
   textareaRef,
-  isLoading = false
+  isLoading = false,
+  onCopycatMode,
+  copycatActive = false,
 }: PromptBarProps) {
   const [selectedModelId, setSelectedModelId] = useState<string>("gemini-2.0-flash");
   const [selectedTools, setSelectedTools] = useState<string[]>(["Agent", "Task"]);
@@ -63,6 +67,8 @@ export function PromptBar({
               setIsOpen={setPlusMenuOpen} 
               selectedTools={selectedTools}
               onToggleTool={handleToggleTool}
+              onCopycatMode={onCopycatMode}
+              copycatActive={copycatActive}
             />
             <ImageAttachmentButton />
           </div>

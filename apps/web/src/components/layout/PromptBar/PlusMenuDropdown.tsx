@@ -2,19 +2,25 @@ import { useRef, useEffect } from "react";
 import { Plus, Compass, Monitor, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DropdownItem } from "../../ui";
-import { useNavigate } from "react-router-dom";
-import { ROUTES } from "../../../lib/routes";
 
 interface PlusMenuDropdownProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   selectedTools: string[];
   onToggleTool: (toolName: string) => void;
+  onCopycatMode?: () => void;
+  copycatActive?: boolean;
 }
 
-export function PlusMenuDropdown({ isOpen, setIsOpen, selectedTools, onToggleTool }: PlusMenuDropdownProps) {
+export function PlusMenuDropdown({
+  isOpen,
+  setIsOpen,
+  selectedTools,
+  onToggleTool,
+  onCopycatMode,
+  copycatActive = false,
+}: PlusMenuDropdownProps) {
   const plusMenuRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
 
   // Close plus menu on click outside
   useEffect(() => {
@@ -35,7 +41,7 @@ export function PlusMenuDropdown({ isOpen, setIsOpen, selectedTools, onToggleToo
   ];
 
   const modes = [
-    { text: "Copycat Mode", icon: <Monitor className="text-tertiary" size={20} />, path: ROUTES.computer },
+    { text: "Copycat Mode", icon: <Monitor className="text-tertiary" size={20} /> },
   ];
 
   return (
@@ -76,10 +82,10 @@ export function PlusMenuDropdown({ isOpen, setIsOpen, selectedTools, onToggleToo
                   key={mode.text} 
                   icon={mode.icon} 
                   text={mode.text} 
-                  active={false}
+                  active={copycatActive}
                   onClick={() => {
                     setIsOpen(false);
-                    navigate(mode.path);
+                    onCopycatMode?.();
                   }}
                 />
               ))}
