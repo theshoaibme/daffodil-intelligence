@@ -8,7 +8,7 @@ export interface HoverAnchor {
   y: number;
 }
 
-const CARD_WIDTH = 300;
+const CARD_WIDTH = 268;
 const VIEWPORT_PAD = 12;
 const OFFSET_X = 18;
 const OFFSET_Y = -12;
@@ -56,12 +56,12 @@ export function AgentHoverCard({ agent, anchor, onPointerEnter, onPointerLeave }
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 2 }}
           transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-          className="fixed z-[70] w-[300px] max-h-[min(70vh,420px)] overflow-y-auto custom-scrollbar rounded-2xl border border-outline-variant/40 bg-surface-container-lowest shadow-xl pointer-events-auto"
+          className="fixed z-[70] w-[268px] max-h-[min(62vh,360px)] overflow-y-auto custom-scrollbar rounded-md border border-outline-variant/25 bg-surface-container-lowest/95 backdrop-blur-md shadow-lg pointer-events-auto"
           style={{ left: position.x, top: position.y }}
           onMouseEnter={onPointerEnter}
-          onMouseLeave={onPointerLeave}
+          onPointerLeave={onPointerLeave}
         >
-          <div className="px-4 py-4">
+          <div className="px-3 py-2.5">
             <AgentDetailContent agent={agent} skills={skills} loadingSkills={loading} compact />
           </div>
         </motion.div>

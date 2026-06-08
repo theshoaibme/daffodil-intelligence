@@ -9,6 +9,8 @@ import {
   MODEL_NODE_GAP,
   MODEL_NODE_Y,
   defaultInputY,
+  defaultOutputY,
+  OUTPUT_NODE_X,
 } from "./flowLayout";
 import type { SavedPositions } from "./layoutStorage";
 
@@ -16,10 +18,15 @@ export const ROOT_NODE_ID = "daffodil-intelligence";
 
 export const ROOT_INPUT_HANDLE = "input";
 export const ROOT_MODEL_HANDLE = "model";
+export const ROOT_OUTPUT_HANDLE = "output";
 
 export const INPUT_INTEGRATIONS = [
   { id: "input-telegram", label: "Telegram", integration: "telegram" },
   { id: "input-chat", label: "Chat", integration: "chat" },
+] as const;
+
+export const OUTPUT_INTEGRATIONS = [
+  { id: "output-response", label: "Response", integration: "response" },
 ] as const;
 
 export const CATEGORY_ORDER = [
@@ -76,6 +83,7 @@ export function buildAgentGraph(
         label: "Daffodil Intelligence",
         inputs: [ROOT_INPUT_HANDLE],
         modelInput: ROOT_MODEL_HANDLE,
+        outputHandle: ROOT_OUTPUT_HANDLE,
         outputs: [...CATEGORY_ORDER],
         working: orchestratorActive,
       },
@@ -133,6 +141,31 @@ export function buildAgentGraph(
       targetHandle: ROOT_INPUT_HANDLE,
       type: "activeBeam",
       data: { active: orchestratorActive && activeInputId === input.id },
+    });
+  });
+
+  OUTPUT_INTEGRATIONS.forEach((output, index) => {
+    const responseActive = orchestratorActive && activeSet.size > 0;
+
+    nodes.push({
+      id: output.id,
+      type: "response",
+      position: pos(output.id, OUTPUT_NODE_X, defaultOutputY(index, OUTPUT_INTEGRATIONS.length)),
+      data: {
+        label: output.label,
+        integration: output.integration,
+        working: responseActive,
+      },
+      draggable: true,
+    });
+
+    edges.push({
+      id: `e-${ROOT_NODE_ID}-${output.id}`,
+      source: ROOT_NODE_ID,
+      sourceHandle: ROOT_OUTPUT_HANDLE,
+      target: output.id,
+      type: "activeBeam",
+      data: { active: responseActive },
     });
   });
 

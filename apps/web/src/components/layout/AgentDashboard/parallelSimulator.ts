@@ -57,7 +57,7 @@ export function nextParallelSimulation(
       activeModelId,
       modelActive: true,
       modelTask: getSimulatedModelTask(engine),
-      pipelineLabel: `${inputLabel(activeInputId)} → ${modelName} → Orchestrator → ${tasks.length} agents`,
+      pipelineLabel: `${inputLabel(activeInputId)} → ${modelName} → Orchestrator → ${tasks.length} agents → Response`,
       tasks,
     };
   }
@@ -114,7 +114,7 @@ export function nextParallelSimulation(
     modelTask: tasks.length > 0 ? getSimulatedModelTask(engine) : "",
     pipelineLabel:
       tasks.length > 0
-        ? `${inputLabel(activeInputId)} → ${modelName} (${engine}) → Orchestrator → ${tasks.length} agents parallel`
+        ? `${inputLabel(activeInputId)} → ${modelName} (${engine}) → Orchestrator → ${tasks.length} agents → Response`
         : "",
     tasks,
   };

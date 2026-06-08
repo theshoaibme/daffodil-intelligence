@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Brain } from "lucide-react";
-import { RiBrainFill, RiChat3Fill, RiTelegramFill } from "react-icons/ri";
+import { RiBrainFill, RiChat3Fill, RiQuestionAnswerFill, RiTelegramFill } from "react-icons/ri";
 import { getAgentIconStyle } from "./agentIcons";
 import { ICON_SIZE, ROOT_ICON_CENTER } from "./flowLayout";
 import {
@@ -9,6 +9,7 @@ import {
   getIntegrationTheme,
   MODEL_NODE_THEME,
   NODE_RING_OFFSET,
+  RESPONSE_NODE_THEME,
   ROOT_NODE_THEME,
 } from "./flowNodeTheme";
 
@@ -32,18 +33,21 @@ function IconNodeFrame({
   label,
   theme,
   sourceRight,
+  targetLeft,
   targetTop,
   children,
 }: {
   label: ReactNode;
   theme: { text: string };
   sourceRight?: boolean;
+  targetLeft?: boolean;
   targetTop?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="relative" style={{ width: ICON_SIZE, height: ICON_SIZE }}>
       {targetTop && <Handle type="target" position={Position.Top} className="handle-muted" />}
+      {targetLeft && <Handle type="target" position={Position.Left} className="handle-muted" />}
       {sourceRight && <Handle type="source" position={Position.Right} />}
       {children}
       <NodeLabel themeText={theme.text}>{label}</NodeLabel>
@@ -98,12 +102,13 @@ function ModelNode({ data }: NodeProps) {
 function RootNode({ data }: NodeProps) {
   const inputs = (data.inputs as string[] | undefined) ?? [];
   const modelInput = data.modelInput as string | undefined;
+  const outputHandle = data.outputHandle as string | undefined;
   const outputs = (data.outputs as string[] | undefined) ?? [];
   const theme = ROOT_NODE_THEME;
 
   return (
     <div
-      className={`relative min-w-[200px] rounded-2xl border-2 px-5 pb-4 pt-4 text-center shadow-md ${theme.bg} ${theme.border} ${
+      className={`relative min-w-[200px] rounded-2xl border-2 px-5 pb-4 pt-4 text-center shadow-md backdrop-blur-sm ${theme.bg} ${theme.border} ${
         data.working ? `ring-2 ring-primary/40 ${NODE_RING_OFFSET}` : ""
       }`}
     >
@@ -126,6 +131,15 @@ function RootNode({ data }: NodeProps) {
           style={{ top: ROOT_ICON_CENTER }}
         />
       ))}
+
+      {outputHandle && (
+        <Handle
+          id={outputHandle}
+          type="source"
+          position={Position.Right}
+          style={{ top: ROOT_ICON_CENTER }}
+        />
+      )}
 
       <div className="mx-auto flex flex-col items-center" style={{ width: ICON_SIZE }}>
         <div
@@ -150,6 +164,23 @@ function RootNode({ data }: NodeProps) {
         );
       })}
     </div>
+  );
+}
+
+function ResponseOutputNode({ data }: NodeProps) {
+  const working = Boolean(data.working);
+  const theme = RESPONSE_NODE_THEME;
+
+  return (
+    <IconNodeFrame label={data.label as string} theme={theme} targetLeft>
+      <div
+        className={`flex h-full w-full items-center justify-center rounded-full border shadow-sm ${theme.iconBg} ${theme.border} ${
+          working ? `ring-2 ring-emerald-500 ring-offset-2 ${NODE_RING_OFFSET}` : ""
+        }`}
+      >
+        <RiQuestionAnswerFill size={26} className="text-emerald-600" />
+      </div>
+    </IconNodeFrame>
   );
 }
 
@@ -215,6 +246,7 @@ export const flowNodeTypes = {
   root: memo(RootNode),
   model: memo(ModelNode),
   integration: memo(IntegrationInputNode),
+  response: memo(ResponseOutputNode),
   category: memo(CategoryNode),
   agent: memo(AgentNode),
 };

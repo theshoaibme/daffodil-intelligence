@@ -52,10 +52,17 @@ export const MODEL_NODE_THEME: NodeTheme = {
 };
 
 export const ROOT_NODE_THEME: NodeTheme = {
-  bg: "bg-surface-container-lowest",
+  bg: "bg-primary/12",
   text: "text-on-surface",
-  border: "border-primary/35",
-  iconBg: "bg-primary/15",
+  border: "border-primary/45",
+  iconBg: "bg-primary/20",
+};
+
+export const RESPONSE_NODE_THEME: NodeTheme = {
+  bg: "bg-emerald-500/10",
+  text: "text-emerald-700",
+  border: "border-emerald-500/30",
+  iconBg: "bg-emerald-500/15",
 };
 
 export const INTEGRATION_NODE_THEME: Record<string, NodeTheme> = {

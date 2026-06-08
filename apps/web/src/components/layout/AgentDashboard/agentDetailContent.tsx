@@ -102,11 +102,37 @@ export function formatToolName(tool: string): string {
 
 function SectionTitle({ icon: Icon, label }: { icon: typeof ListChecks; label: string }) {
   return (
-    <div className="flex items-center gap-2 mb-2">
-      <Icon size={13} className="text-primary/80" />
-      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/80">
+    <div className="flex items-center gap-1.5 mb-1.5">
+      <Icon size={12} className="text-primary/70" />
+      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/70">
         {label}
       </h4>
+    </div>
+  );
+}
+
+export function AgentProfileRow({ agent, size = "md" }: { agent: Agent; size?: "sm" | "md" }) {
+  const category = agent.category || "general";
+  const { icon: Icon, iconColor } = getAgentIconStyle(agent.id, category);
+  const compact = size === "sm";
+
+  return (
+    <div className={`flex items-center min-w-0 ${compact ? "gap-2" : "gap-2.5"}`}>
+      <div
+        className={`rounded-full flex items-center justify-center bg-surface-container-low shrink-0 ${
+          compact ? "w-7 h-7" : "w-8 h-8"
+        }`}
+      >
+        <Icon size={compact ? 14 : 16} className={iconColor} />
+      </div>
+      <div className="min-w-0">
+        <h3 className={`font-semibold text-on-surface leading-tight truncate ${compact ? "text-xs" : "text-sm"}`}>
+          {agent.name}
+        </h3>
+        <p className="text-[10px] text-on-surface-variant/65 truncate">
+          {CATEGORY_LABELS[category] ?? category}
+        </p>
+      </div>
     </div>
   );
 }
@@ -116,69 +142,61 @@ export function AgentDetailContent({
   skills,
   loadingSkills = false,
   compact = false,
+  showProfile = true,
 }: {
   agent: Agent;
   skills: SkillInfo[];
   loadingSkills?: boolean;
   compact?: boolean;
+  showProfile?: boolean;
 }) {
   const category = agent.category || "general";
-  const { icon: Icon, iconColor } = getAgentIconStyle(agent.id, category);
   const description = resolveAgentDescription(agent.id, agent.description);
   const categoryDesc = CATEGORY_DESCRIPTIONS[category];
   const tools = agent.tools ?? [];
+  const sectionGap = compact ? "space-y-3" : "space-y-4";
 
   return (
-    <div className={compact ? "space-y-4" : "space-y-6"}>
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#f4f2ff] shrink-0">
-          <Icon size={20} className={iconColor} />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-on-surface leading-tight">{agent.name}</h3>
-          <p className="text-[11px] text-on-surface-variant/70 mt-0.5">
-            {CATEGORY_LABELS[category] ?? category}
-          </p>
-        </div>
-      </div>
+    <div className={sectionGap}>
+      {showProfile && <AgentProfileRow agent={agent} size={compact ? "sm" : "md"} />}
 
-      <section>
+      <section className={compact ? "" : "pt-0.5"}>
         <SectionTitle icon={ListChecks} label="Capabilities" />
-        <p className="text-xs text-on-surface/90 leading-relaxed">{description}</p>
+        <p className="text-[11px] text-on-surface/85 leading-snug">{description}</p>
         {categoryDesc && (
-          <p className="text-[11px] text-on-surface-variant/70 mt-1.5 leading-relaxed">{categoryDesc}</p>
+          <p className="text-[10px] text-on-surface-variant/65 mt-1 leading-snug">{categoryDesc}</p>
         )}
       </section>
 
       <section>
         <SectionTitle icon={Wrench} label="Tools" />
         {tools.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {tools.map((tool) => (
               <span
                 key={tool}
-                className="px-2 py-0.5 rounded-full text-[10px] font-medium text-primary bg-primary/10"
+                className="px-1.5 py-px rounded-md text-[10px] font-medium text-primary bg-primary/10 border border-primary/15"
               >
                 {formatToolName(tool)}
               </span>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-on-surface-variant/60">No tools registered.</p>
+          <p className="text-[11px] text-on-surface-variant/55">No tools registered.</p>
         )}
       </section>
 
       <section>
         <SectionTitle icon={Sparkles} label="Skills" />
         {loadingSkills ? (
-          <p className="text-xs text-on-surface-variant/60">Loading skills…</p>
+          <p className="text-[11px] text-on-surface-variant/55">Loading skills…</p>
         ) : skills.length > 0 ? (
-          <ul className="space-y-2">
+          <ul className="space-y-1.5">
             {skills.map((skill) => (
               <li key={skill.id}>
-                <p className="text-xs font-medium text-on-surface">{skill.name}</p>
+                <p className="text-[11px] font-medium text-on-surface">{skill.name}</p>
                 {skill.description && (
-                  <p className="text-[11px] text-on-surface-variant/70 mt-0.5 leading-relaxed">
+                  <p className="text-[10px] text-on-surface-variant/65 mt-px leading-snug">
                     {skill.description}
                   </p>
                 )}
@@ -186,7 +204,7 @@ export function AgentDetailContent({
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-on-surface-variant/60">No custom skills configured.</p>
+          <p className="text-[11px] text-on-surface-variant/55">No custom skills configured.</p>
         )}
       </section>
     </div>
