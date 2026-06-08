@@ -199,7 +199,7 @@ function AgentNode({ data, id, selected }: NodeProps) {
   return (
     <IconNodeFrame label={data.label as string} theme={theme} targetTop>
       <div
-        className={`flex h-full w-full cursor-pointer items-center justify-center rounded-full border shadow-sm transition-shadow ${theme.iconBg} ${
+        className={`flex h-full w-full cursor-default items-center justify-center rounded-full border shadow-sm transition-shadow ${theme.iconBg} ${
           selected
             ? `border-primary ring-2 ring-primary/40 ${NODE_RING_OFFSET}`
             : theme.border

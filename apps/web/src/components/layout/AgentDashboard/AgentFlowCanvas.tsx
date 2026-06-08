@@ -14,7 +14,7 @@ import "./flowTheme.css";
 import type { Agent } from "../../../hooks/useAgents";
 import { useRuntimeStatus } from "../../../hooks/useRuntimeStatus";
 import { ActiveBeamEdge } from "./ActiveBeamEdge";
-import { AgentDetailDialog } from "./AgentDetailDialog";
+import { AgentHoverCard, type HoverAnchor } from "./AgentHoverCard";
 import { FlowZoomControls } from "./FlowZoomControls";
 import { flowNodeTypes } from "./FlowNodes";
 import { buildAgentGraph } from "./graphBuilder";
@@ -34,6 +34,8 @@ const EMPTY_SIMULATION: ParallelSimulationState = {
   tasks: [],
 };
 
+const HOVER_LEAVE_MS = 140;
+
 interface AgentFlowCanvasProps {
   agents: Agent[];
   editing: boolean;
@@ -45,10 +47,12 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
   const savedLayout = useMemo(() => loadLayout(), []);
   const { runtime } = useRuntimeStatus();
   const [simulation, setSimulation] = useState<ParallelSimulationState>(EMPTY_SIMULATION);
-  const [dialogAgents, setDialogAgents] = useState<Agent[] | null>(null);
+  const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null);
+  const [hoverAnchor, setHoverAnchor] = useState<HoverAnchor | null>(null);
   const [selectedCount, setSelectedCount] = useState(0);
   const simulationRound = useRef(0);
   const nodesRef = useRef<Node[]>([]);
+  const hoverLeaveTimer = useRef<number | null>(null);
 
   const graph = useMemo(
     () =>
@@ -112,6 +116,30 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
     onSave();
   }, [saveSignal, onSave]);
 
+  const clearHoverLeaveTimer = useCallback(() => {
+    if (hoverLeaveTimer.current !== null) {
+      window.clearTimeout(hoverLeaveTimer.current);
+      hoverLeaveTimer.current = null;
+    }
+  }, []);
+
+  const scheduleHoverClear = useCallback(() => {
+    clearHoverLeaveTimer();
+    hoverLeaveTimer.current = window.setTimeout(() => {
+      setHoveredAgent(null);
+      setHoverAnchor(null);
+    }, HOVER_LEAVE_MS);
+  }, [clearHoverLeaveTimer]);
+
+  const showAgentHover = useCallback(
+    (agent: Agent, clientX: number, clientY: number) => {
+      clearHoverLeaveTimer();
+      setHoveredAgent(agent);
+      setHoverAnchor({ x: clientX, y: clientY });
+    },
+    [clearHoverLeaveTimer]
+  );
+
   const onNodeDragStop = useCallback(() => {
     if (editing) saveLayout(nodesRef.current);
   }, [editing]);
@@ -121,42 +149,43 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
     setSelectedCount(agentNodes.length);
   }, []);
 
-  const onNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      if (node.type !== "agent") return;
-
+  const onNodeMouseEnter = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (editing || node.type !== "agent") return;
       const agent = agents.find((a) => a.id === node.id);
       if (!agent) return;
-
-      const selectedAgentNodes = nodesRef.current.filter((n) => n.selected && n.type === "agent");
-      const selectedIds = selectedAgentNodes.map((n) => n.id);
-
-      if (selectedIds.length > 1 && selectedIds.includes(node.id)) {
-        setDialogAgents(
-          selectedIds
-            .map((id) => agents.find((a) => a.id === id))
-            .filter((a): a is Agent => Boolean(a))
-        );
-      } else {
-        setDialogAgents([agent]);
-      }
+      showAgentHover(agent, event.clientX, event.clientY);
     },
-    [agents]
+    [agents, editing, showAgentHover]
   );
 
+  const onNodeMouseMove = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (editing || node.type !== "agent" || hoveredAgent?.id !== node.id) return;
+      setHoverAnchor({ x: event.clientX, y: event.clientY });
+    },
+    [editing, hoveredAgent?.id]
+  );
+
+  const onNodeMouseLeave = useCallback(() => {
+    scheduleHoverClear();
+  }, [scheduleHoverClear]);
+
   const onPaneClick = useCallback(() => {
-    if (!editing) {
-      setDialogAgents(null);
-    }
-  }, [editing]);
+    clearHoverLeaveTimer();
+    setHoveredAgent(null);
+    setHoverAnchor(null);
+  }, [clearHoverLeaveTimer]);
+
+  useEffect(() => () => clearHoverLeaveTimer(), [clearHoverLeaveTimer]);
 
   return (
     <div className="agent-flow-canvas w-full h-full relative">
       {!editing && <SimulatorPanel simulation={simulation} />}
 
-      {selectedCount > 1 && (
+      {selectedCount > 1 && editing && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full bg-surface-container-lowest/95 border border-outline-variant/40 shadow-md text-xs font-medium text-on-surface">
-          {selectedCount} agents selected — Shift+click to add more, click an agent for details
+          {selectedCount} agents selected — Shift+click to add more
         </div>
       )}
 
@@ -166,7 +195,9 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
-        onNodeClick={onNodeClick}
+        onNodeMouseEnter={onNodeMouseEnter}
+        onNodeMouseMove={onNodeMouseMove}
+        onNodeMouseLeave={onNodeMouseLeave}
         onSelectionChange={onSelectionChange}
         onPaneClick={onPaneClick}
         nodeTypes={flowNodeTypes}
@@ -192,8 +223,13 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
         <FlowZoomControls />
       </ReactFlow>
 
-      {dialogAgents && (
-        <AgentDetailDialog agents={dialogAgents} onClose={() => setDialogAgents(null)} />
+      {!editing && (
+        <AgentHoverCard
+          agent={hoveredAgent}
+          anchor={hoverAnchor}
+          onPointerEnter={clearHoverLeaveTimer}
+          onPointerLeave={scheduleHoverClear}
+        />
       )}
     </div>
   );
