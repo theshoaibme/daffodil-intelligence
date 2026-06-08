@@ -66,8 +66,9 @@ Status: **{status}**
 Need more details about your grades or courses?"""
 
     async def handle_courses(self, context: Optional[Dict]) -> str:
+        user_id = context.get("user_id", 1) if context else 1
         semester = context.get("semester", 1) if context else 1
-        courses = await get_courses(semester)
+        courses = await get_courses(user_id, semester)
 
         course_list = "\n".join([
             f"- **{c['code']}**: {c['name']} ({c['credits']} credits) - {c.get('grade', 'N/A')}"
@@ -126,8 +127,8 @@ async def get_cgpa(user_id: int) -> float:
     return await university_data.get_cgpa(student_id)
 
 
-async def get_courses(semester: int = None) -> list[dict]:
-    student_id = "STU00001"
+async def get_courses(user_id: int, semester: int = None) -> list[dict]:
+    student_id = f"STU{user_id:05d}"
     courses = await university_data.get_courses(student_id, str(semester) if semester else None)
     return [{"code": c["code"], "name": c["name"], "credits": c["credit"], "grade": c.get("grade", "N/A")} for c in courses]
 
