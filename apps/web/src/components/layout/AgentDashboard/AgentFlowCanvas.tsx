@@ -6,11 +6,14 @@ import {
   useEdgesState,
   type Node,
   BackgroundVariant,
+  SelectionMode,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import "./flowTheme.css";
 
 import type { Agent } from "../../../hooks/useAgents";
 import { ActiveBeamEdge } from "./ActiveBeamEdge";
+import { AgentDetailDialog } from "./AgentDetailDialog";
 import { FlowZoomControls } from "./FlowZoomControls";
 import { flowNodeTypes } from "./FlowNodes";
 import { buildAgentGraph } from "./graphBuilder";
@@ -28,6 +31,8 @@ interface AgentFlowCanvasProps {
 export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(), []);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+  const [dialogAgents, setDialogAgents] = useState<Agent[] | null>(null);
+  const [selectedCount, setSelectedCount] = useState(0);
   const simulationIndex = useRef(0);
   const nodesRef = useRef<Node[]>([]);
 
@@ -44,9 +49,11 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
   useEffect(() => {
     setNodes((current) => {
       const positionById = new Map(current.map((n) => [n.id, n.position]));
+      const selectedById = new Map(current.map((n) => [n.id, n.selected]));
       return graph.nodes.map((n) => ({
         ...n,
         position: positionById.get(n.id) ?? n.position,
+        selected: selectedById.get(n.id) ?? false,
         draggable: editing,
       }));
     });
@@ -84,19 +91,65 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
     if (editing) saveLayout(nodesRef.current);
   }, [editing]);
 
+  const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
+    const agentNodes = selectedNodes.filter((n) => n.type === "agent");
+    setSelectedCount(agentNodes.length);
+  }, []);
+
+  const onNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (node.type !== "agent") return;
+
+      const agent = agents.find((a) => a.id === node.id);
+      if (!agent) return;
+
+      const selectedAgentNodes = nodesRef.current.filter((n) => n.selected && n.type === "agent");
+      const selectedIds = selectedAgentNodes.map((n) => n.id);
+
+      if (selectedIds.length > 1 && selectedIds.includes(node.id)) {
+        setDialogAgents(
+          selectedIds
+            .map((id) => agents.find((a) => a.id === id))
+            .filter((a): a is Agent => Boolean(a))
+        );
+      } else {
+        setDialogAgents([agent]);
+      }
+    },
+    [agents]
+  );
+
+  const onPaneClick = useCallback(() => {
+    if (!editing) {
+      setDialogAgents(null);
+    }
+  }, [editing]);
+
   return (
-    <div className="w-full h-full">
+    <div className="agent-flow-canvas w-full h-full relative">
+      {selectedCount > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full bg-surface-container-lowest/95 border border-outline-variant/40 shadow-md text-xs font-medium text-on-surface">
+          {selectedCount} agents selected — Shift+click to add more, click an agent for details
+        </div>
+      )}
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
+        onNodeClick={onNodeClick}
+        onSelectionChange={onSelectionChange}
+        onPaneClick={onPaneClick}
         nodeTypes={flowNodeTypes}
         edgeTypes={edgeTypes}
         nodesDraggable={editing}
         nodesConnectable={false}
-        elementsSelectable={editing}
+        elementsSelectable
+        selectionOnDrag={editing}
+        selectionMode={SelectionMode.Partial}
+        multiSelectionKeyCode="Shift"
         panOnDrag={editing ? [1, 2] : true}
         panOnScroll
         zoomOnScroll
@@ -111,6 +164,10 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#c5c5d9" />
         <FlowZoomControls />
       </ReactFlow>
+
+      {dialogAgents && (
+        <AgentDetailDialog agents={dialogAgents} onClose={() => setDialogAgents(null)} />
+      )}
     </div>
   );
 }

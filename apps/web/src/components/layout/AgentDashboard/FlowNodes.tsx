@@ -1,7 +1,9 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Brain } from "lucide-react";
+import { RiChat3Fill, RiTelegramFill } from "react-icons/ri";
 import { getAgentIconStyle } from "./agentIcons";
+import { ICON_SIZE, ROOT_ICON_CENTER } from "./flowLayout";
 
 const categoryColors: Record<string, string> = {
   university: "text-secondary bg-secondary-container/50 border-secondary/30",
@@ -12,19 +14,72 @@ const categoryColors: Record<string, string> = {
   general: "text-on-surface-variant bg-surface-container border-outline-variant",
 };
 
+const integrationIcons = {
+  telegram: { icon: RiTelegramFill, color: "text-sky-500" },
+  chat: { icon: RiChat3Fill, color: "text-indigo-500" },
+} as const;
+
+function NodeLabel({ children }: { children: ReactNode }) {
+  return (
+    <span
+      className="pointer-events-none absolute left-1/2 z-10 mt-1.5 w-24 -translate-x-1/2 text-center text-xs font-medium leading-tight text-on-surface"
+      style={{ top: ICON_SIZE }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function IconNodeFrame({
+  label,
+  sourceRight,
+  targetTop,
+  children,
+}: {
+  label: ReactNode;
+  sourceRight?: boolean;
+  targetTop?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative" style={{ width: ICON_SIZE, height: ICON_SIZE }}>
+      {targetTop && <Handle type="target" position={Position.Top} className="handle-muted" />}
+      {sourceRight && <Handle type="source" position={Position.Right} />}
+      {children}
+      <NodeLabel>{label}</NodeLabel>
+    </div>
+  );
+}
+
 function RootNode({ data }: NodeProps) {
+  const inputs = (data.inputs as string[] | undefined) ?? [];
   const outputs = (data.outputs as string[] | undefined) ?? [];
 
   return (
     <div
-      className={`relative px-5 py-4 min-w-[200px] rounded-2xl border-2 border-primary bg-surface-container-lowest shadow-md text-center ${
+      className={`relative min-w-[200px] rounded-2xl border-2 border-primary bg-surface-container-lowest px-5 pb-4 pt-4 text-center shadow-md ${
         data.working ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-[#f4f2ff]" : ""
       }`}
     >
-      <div className="w-14 h-14 mx-auto rounded-full bg-primary/15 flex items-center justify-center mb-2">
-        <Brain size={28} className="text-primary" />
+      {inputs.map((inputId) => (
+        <Handle
+          key={inputId}
+          id={inputId}
+          type="target"
+          position={Position.Left}
+          style={{ top: ROOT_ICON_CENTER }}
+        />
+      ))}
+
+      <div className="mx-auto flex flex-col items-center" style={{ width: ICON_SIZE }}>
+        <div
+          className="flex items-center justify-center rounded-full bg-primary/15"
+          style={{ width: ICON_SIZE, height: ICON_SIZE }}
+        >
+          <Brain size={28} className="text-primary" />
+        </div>
+        <p className="mt-2 text-sm font-semibold text-on-surface">{data.label as string}</p>
       </div>
-      <p className="text-sm font-semibold text-on-surface">{data.label as string}</p>
 
       {outputs.map((outputId, index) => {
         const left = ((index + 0.5) / outputs.length) * 100;
@@ -34,7 +89,6 @@ function RootNode({ data }: NodeProps) {
             id={outputId}
             type="source"
             position={Position.Bottom}
-            className="!bg-primary !w-2.5 !h-2.5 !border-2 !border-white"
             style={{ left: `${left}%` }}
           />
         );
@@ -43,43 +97,58 @@ function RootNode({ data }: NodeProps) {
   );
 }
 
+function IntegrationInputNode({ data }: NodeProps) {
+  const integration = (data.integration as keyof typeof integrationIcons) || "chat";
+  const style = integrationIcons[integration] ?? integrationIcons.chat;
+  const Icon = style.icon;
+
+  return (
+    <IconNodeFrame label={data.label as string} sourceRight>
+      <div className="flex h-full w-full items-center justify-center rounded-full border border-outline-variant/50 bg-surface-container-lowest shadow-sm">
+        <Icon size={28} className={style.color} />
+      </div>
+    </IconNodeFrame>
+  );
+}
+
 function CategoryNode({ data }: NodeProps) {
   const category = (data.category as string) || "general";
   const catColor = categoryColors[category] || categoryColors.general;
 
   return (
-    <div className={`relative px-3 py-2 min-w-[88px] rounded-xl border-2 bg-surface-container-lowest shadow-sm ${catColor}`}>
-      <Handle type="target" position={Position.Top} className="!bg-outline-variant !w-2 !h-2 !border-0" />
-      <Handle type="source" position={Position.Bottom} className="!bg-outline-variant !w-2 !h-2 !border-0" />
-      <span className="text-[10px] font-bold text-center leading-tight block">{data.label as string}</span>
+    <div
+      className={`relative min-w-[88px] rounded-xl border-2 bg-surface-container-lowest px-3 py-2 shadow-sm ${catColor}`}
+    >
+      <Handle type="target" position={Position.Top} className="handle-muted" />
+      <Handle type="source" position={Position.Bottom} className="handle-muted" />
+      <span className="block text-center text-[10px] font-bold leading-tight">{data.label as string}</span>
     </div>
   );
 }
 
-function AgentNode({ data, id }: NodeProps) {
+function AgentNode({ data, id, selected }: NodeProps) {
   const category = (data.category as string) || "general";
   const { icon: Icon, iconColor } = getAgentIconStyle(id, category);
   const working = Boolean(data.working);
 
   return (
-    <div className="relative flex flex-col items-center gap-2">
-      <Handle type="target" position={Position.Top} className="!bg-outline-variant !w-2 !h-2 !border-0" />
+    <IconNodeFrame label={data.label as string} targetTop>
       <div
-        className={`w-14 h-14 rounded-full flex items-center justify-center bg-surface-container-lowest border border-outline-variant/50 shadow-sm transition-shadow ${
-          working ? "ring-2 ring-primary ring-offset-2 ring-offset-[#f4f2ff]" : ""
-        }`}
+        className={`flex h-full w-full cursor-pointer items-center justify-center rounded-full border bg-surface-container-lowest shadow-sm transition-shadow ${
+          selected
+            ? "border-primary ring-2 ring-primary/40 ring-offset-2 ring-offset-[#f4f2ff]"
+            : "border-outline-variant/50"
+        } ${working && !selected ? "ring-2 ring-primary ring-offset-2 ring-offset-[#f4f2ff]" : ""}`}
       >
         <Icon size={28} className={iconColor} />
       </div>
-      <p className="text-xs font-medium text-on-surface text-center max-w-[96px] leading-tight line-clamp-2">
-        {data.label as string}
-      </p>
-    </div>
+    </IconNodeFrame>
   );
 }
 
 export const flowNodeTypes = {
   root: memo(RootNode),
+  integration: memo(IntegrationInputNode),
   category: memo(CategoryNode),
   agent: memo(AgentNode),
 };

@@ -6,6 +6,8 @@ import { useState, useEffect, useCallback } from "react";
 export interface Agent {
   id: string;
   name: string;
+  description?: string;
+  tools?: string[];
   status: "idle" | "thinking" | "executing" | "error";
   category: string;
   currentTask?: string;

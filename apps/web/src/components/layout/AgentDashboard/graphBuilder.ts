@@ -1,9 +1,22 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { Agent } from "../../../hooks/useAgents";
 import { CATEGORY_LABELS } from "./agentConstants";
+import {
+  ROOT_DEFAULT_X,
+  ROOT_DEFAULT_Y,
+  INPUT_NODE_X,
+  defaultInputY,
+} from "./flowLayout";
 import type { SavedPositions } from "./layoutStorage";
 
 export const ROOT_NODE_ID = "daffodil-intelligence";
+
+export const ROOT_INPUT_HANDLE = "input";
+
+export const INPUT_INTEGRATIONS = [
+  { id: "input-telegram", label: "Telegram", integration: "telegram" },
+  { id: "input-chat", label: "Chat", integration: "chat" },
+] as const;
 
 export const CATEGORY_ORDER = [
   "orchestration",
@@ -36,21 +49,43 @@ export function buildAgentGraph(
 
   const pos = (id: string, x: number, y: number) => saved[id] ?? { x, y };
 
+  const rootActive = activeAgentId !== null;
+
   const nodes: Node[] = [
     {
       id: ROOT_NODE_ID,
       type: "root",
-      position: pos(ROOT_NODE_ID, 480, 40),
+      position: pos(ROOT_NODE_ID, ROOT_DEFAULT_X, ROOT_DEFAULT_Y),
       data: {
         label: "Daffodil Intelligence",
+        inputs: [ROOT_INPUT_HANDLE],
         outputs: [...CATEGORY_ORDER],
-        working: activeAgentId !== null,
+        working: rootActive,
       },
       draggable: true,
     },
   ];
 
   const edges: Edge[] = [];
+
+  INPUT_INTEGRATIONS.forEach((input, index) => {
+    nodes.push({
+      id: input.id,
+      type: "integration",
+      position: pos(input.id, INPUT_NODE_X, defaultInputY(index, INPUT_INTEGRATIONS.length)),
+      data: { label: input.label, integration: input.integration },
+      draggable: true,
+    });
+
+    edges.push({
+      id: `e-${input.id}-${ROOT_NODE_ID}`,
+      source: input.id,
+      target: ROOT_NODE_ID,
+      targetHandle: ROOT_INPUT_HANDLE,
+      type: "activeBeam",
+      data: { active: rootActive },
+    });
+  });
 
   CATEGORY_ORDER.forEach((category, catIndex) => {
     const catId = `cat-${category}`;
