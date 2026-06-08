@@ -68,7 +68,7 @@ async def create_agent(
     )
 
 
-@router.get("/list")
+@router.get("/custom/list")
 async def list_user_agents(user: dict = Depends(get_current_user)):
     user_id = int(user.get("sub"))
     from ..agents.builder import list_agents

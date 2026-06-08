@@ -6,7 +6,9 @@ import {
   Settings,
   HelpCircle,
   Mic,
-  Cpu
+  Cpu,
+  Monitor,
+  Brain
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -74,6 +76,20 @@ export function Sidebar({ sidebarOpen }: SidebarProps) {
           >
             <Mic size={20} className="text-primary" />
             <span className="text-sm font-semibold">Live Voice</span>
+          </button>
+          <button 
+            onClick={() => navigate("/agents")}
+            className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer"
+          >
+            <Brain size={20} className="text-secondary" />
+            <span className="text-sm font-semibold">Agents</span>
+          </button>
+          <button 
+            onClick={() => navigate("/computer")}
+            className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all text-left w-full border-0 bg-transparent cursor-pointer"
+          >
+            <Monitor size={20} className="text-tertiary" />
+            <span className="text-sm font-semibold">Computer View</span>
           </button>
           <button 
             onClick={() => navigate("/model")}

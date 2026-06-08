@@ -27,3 +27,23 @@ aiofiles>=23.2.1
 tenacity>=8.2.3
 tiktoken>=0.5.2
 edge-tts>=6.1.0
+
+# === NEW: Computer Use ===
+mss>=9.0.0
+pyautogui>=0.9.54
+pynput>=1.7.6
+pillow>=10.0.0
+
+# === NEW: MCP v2 + Google AI ===
+google-antigravity>=0.1.0
+mcp>=1.0.0
+google-genai>=1.0.0
+
+# === NEW: Messaging ===
+python-telegram-bot>=21.0.0
+
+# === NEW: Browser Automation ===
+playwright>=1.40.0
+
+# === NEW: Worker Monitoring ===
+flower>=2.0.0

@@ -17,6 +17,9 @@ from .complaint import ComplaintAgent
 from .notification import NotificationAgent
 from .fee_agent import FeeAgent
 from .general import GeneralAgent
+from .computer_use import ComputerUseAgent
+from .copycat import CopyCatAgent
+from .planning import PlanningAgent
 import logging
 import re
 from typing import Optional
@@ -148,6 +151,9 @@ AGENT_MAP = {
     "notification": NotificationAgent(),
     "fee": FeeAgent(),
     "general": GeneralAgent(),
+    "computer_use": ComputerUseAgent(),
+    "copycat": CopyCatAgent(),
+    "planning": PlanningAgent(),
 }
 
 
@@ -160,7 +166,7 @@ KEYWORDS = {
     "research": ["thesis", "paper", "research", "citation", "literature", "abstract", "publication"],
     "wellness": ["stress", "mental", "study tips", "motivation", "relax", "anxiety", "health"],
     "finance": ["fee", "payment", "waiver", "scholarship", "tuition", "money", "cost"],
-    "vision": ["image", "screenshot", "photo", "pdf", "analyze", "read"],
+    "vision": ["image", "screenshot", "photo", "analyze", "read image"],
     "voice": ["speak", "voice", "speech", "audio", "talk", "voice chat"],
     "exam": ["exam", "exam schedule", "seating", "seat plan", "midterm", "final exam"],
     "hostel": ["hostel", "hostel room", "bed", "mess", "check in", "check out", "ac room"],
@@ -169,6 +175,10 @@ KEYWORDS = {
     "complaint": ["complaint", "complain", "issue", "problem", "feedback", "escalate", "grievance"],
     "notification": ["notification", "notifications", "alert", "announcement", "message", "subscribe"],
     "fee": ["tuition fee", "installment", "due", "pay fee", "emi", "semester fee"],
+    # New universal agent keywords
+    "computer_use": ["click", "mouse", "keyboard", "screen", "open app", "control", "type", "automate", "window", "cursor"],
+    "copycat": ["record", "replay", "repeat", "macro", "copy action", "রেকর্ড", "আবার কর"],
+    "planning": ["plan", "step by step", "first then", "multiple steps", "sequence", "workflow"],
 }
 
 
