@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     TELEGRAM_ENABLED: bool = False
     TELEGRAM_ALLOWED_USER_IDS: str = ""  # comma-separated telegram user ids (empty = allow all)
     API_PUBLIC_URL: str = "http://localhost:8000"
+    FRONTEND_PUBLIC_URL: str = "http://localhost:3000"
 
     # === Email OTP (Telegram registration) ===
     SMTP_HOST: str = ""

@@ -306,6 +306,25 @@ class MasterAgent:
                     tools.append(tool_name)
         
         return tools
+
+    def _resolve_user_context(self, user_id: int) -> Dict[str, Any]:
+        """Load registered profile fields (e.g. student_id) for tool arg inference."""
+        ctx: Dict[str, Any] = {"user_id": user_id}
+        if not user_id:
+            return ctx
+        try:
+            from .integrations.telegram.auth_store import auth_store
+            acct = auth_store.get_by_telegram_id(int(user_id))
+            if acct:
+                if acct.student_id:
+                    ctx["student_id"] = acct.student_id
+                ctx["email"] = acct.email
+                ctx["role"] = acct.role
+                if acct.department:
+                    ctx["department"] = acct.department
+        except Exception:
+            pass
+        return ctx
     
     async def process(self, prompt: str, user_id: int = 0, session_id: str = None, priority: TaskPriority = TaskPriority.NORMAL) -> str:
         if not session_id:
@@ -316,7 +335,8 @@ class MasterAgent:
         intent = self._detect_intent(prompt)
         agents = self._detect_agents(prompt)
         tools = self._detect_tools(prompt)
-        
+        user_ctx = self._resolve_user_context(user_id)
+
         session = {
             "session_id": session_id,
             "prompt": prompt,
@@ -324,6 +344,10 @@ class MasterAgent:
             "agents": [{"type": a, **self.agents[a]} for a in agents],
             "tools": [{"name": t, **self.tools[t]} for t in tools],
             "user_id": user_id,
+            "student_id": user_ctx.get("student_id"),
+            "email": user_ctx.get("email"),
+            "role": user_ctx.get("role"),
+            "department": user_ctx.get("department"),
             "priority": priority.value,
             "created_at": time.time(),
             "status": "running",

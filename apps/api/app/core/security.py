@@ -21,16 +21,20 @@ def get_password_hash(password: str) -> str:
     return hash_obj.hexdigest()
 
 
+def jwt_secret() -> str:
+    return settings.JWT_SECRET or settings.APP_SECRET_KEY or "di-dev-secret"
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.JWT_EXPIRY_MINUTES))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(to_encode, jwt_secret(), algorithm=settings.JWT_ALGORITHM)
 
 
 def decode_token(token: str) -> dict:
     try:
-        return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        return jwt.decode(token, jwt_secret(), algorithms=[settings.JWT_ALGORITHM])
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 

@@ -1,7 +1,14 @@
 """Telegram auth store and OTP unit tests."""
 
+import asyncio
+from unittest.mock import AsyncMock, patch
+
+from httpx import Response
+
+from app.api.telegram_auth import google_callback
 from app.integrations.telegram.auth_store import TelegramAuthStore
 from app.integrations.telegram.otp import otp_service, OTPService
+from app.integrations.telegram.tokens import sign_state
 
 
 def test_otp_verify(tmp_path):
@@ -75,3 +82,28 @@ def test_google_relink_removes_stale_telegram_id(tmp_path):
 
     assert store.get_by_telegram_id(444) is not None
     assert store.get_by_telegram_id(333) is None
+
+
+def test_google_callback_redirects_to_frontend():
+    mock_token = Response(200, json={"access_token": "tok123"})
+    mock_user = Response(
+        200,
+        json={
+            "email": "callback@test.com",
+            "name": "Callback Test",
+            "given_name": "Callback",
+            "family_name": "Test",
+        },
+    )
+
+    with patch("httpx.AsyncClient") as Client:
+        inst = AsyncMock()
+        Client.return_value.__aenter__.return_value = inst
+        inst.post = AsyncMock(return_value=mock_token)
+        inst.get = AsyncMock(return_value=mock_user)
+
+        state = sign_state(999001)
+        result = asyncio.run(google_callback(state=state, code="fake_code", error=None))
+
+    assert result.status_code == 302
+    assert result.headers["location"].startswith("http://localhost:3000/auth/telegram?token=")

@@ -10,14 +10,19 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..core.config import get_settings
+from ..core.security import create_access_token
 from ..integrations.telegram.auth_store import auth_store
 from ..integrations.telegram.profiles import profile_store, STEP_COMPLETE
-from ..integrations.telegram.tokens import public_base, verify_state
+from ..integrations.telegram.tokens import frontend_base, oauth_redirect_base, verify_state
 from ..prompts.manager import GREETING_EN
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 router = APIRouter(prefix="/auth/telegram", tags=["telegram-auth"])
+
+
+def _redirect_uri() -> str:
+    return f"{oauth_redirect_base()}/api/auth/telegram/google/callback"
 
 
 async def _notify_telegram(telegram_id: int, text: str):
@@ -27,6 +32,18 @@ async def _notify_telegram(telegram_id: int, text: str):
             await telegram_bot._app.bot.send_message(chat_id=telegram_id, text=text)
     except Exception as e:
         logger.warning("Could not notify Telegram user %s: %s", telegram_id, e)
+
+
+def _success_redirect(account, telegram_id: int) -> RedirectResponse:
+    jwt = create_access_token({
+        "sub": account.user_id,
+        "email": account.email,
+        "telegram_id": str(telegram_id),
+        "role": account.role,
+        "source": "telegram_google",
+    })
+    target = f"{frontend_base()}/auth/telegram?token={jwt}"
+    return RedirectResponse(target, status_code=302)
 
 
 @router.get("/google/start")
@@ -42,7 +59,7 @@ async def google_start(token: str = Query(...)):
             status_code=503,
         )
 
-    redirect_uri = f"{public_base()}/api/auth/telegram/google/callback"
+    redirect_uri = _redirect_uri()
     params = urlencode({
         "client_id": settings.GOOGLE_CLIENT_ID,
         "redirect_uri": redirect_uri,
@@ -56,7 +73,28 @@ async def google_start(token: str = Query(...)):
 
 
 @router.get("/google/callback")
-async def google_callback(code: str = Query(...), state: str = Query(...)):
+async def google_callback(
+    state: str = Query(...),
+    code: str = Query(None),
+    error: str = Query(None),
+):
+    if error:
+        hint = (
+            "Your Google account must be added as a <b>Test user</b> on the OAuth consent screen "
+            "(Google Cloud Console → APIs &amp; Services → OAuth consent screen → Test users)."
+        )
+        if error == "access_denied":
+            hint = "Access denied. " + hint
+        return HTMLResponse(
+            f"<html><body style='font-family:sans-serif;padding:40px'>"
+            f"<h2>Google login blocked</h2><p>{hint}</p>"
+            f"<p>Then return to Telegram and tap <b>Login with Google</b> again.</p></body></html>",
+            status_code=403,
+        )
+
+    if not code:
+        return HTMLResponse("<h2>Google login failed</h2><p>No authorization code received.</p>", status_code=400)
+
     telegram_id = verify_state(state)
     if not telegram_id:
         return HTMLResponse("<h2>Link expired</h2><p>Go back to Telegram and tap Login with Google again.</p>", status_code=400)
@@ -64,65 +102,78 @@ async def google_callback(code: str = Query(...), state: str = Query(...)):
     if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
         raise HTTPException(status_code=503, detail="Google OAuth not configured")
 
-    redirect_uri = f"{public_base()}/api/auth/telegram/google/callback"
-    async with httpx.AsyncClient() as client:
-        token_resp = await client.post(
-            "https://oauth2.googleapis.com/token",
-            data={
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "code": code,
-                "grant_type": "authorization_code",
-                "redirect_uri": redirect_uri,
-            },
+    redirect_uri = _redirect_uri()
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            token_resp = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri,
+                },
+            )
+            if token_resp.status_code != 200:
+                logger.error("Google token error (%s): %s", token_resp.status_code, token_resp.text)
+                return HTMLResponse(
+                    "<h2>Google login failed</h2>"
+                    "<p>Could not verify with Google. The link may have expired — try again from Telegram.</p>",
+                    status_code=400,
+                )
+
+            access_token = token_resp.json().get("access_token")
+            if not access_token:
+                return HTMLResponse("<h2>Google login failed</h2><p>No access token from Google.</p>", status_code=400)
+
+            user_resp = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if user_resp.status_code != 200:
+                logger.error("Google userinfo error (%s): %s", user_resp.status_code, user_resp.text)
+                return HTMLResponse("<h2>Google login failed</h2><p>Could not load profile.</p>", status_code=400)
+            info = user_resp.json()
+
+        email = (info.get("email") or "").strip().lower()
+        if not email:
+            return HTMLResponse("<h2>Google login failed</h2><p>No email on your Google account.</p>", status_code=400)
+
+        profile = profile_store.get(telegram_id)
+        account = auth_store.create_or_link_google(
+            telegram_id=telegram_id,
+            email=email,
+            full_name=info.get("name") or profile.full_name or "Google User",
+            first_name=info.get("given_name") or profile.first_name,
+            last_name=info.get("family_name") or profile.last_name,
+            username=profile.username,
+            phone=profile.phone,
+            role=profile.role or "student",
+            student_id=profile.student_id,
+            department=profile.department,
         )
-        if token_resp.status_code != 200:
-            logger.error("Google token error: %s", token_resp.text)
-            return HTMLResponse("<h2>Google login failed</h2><p>Could not verify with Google.</p>", status_code=400)
+        profile.email = account.email
+        profile.full_name = account.full_name
+        profile.role = account.role
+        profile.step = STEP_COMPLETE
+        profile_store.save(profile)
 
-        access_token = token_resp.json().get("access_token")
-        user_resp = await client.get(
-            "https://www.googleapis.com/oauth2/v2/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
+        await _notify_telegram(
+            telegram_id,
+            f"Google login successful!\n\n"
+            f"Name: {account.full_name}\n"
+            f"Email: {account.email}\n\n"
+            f"{GREETING_EN}",
         )
-        if user_resp.status_code != 200:
-            return HTMLResponse("<h2>Google login failed</h2><p>Could not load profile.</p>", status_code=400)
-        info = user_resp.json()
 
-    email = (info.get("email") or "").strip().lower()
-    if not email:
-        return HTMLResponse("<h2>Google login failed</h2><p>No email on your Google account.</p>", status_code=400)
-
-    profile = profile_store.get(telegram_id)
-    account = auth_store.create_or_link_google(
-        telegram_id=telegram_id,
-        email=email,
-        full_name=info.get("name") or profile.full_name or "Google User",
-        first_name=info.get("given_name") or profile.first_name,
-        last_name=info.get("family_name") or profile.last_name,
-        username=profile.username,
-        phone=profile.phone,
-        role=profile.role or "student",
-        student_id=profile.student_id,
-        department=profile.department,
-    )
-    profile.email = account.email
-    profile.full_name = account.full_name
-    profile.role = account.role
-    profile.step = STEP_COMPLETE
-    profile_store.save(profile)
-
-    await _notify_telegram(
-        telegram_id,
-        f"Google login successful!\n\n"
-        f"Name: {account.full_name}\n"
-        f"Email: {account.email}\n\n"
-        f"{GREETING_EN}",
-    )
-
-    return HTMLResponse(
-        "<html><body style='font-family:sans-serif;text-align:center;padding:40px'>"
-        "<h2>Login successful</h2>"
-        "<p>You can close this page and return to Telegram.</p>"
-        "</body></html>"
-    )
+        return _success_redirect(account, telegram_id)
+    except Exception:
+        logger.exception("Google OAuth callback failed for telegram_id=%s", telegram_id)
+        return HTMLResponse(
+            "<html><body style='font-family:sans-serif;padding:40px'>"
+            "<h2>Something went wrong</h2>"
+            "<p>Google sign-in could not be completed. Return to Telegram and try again.</p>"
+            "</body></html>",
+            status_code=500,
+        )

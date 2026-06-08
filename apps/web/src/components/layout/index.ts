@@ -7,5 +7,6 @@ export * from "./ModelManagementPage";
 export * from "./LiveVoicePage";
 export { default as AgentDashboard } from "./AgentDashboard/index";
 export { default as ComputerView } from "./ComputerView/index";
+export * from "./AuthTelegramPage";
 
 

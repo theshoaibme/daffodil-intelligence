@@ -17,6 +17,16 @@ def public_base() -> str:
     return (getattr(settings, "API_PUBLIC_URL", "") or "http://localhost:8000").rstrip("/")
 
 
+def frontend_base() -> str:
+    """User-facing origin (Vite dev server proxies /api to the API)."""
+    return (getattr(settings, "FRONTEND_PUBLIC_URL", "") or public_base()).rstrip("/")
+
+
+def oauth_redirect_base() -> str:
+    """OAuth callback base — prefer frontend so the browser stays on :3000."""
+    return frontend_base()
+
+
 def sign_state(telegram_id: int, purpose: str = "google") -> str:
     secret = settings.JWT_SECRET or getattr(settings, "APP_SECRET_KEY", "") or "di-dev-secret"
     ts = int(time.time())

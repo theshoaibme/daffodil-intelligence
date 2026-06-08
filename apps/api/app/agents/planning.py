@@ -286,7 +286,7 @@ Respond in the same language as the original goal (English or Bengali).
 
     async def _execute_plan(self, plan: ExecutionPlan, context: Optional[dict]) -> str:
         """Execute all plan steps, respecting dependencies, running parallel where possible."""
-        from .supervisor import AGENT_MAP
+        from .registry import AGENT_MAP
 
         plan.status = "running"
         results: Dict[str, str] = {}

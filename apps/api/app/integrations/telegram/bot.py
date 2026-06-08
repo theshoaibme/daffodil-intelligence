@@ -33,7 +33,7 @@ from .profiles import (
 )
 from .auth_store import auth_store
 from .otp import otp_service
-from .tokens import sign_state, public_base
+from .tokens import sign_state, frontend_base
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -122,7 +122,7 @@ def _profile_summary(account) -> str:
 
 def _google_login_url(telegram_id: int) -> str:
     token = sign_state(telegram_id)
-    return f"{public_base()}/api/auth/telegram/google/start?token={token}"
+    return f"{frontend_base()}/api/auth/telegram/google/start?token={token}"
 
 
 class TelegramBot:

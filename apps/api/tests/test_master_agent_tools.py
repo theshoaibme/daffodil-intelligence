@@ -46,6 +46,35 @@ async def test_execute_tool_passes_inferred_kwargs(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_execute_tool_uses_session_student_id(monkeypatch):
+    agent = MasterAgent()
+    registry = get_registry()
+
+    captured = {}
+
+    async def fake_execute(name, **kwargs):
+        captured["kwargs"] = kwargs
+        from app.tools.base import ToolResult
+        return ToolResult(success=True, data={"cgpa": 3.8}, tool_name=name)
+
+    monkeypatch.setattr(registry, "execute", fake_execute)
+
+    session_id = "sess3"
+    agent._sessions[session_id] = {
+        "session_id": session_id,
+        "user_id": 4242,
+        "student_id": "0242310005101484",
+        "tasks": [],
+    }
+
+    task = TaskContext(task_id="t3", session_id=session_id, task_type="tool", name="get_cgpa")
+    await agent._execute_tool(task, "what is my cgpa")
+
+    assert captured["kwargs"]["student_id"] == "0242310005101484"
+    assert task.result["status"] == "executed"
+
+
+@pytest.mark.asyncio
 async def test_execute_tool_reports_missing_required_args():
     agent = MasterAgent()
     session_id = "sess2"

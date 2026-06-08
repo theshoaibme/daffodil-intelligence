@@ -11,7 +11,7 @@ import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./compone
 import { useChat } from "./hooks/useChat";
 
 import { Routes, Route } from "react-router-dom";
-import { ModelManagementPage, LiveVoicePage, AgentDashboard, ComputerView } from "./components/layout";
+import { ModelManagementPage, LiveVoicePage, AgentDashboard, ComputerView, AuthTelegramPage } from "./components/layout";
 
 export default function App() {
   return (
@@ -21,6 +21,7 @@ export default function App() {
       <Route path="/live" element={<LiveVoicePage />} />
       <Route path="/agents" element={<AgentDashboard />} />
       <Route path="/computer" element={<ComputerView />} />
+      <Route path="/auth/telegram" element={<AuthTelegramPage />} />
     </Routes>
   );
 }
