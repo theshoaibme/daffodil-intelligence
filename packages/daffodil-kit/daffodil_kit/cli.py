@@ -13,7 +13,6 @@ from . import __version__
 from .connector import connect_to_api
 from .daemon import run_daemon
 from .security import (
-    get_device_secret,
     get_or_create_device_id,
     load_config,
     store_pairing,

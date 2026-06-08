@@ -3,11 +3,10 @@ name: CopyCat Kit CI/CD
 on:
   push:
     branches: [main, master]
+    tags: ["copycat-v*"]
     paths:
       - "packages/daffodil-kit/**"
       - ".github/workflows/copycat-kit.yml"
-    tags:
-      - "copycat-v*"
   pull_request:
     paths:
       - "packages/daffodil-kit/**"
@@ -15,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version bump (optional, e.g. 0.1.1)"
+        description: "Optional version bump (e.g. 0.1.1) — opens PR artifacts only, no auto-push"
         required: false
 
 permissions:
@@ -33,17 +32,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify VERSION matches pyproject.toml
+      - name: Verify VERSION matches all manifests
         run: |
           V=$(tr -d '[:space:]' < packages/daffodil-kit/VERSION)
           P=$(grep -E '^version = ' packages/daffodil-kit/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
           I=$(grep -E '^__version__ = ' packages/daffodil-kit/daffodil_kit/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
-          echo "VERSION=$V pyproject=$P __init__=$I"
+          C=$(grep -E '^version = ' packages/daffodil-kit/native/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "VERSION=$V pyproject=$P __init__=$I cargo=$C"
           test "$V" = "$P"
           test "$V" = "$I"
+          test "$V" = "$C"
+
+  lint:
+    name: Lint
+    needs: version-check
+    if: ${{ always() && (needs.version-check.result == 'success' || needs.version-check.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install ruff
+      - name: Lint security modules + tests
+        run: |
+          ruff check \
+            packages/daffodil-kit/tests \
+            packages/daffodil-kit/daffodil_kit/security.py \
+            packages/daffodil-kit/daffodil_kit/audit.py \
+            packages/daffodil-kit/daffodil_kit/copycat_guard.py \
+            packages/daffodil-kit/daffodil_kit/vault.py \
+            packages/daffodil-kit/daffodil_kit/input_lock.py
+          ruff format --check packages/daffodil-kit/tests
 
   test:
-    name: Test (${{ matrix.os }})
+    name: Test (${{ matrix.os }} · py${{ matrix.python-version }})
     needs: version-check
     if: ${{ always() && (needs.version-check.result == 'success' || needs.version-check.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
@@ -54,65 +77,119 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install package
+      - name: Install package + dev tools
         shell: bash
         run: |
           python -m pip install --upgrade pip wheel setuptools
-          pip install -e "${{ env.PACKAGE_DIR }}[dev]"
+          pip install -e "${{ env.PACKAGE_DIR }}[dev]" pytest-cov
 
-      - name: Run tests
+      - name: Run full test suite
         shell: bash
         run: |
           cd "${{ env.PACKAGE_DIR }}"
-          python -m pytest tests/ -v --tb=short
+          python -m pytest tests/ -v --tb=short --cov=daffodil_kit --cov-report=xml
+
+      - name: Upload coverage (Ubuntu py3.12 only)
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          files: packages/daffodil-kit/coverage.xml
+          fail_ci_if_error: false
 
       - name: CLI smoke test
         shell: bash
         run: |
+          daffodil-kit version
           daffodil-kit status
-          python -c "import daffodil_kit; print(daffodil_kit.__version__)"
 
-  install-script-smoke:
-    name: install.sh dry-run (${{ matrix.os }})
-    needs: version-check
-    if: ${{ always() && (needs.version-check.result == 'success' || needs.version-check.result == 'skipped') }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+  install-linux:
+    name: install.sh e2e (Linux)
+    needs: [lint, test]
+    if: ${{ always() && needs.test.result == 'success' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Local install from repo
-        shell: bash
-        env:
-          DAFFODIL_KIT_VERSION: ${{ github.sha }}
-          DAFFODIL_KIT_REPO: ${{ github.repository }}
+      - name: Run install.sh (local mode)
         run: |
-          # CI uses local tree — override git install with editable for speed
+          export DAFFODIL_KIT_USE_LOCAL=1
           export DAFFODIL_KIT_PREFIX="$HOME/.local"
-          python -m venv "$DAFFODIL_KIT_PREFIX/daffodil-kit-venv"
-          source "$DAFFODIL_KIT_PREFIX/daffodil-kit-venv/bin/activate"
-          pip install -e packages/daffodil-kit
+          bash packages/daffodil-kit/install.sh
+
+      - name: Run verify-install.sh
+        run: |
+          export PATH="$HOME/.local/daffodil-kit-venv/bin:$PATH"
+          bash packages/daffodil-kit/scripts/verify-install.sh
+
+      - name: Upload install log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-log-linux
+          path: ~/.daffodil-kit/logs/install-*.log
+          if-no-files-found: ignore
+
+  install-macos:
+    name: install.sh e2e (macOS)
+    needs: [lint, test]
+    if: ${{ always() && needs.test.result == 'success' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run install.sh (local mode)
+        run: |
+          export DAFFODIL_KIT_USE_LOCAL=1
+          export DAFFODIL_KIT_PREFIX="$HOME/.local"
+          bash packages/daffodil-kit/install.sh
+
+      - name: Verify
+        run: |
+          export PATH="$HOME/.local/daffodil-kit-venv/bin:$PATH"
+          bash packages/daffodil-kit/scripts/verify-install.sh
+
+  install-windows:
+    name: install.ps1 e2e (Windows)
+    needs: [lint, test]
+    if: ${{ always() && needs.test.result == 'success' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run install.ps1 (local mode)
+        shell: pwsh
+        env:
+          DAFFODIL_KIT_USE_LOCAL: "1"
+        run: |
+          & packages/daffodil-kit/install.ps1
+
+      - name: Verify CLI
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:USERPROFILE\.local\daffodil-kit-venv\Scripts;" + $env:PATH
+          daffodil-kit version
           daffodil-kit status
 
   build-release:
     name: Build & release
-    needs: [test, install-script-smoke]
+    needs: [install-linux, install-macos, install-windows]
     if: startsWith(github.ref, 'refs/tags/copycat-v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -123,32 +200,47 @@ jobs:
           echo "$TAG" > packages/daffodil-kit/VERSION
           bash packages/daffodil-kit/scripts/sync-version.sh
 
+      - name: Final test gate
+        run: |
+          pip install -e packages/daffodil-kit[dev] pytest-cov
+          cd packages/daffodil-kit && pytest tests/ -q
+
       - name: Build sdist and wheel
         run: |
           pip install build
           python -m build packages/daffodil-kit --outdir dist/
 
-      - name: Upload release assets
+      - name: SHA256 checksums
+        run: |
+          cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Upload GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*
             packages/daffodil-kit/install.sh
             packages/daffodil-kit/install.ps1
+            packages/daffodil-kit/scripts/verify-install.sh
+            packages/daffodil-kit/VERSION
           generate_release_notes: true
 
-  publish-install-urls:
-    name: Post release install commands
-    needs: build-release
-    if: startsWith(github.ref, 'refs/tags/copycat-v')
+  version-bump-artifact:
+    name: Version bump preview
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Print install URLs
+      - uses: actions/checkout@v4
+      - name: Bump VERSION (artifact only)
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          REPO="${{ github.repository }}"
-          echo "## CopyCat Kit install ($TAG)"
-          echo "Linux/macOS:"
-          echo "  curl -fsSL https://raw.githubusercontent.com/${REPO}/${TAG}/packages/daffodil-kit/install.sh | bash"
-          echo "Windows (PowerShell):"
-          echo "  irm https://raw.githubusercontent.com/${REPO}/${TAG}/packages/daffodil-kit/install.ps1 | iex"
+          echo "${{ github.event.inputs.version }}" > packages/daffodil-kit/VERSION
+          bash packages/daffodil-kit/scripts/sync-version.sh
+          git diff
+      - uses: actions/upload-artifact@v4
+        with:
+          name: version-bump-${{ github.event.inputs.version }}
+          path: |
+            packages/daffodil-kit/VERSION
+            packages/daffodil-kit/pyproject.toml
+            packages/daffodil-kit/daffodil_kit/__init__.py
+            packages/daffodil-kit/native/Cargo.toml

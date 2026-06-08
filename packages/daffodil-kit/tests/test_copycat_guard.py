@@ -1,11 +1,11 @@
 """CopyCat guard and version tests (no display required)."""
 
+from daffodil_kit import __version__
 from daffodil_kit.copycat_guard import (
     ALLOWED_DURING_LOCK,
     BLOCKED_METHODS,
     check_method_allowed,
 )
-from daffodil_kit import __version__
 
 
 def test_version_is_semver():

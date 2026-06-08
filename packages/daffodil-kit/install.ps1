@@ -1,95 +1,162 @@
 # CopyCat Kit (daffodil-kit) — Windows PowerShell installer
-# Run:
 #   irm https://raw.githubusercontent.com/the-shoaib2/daffodil-intelligence/main/packages/daffodil-kit/install.ps1 | iex
-# Pin version:
-#   $env:DAFFODIL_KIT_VERSION = "copycat-v0.1.0"; irm ... | iex
+# Pin: $env:DAFFODIL_KIT_VERSION = "copycat-v0.1.0"
 
 $ErrorActionPreference = "Stop"
 
 $Repo = if ($env:DAFFODIL_KIT_REPO) { $env:DAFFODIL_KIT_REPO } else { "the-shoaib2/daffodil-intelligence" }
 $Version = if ($env:DAFFODIL_KIT_VERSION) { $env:DAFFODIL_KIT_VERSION } else { "main" }
 $Prefix = if ($env:DAFFODIL_KIT_PREFIX) { $env:DAFFODIL_KIT_PREFIX } else { "$env:USERPROFILE\.local" }
+$UseLocal = $env:DAFFODIL_KIT_USE_LOCAL -eq "1"
 $GitUrl = "https://github.com/$Repo.git"
-$PipSpec = "git+${GitUrl}@${Version}#subdirectory=packages/daffodil-kit"
+$LogDir = Join-Path $env:USERPROFILE ".daffodil-kit\logs"
+$InstallId = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+$LogFile = Join-Path $LogDir "install-$InstallId.log"
+$Step = 0
+$StepTotal = 7
 
-function Write-Log($msg) { Write-Host "[copycat] $msg" -ForegroundColor Cyan }
-function Write-Warn($msg) { Write-Host "[copycat] $msg" -ForegroundColor Yellow }
+function Write-JsonLog($event, $level, $detail) {
+    New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+    $line = @{ ts = (Get-Date).ToUniversalTime().ToString("o"); event = $event; level = $level; detail = $detail } | ConvertTo-Json -Compress
+    Add-Content -Path $LogFile -Value $line
+}
+
+function Write-Banner {
+    New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+    Write-Host ""
+    Write-Host "=========================================================="
+    Write-Host "  CopyCat Kit Installer (Windows)"
+    Write-Host "  Version target: $Version"
+    Write-Host "  Log: $LogFile"
+    Write-Host "=========================================================="
+    Write-Host ""
+    Write-JsonLog "install.banner" "info" @{ version = $Version }
+}
+
+function Write-Step($title) {
+    $script:Step++
+    Write-Host "[$Step/$StepTotal] $title" -ForegroundColor Cyan
+    Write-JsonLog "install.step" "info" @{ step = $Step; title = $title }
+}
+
+function Write-Ok($msg) {
+    Write-Host "  [OK] $msg" -ForegroundColor Green
+    Write-JsonLog "install.ok" "info" @{ message = $msg }
+}
+
+function Write-WarnMsg($msg) {
+    Write-Host "  [!] $msg" -ForegroundColor Yellow
+    Write-JsonLog "install.warn" "warn" @{ message = $msg }
+}
+
+function Write-Fail($msg) {
+    Write-Host "  [FAIL] $msg" -ForegroundColor Red
+    Write-JsonLog "install.fail" "error" @{ message = $msg }
+    Write-Host "Install failed. Log: $LogFile"
+    exit 1
+}
 
 function Find-Python {
-    $candidates = @("py -3.12", "py -3.11", "python3", "python")
-    foreach ($c in $candidates) {
+    foreach ($c in @(@("py", "-3.12"), @("py", "-3.11"), @("py", "-3"), @("python3"), @("python"))) {
         try {
-            $parts = $c -split " "
-            if ($parts[0] -eq "py") {
-                $ver = & py -3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-            } else {
-                $ver = & $parts[0] -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-            }
-            if ($ver -match "^3\.(1[1-9]|[2-9][0-9])") {
-                if ($parts[0] -eq "py") { return @("py", "-3") }
-                return @($parts[0])
-            }
+            $ver = & $c[0] $c[1..($c.Length-1)] -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+            if ($ver -match "^3\.(1[1-9]|[2-9][0-9])") { return $c }
         } catch { continue }
     }
-    throw "Python 3.11+ required. Install from https://www.python.org/downloads/"
+    Write-Fail "Python 3.11+ required — https://www.python.org/downloads/"
 }
 
 function Ensure-Venv($pyArgs) {
     $venv = Join-Path $Prefix "daffodil-kit-venv"
     if (-not (Test-Path $venv)) {
-        Write-Log "Creating virtualenv at $venv"
         & $pyArgs[0] $pyArgs[1..($pyArgs.Length-1)] -m venv $venv
     }
     $activate = Join-Path $venv "Scripts\Activate.ps1"
-    if (-not (Test-Path $activate)) { throw "venv activation script missing: $activate" }
     . $activate
-    python -m pip install --upgrade pip wheel setuptools
+    python -m pip install --upgrade pip wheel setuptools -q
     return $venv
 }
 
-function Install-Kit {
-    Write-Log "Installing daffodil-kit from $GitUrl@$Version"
-    pip install $PipSpec
+function Install-Kit($venv) {
+    if ($UseLocal) {
+        $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+        pip install -e $root -q
+    } else {
+        pip install "git+${GitUrl}@${Version}#subdirectory=packages/daffodil-kit" -q
+    }
 }
 
-function Write-Config {
-    $cfgDir = Join-Path $env:USERPROFILE ".daffodil-kit"
-    New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
-    New-Item -ItemType Directory -Force -Path (Join-Path $cfgDir "logs") | Out-Null
-    if ($env:DAFFODIL_KIT_API_URL -and -not (Test-Path (Join-Path $cfgDir "config.json"))) {
-        @{ api_url = $env:DAFFODIL_KIT_API_URL } | ConvertTo-Json | Set-Content (Join-Path $cfgDir "config.json")
-    }
+function Test-Security {
+    python -c @"
+import time
+from daffodil_kit.security import sign_command, verify_command, generate_device_secret
+s = generate_device_secret()
+ts = time.time()
+sig = sign_command(s, '{}', ts)
+assert verify_command(s, '{}', ts, sig)
+"@
 }
 
 function Install-ScheduledTask {
     if ($env:DAFFODIL_KIT_INSTALL_SERVICE -ne "1") { return }
-    $venv = Join-Path $Prefix "daffodil-kit-venv"
-    $exe = Join-Path $venv "Scripts\daffodil-kit.exe"
-    if (-not (Test-Path $exe)) { Write-Warn "daffodil-kit.exe not found — skip scheduled task"; return }
+    $exe = Join-Path $Prefix "daffodil-kit-venv\Scripts\daffodil-kit.exe"
+    if (-not (Test-Path $exe)) { Write-WarnMsg "daffodil-kit.exe missing — skip task"; return }
     $action = New-ScheduledTaskAction -Execute $exe -Argument "start"
     $trigger = New-ScheduledTaskTrigger -AtLogOn
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
     Register-ScheduledTask -TaskName "DaffodilCopyCatKit" -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
-    Write-Log "Registered logon task: DaffodilCopyCatKit"
+    Write-Ok "Scheduled task: DaffodilCopyCatKit"
 }
 
-Write-Log "CopyCat Kit installer — Windows · ref: $Version"
+Write-Banner
+
+Write-Step "Detect environment"
 $py = Find-Python
+Write-Ok "Python found: $($py -join ' ')"
+
+Write-Step "Create virtualenv"
 $venv = Ensure-Venv $py
-Install-Kit
-Write-Config
+Write-Ok "Virtualenv: $venv"
+
+Write-Step "Install daffodil-kit"
+Install-Kit $venv
+Write-Ok "Package installed"
+
+Write-Step "Configure directories"
+$cfg = Join-Path $env:USERPROFILE ".daffodil-kit"
+New-Item -ItemType Directory -Force -Path $cfg, (Join-Path $cfg "logs") | Out-Null
+if ($env:DAFFODIL_KIT_API_URL -and -not (Test-Path (Join-Path $cfg "config.json"))) {
+    @{ api_url = $env:DAFFODIL_KIT_API_URL } | ConvertTo-Json | Set-Content (Join-Path $cfg "config.json")
+}
+Write-Ok "Config: $cfg"
+
+Write-Step "Security self-test"
+Test-Security
+Write-Ok "HMAC signing OK"
+
+Write-Step "Verify CLI"
+$ver = daffodil-kit version
+daffodil-kit status | Out-Null
+Write-Ok "CLI v$ver"
+
+Write-Step "Optional background service"
 Install-ScheduledTask
 
-$bin = Join-Path $venv "Scripts"
-Write-Log "CopyCat Kit installed"
-Write-Host @"
+Write-Host ""
+Write-Host "----------------------------------------------------------"
+Write-Host "  Install complete — daffodil-kit $ver"
+Write-Host "  Log: $LogFile"
+Write-Host "----------------------------------------------------------"
+Write-JsonLog "install.complete" "info" @{ version = $ver }
 
-Add to PATH (current session):
-  `$env:PATH = "$bin;" + `$env:PATH
+$bin = Join-Path $venv "Scripts"
+Write-Host @"
 
 Next steps:
   1. Pair:   daffodil-kit pair --api http://localhost:8000 --code <6-digit>
   2. Vault:  daffodil-kit vault set '<password>'
   3. Start:  daffodil-kit start
 
+PATH (this session):
+  `$env:PATH = "$bin;" + `$env:PATH
 "@

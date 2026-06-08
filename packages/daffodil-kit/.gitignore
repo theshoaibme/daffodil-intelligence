@@ -1,0 +1,25 @@
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+wheels/
+
+# Rust native
+native/target/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local dev / install logs (user machine — never commit)
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

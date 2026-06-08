@@ -40,6 +40,15 @@ pip install -e packages/daffodil-kit
 | `DAFFODIL_KIT_NATIVE` | `0` | Build Rust capture backend |
 | `DAFFODIL_KIT_INSTALL_SERVICE` | `0` | systemd (Linux) / launchd (macOS) / Task (Windows) |
 | `DAFFODIL_KIT_API_URL` | — | Pre-fill API URL in `~/.daffodil-kit/config.json` |
+| `DAFFODIL_KIT_USE_LOCAL` | `0` | Install from current checkout (`1` = CI/dev) |
+
+Install writes a structured log to `~/.daffodil-kit/logs/install-<timestamp>.log` (human output + JSON-lines for audit).
+
+Post-install verify:
+
+```bash
+bash packages/daffodil-kit/scripts/verify-install.sh
+```
 
 ### Optional: Rust capture backend (~3× faster JPEG)
 
@@ -93,12 +102,37 @@ POST /api/kit/stream/configure
 - Data: recordings + vault **local only**; API relays commands when kit is online
 - Remote access: only through authenticated API + paired device
 
-## Versioning & releases
+## Versioning, CI/CD & releases
 
-- Single source: `packages/daffodil-kit/VERSION`
-- Sync: `bash packages/daffodil-kit/scripts/sync-version.sh`
-- Release tag: `copycat-v0.1.0` → triggers [CopyCat Kit CI/CD](https://github.com/the-shoaib2/daffodil-intelligence/actions) build + GitHub Release
-- Check install: `daffodil-kit version`
+| Item | Path / command |
+|------|----------------|
+| Version source | `packages/daffodil-kit/VERSION` |
+| Sync manifests | `bash packages/daffodil-kit/scripts/sync-version.sh` |
+| Bump + tag helper | `bash packages/daffodil-kit/scripts/release.sh 0.1.1` |
+| Local full CI | `bash packages/daffodil-kit/scripts/ci-local.sh` |
+| GitHub workflow | `.github/workflows/copycat-kit.yml` |
+
+**CI pipeline** (on push/PR to `packages/daffodil-kit/`):
+
+1. Version sync check (`VERSION` = `pyproject.toml` = `__init__.py` = `Cargo.toml`)
+2. Ruff lint + format
+3. Tests on Ubuntu / macOS / Windows × Python 3.11 & 3.12 (security, audit, copycat guard, coverage)
+4. End-to-end `install.sh` / `install.ps1` + `verify-install.sh`
+5. On tag `copycat-v*`: build wheel/sdist, SHA256 checksums, GitHub Release with install scripts
+
+```bash
+git tag copycat-v0.1.0 && git push origin copycat-v0.1.0
+```
+
+Check installed version: `daffodil-kit version`
+
+## Security features (tested in CI)
+
+- **HMAC-signed RPC** — per-device secret, 60s timestamp window (`daffodil_kit.security`)
+- **CopyCat input lock** — blocks mouse/keyboard during replay (`copycat_guard`, `input_lock`)
+- **Local audit log** — `~/.daffodil-kit/logs/copycat_audit.jsonl` + `kit.log`
+- **Encrypted vault** — machine-bound password storage, never sent to cloud (`vault.py`)
+- **Config permissions** — `~/.daffodil-kit` created mode `700` on install
 
 ## Performance
 

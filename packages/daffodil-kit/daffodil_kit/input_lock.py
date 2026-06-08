@@ -93,7 +93,6 @@ class CopyCatInputLock:
             root.config(bg="#8b0000")
             root.attributes("-alpha", 0.35)
 
-            w, h = root.winfo_screenwidth(), root.winfo_screenheight()
             frame = tk.Frame(root, bg="#8b0000")
             frame.place(relx=0.5, rely=0.08, anchor="n")
 
