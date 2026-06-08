@@ -11,6 +11,7 @@ export interface ResponseContentData {
 
 interface ResponseContentProps {
   isThinking: boolean;
+  isStreaming?: boolean;
   data: ResponseContentData;
 }
 
@@ -52,8 +53,8 @@ function renderFormattedText(text: string) {
   });
 }
 
-export function ResponseContent({ isThinking, data }: ResponseContentProps) {
-  if (isThinking) {
+export function ResponseContent({ isThinking, isStreaming = false, data }: ResponseContentProps) {
+  if (isThinking && data.paragraphs.length === 0) {
     return null;
   }
 
@@ -90,6 +91,13 @@ export function ResponseContent({ isThinking, data }: ResponseContentProps) {
             {data.specialCta.text}
           </button>
         </div>
+      )}
+
+      {isStreaming && (
+        <span
+          className="inline-block w-2 h-4 ml-0.5 bg-primary/70 rounded-sm animate-pulse align-middle"
+          aria-hidden
+        />
       )}
     </div>
   );

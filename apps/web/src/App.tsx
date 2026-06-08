@@ -393,7 +393,6 @@ function ChatDashboard() {
                   response={lastAssistantMessage?.content || ""}
                   isStreaming={isStreaming}
                   thinkingSteps={thinkingSteps}
-                  isThinking={isStreaming}
                   onEdit={handleEdit}
                   error={error}
                 />
@@ -481,7 +480,6 @@ function ChatDashboard() {
                   response={lastAssistantMessage?.content || ""}
                   isStreaming={isStreaming}
                   thinkingSteps={thinkingSteps}
-                  isThinking={isStreaming}
                   onEdit={handleEdit}
                   error={error}
                 />

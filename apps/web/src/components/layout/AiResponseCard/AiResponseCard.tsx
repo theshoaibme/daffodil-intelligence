@@ -29,11 +29,13 @@ export function AiResponseCard({
   const [internalSteps, setInternalSteps] = useState<ThinkingStep[]>([]);
 
   const steps = externalSteps.length > 0 ? externalSteps : internalSteps;
-  const isThinking = externalIsThinking || isStreaming;
+  const hasContent = response.trim().length > 0;
+  const isThinking = (externalIsThinking || isStreaming) && !hasContent;
 
   useEffect(() => {
     if (!isStreaming) {
       setThinkingExpanded(false);
+      setInternalSteps([]);
     } else {
       setThinkingExpanded(true);
     }
@@ -41,6 +43,12 @@ export function AiResponseCard({
 
   useEffect(() => {
     if (isStreaming && externalSteps.length === 0) {
+      setInternalSteps([
+        { id: "1", title: "Analyzing request", status: "active" },
+        { id: "2", title: "Generating response", status: "pending" },
+        { id: "3", title: "Finalizing", status: "pending" },
+      ]);
+
       const timer1 = setTimeout(() => {
         setInternalSteps((prev) =>
           prev.map((s) =>
@@ -141,7 +149,7 @@ export function AiResponseCard({
           </div>
         </div>
       ) : (
-        <ResponseContent isThinking={isThinking} data={responseData} />
+        <ResponseContent isThinking={isThinking} isStreaming={isStreaming} data={responseData} />
       )}
 
       {/* Action Buttons Panel (Copy, Share, Full View) */}
