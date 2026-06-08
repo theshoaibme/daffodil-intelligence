@@ -11,8 +11,6 @@ interface ConfigContextType {
   setVoiceModel: (model: string) => void;
   voiceMode: 'streaming' | 'standard';
   setVoiceMode: (mode: 'streaming' | 'standard') => void;
-  agentMemory: Record<string, any>;
-  updateAgentMemory: (key: string, value: any) => void;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -58,28 +56,11 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return (localStorage.getItem('di_voice_mode') as 'streaming' | 'standard') || 'streaming';
   });
 
-  const [agentMemory, setAgentMemory] = useState<Record<string, any>>(() => {
-    try {
-      const saved = localStorage.getItem('di_agent_memory');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
   const effectiveLanguage = language === 'auto' ? detectedLanguage : language;
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('di_language', lang);
-  };
-
-  const updateAgentMemory = (key: string, value: any) => {
-    setAgentMemory(prev => {
-      const updated = { ...prev, [key]: value };
-      localStorage.setItem('di_agent_memory', JSON.stringify(updated));
-      return updated;
-    });
   };
 
   return (
@@ -92,8 +73,6 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setVoiceModel,
       voiceMode,
       setVoiceMode,
-      agentMemory,
-      updateAgentMemory,
     }}>
       {children}
     </ConfigContext.Provider>

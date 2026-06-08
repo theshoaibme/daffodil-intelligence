@@ -17,6 +17,7 @@ import { changePassword, DELETE_ACCOUNT_PHRASE } from "../../lib/api";
 import { ROUTES } from "../../lib/routes";
 import { FIELD_CLASS } from "../../lib/formStyles";
 import { dropdownPanelVariants } from "../../lib/motion";
+import { MemorySettingsSection } from "./MemorySettingsSection";
 
 interface ProfileForm {
   fullName: string;
@@ -551,6 +552,8 @@ export function AccountPage() {
               </div>
             )}
           </SectionCard>
+
+          <MemorySettingsSection />
 
           <SectionCard
             icon={<FileText size={18} className="text-primary" />}

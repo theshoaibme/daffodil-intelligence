@@ -632,7 +632,7 @@ class TelegramBot:
             profile.email = acct.email
             profile.full_name = acct.full_name
             profile_store.save(profile)
-            memory_service.remember(
+            await memory_service.remember(
                 acct.context_line(),
                 user_id=uid,
                 metadata={"source": "telegram_login", "email": acct.email},
@@ -752,7 +752,7 @@ class TelegramBot:
             profile.step = STEP_COMPLETE
             profile.pending_password = ""
             profile_store.save(profile)
-            memory_service.remember(
+            await memory_service.remember(
                 account.context_line(),
                 user_id=uid,
                 metadata={"source": "telegram_register", "email": account.email},

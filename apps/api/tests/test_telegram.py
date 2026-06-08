@@ -41,7 +41,6 @@ class _FakeUpdate:
 
 
 async def test_text_handler_routes_through_orchestrator(monkeypatch, tmp_path):
-    import app.runtime.orchestrator as orch
     from app.integrations.telegram import auth_store as astore_mod
     from app.integrations.telegram import profiles as prof_mod
 
@@ -69,10 +68,12 @@ async def test_text_handler_routes_through_orchestrator(monkeypatch, tmp_path):
     p.step = STEP_COMPLETE
     prof_store.save(p)
 
-    async def fake_run(text, **kwargs):
-        return {"content": f"answer to: {text}", "tool_calls": []}
+    async def fake_run_turn(text, **kwargs):
+        prefix = kwargs.get("context_prefix", "")
+        composed = f"{prefix}\n\n{text}" if prefix else text
+        return {"content": f"answer to: {composed}", "tool_calls": []}
 
-    monkeypatch.setattr(orch, "run", fake_run)
+    monkeypatch.setattr("app.integrations.telegram.bot.run_turn", fake_run_turn)
 
     update = _FakeUpdate("what is my cgpa?")
     ctx = types.SimpleNamespace(bot=None, args=[])

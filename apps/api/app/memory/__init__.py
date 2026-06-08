@@ -11,5 +11,13 @@ A single memory service combining:
 
 from .semantic import SemanticMemory, semantic_memory
 from .service import MemoryService, memory_service
+from .types import ALL_MEMORY_TYPES, ROOT_AGENT_ID
 
-__all__ = ["SemanticMemory", "semantic_memory", "MemoryService", "memory_service"]
+__all__ = [
+    "SemanticMemory",
+    "semantic_memory",
+    "MemoryService",
+    "memory_service",
+    "ALL_MEMORY_TYPES",
+    "ROOT_AGENT_ID",
+]

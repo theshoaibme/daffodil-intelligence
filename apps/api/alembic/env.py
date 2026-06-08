@@ -15,6 +15,7 @@ from app.core.database import Base
 
 # Import all models so metadata is complete.
 from app.models import hub  # noqa: F401
+from app.models import memory  # noqa: F401
 from app.models import user  # noqa: F401
 
 config = context.config

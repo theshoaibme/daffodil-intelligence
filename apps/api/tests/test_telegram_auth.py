@@ -296,4 +296,6 @@ def test_google_callback_redirects_to_frontend():
         result = asyncio.run(google_callback(state=state, code="fake_code", error=None))
 
     assert result.status_code == 302
-    assert result.headers["location"].startswith("http://localhost:3000/auth/telegram?token=")
+    assert result.headers["location"].startswith(
+        "http://localhost:3000/intelligence/auth/telegram?token="
+    )

@@ -90,7 +90,7 @@ class MemoryManager:
         if role == "user" and content:
             try:
                 from .memory import memory_service
-                memory_service.remember(
+                await memory_service.remember(
                     content,
                     user_id=(metadata or {}).get("user_id", session_id),
                     metadata={"session_id": session_id, "source": "master_agent"},
@@ -387,8 +387,10 @@ class MasterAgent:
             # Delegate to the unified runtime so the response is REAL (Antigravity
             # main agent with tools, or legacy supervisor fallback).
             from .runtime import orchestrator
+            session = self._sessions.get(task.session_id, {})
+            real_user_id = session.get("user_id", 0)
             result = await orchestrator.run(
-                prompt, user_id=task.session_id, chat_id=task.session_id
+                prompt, user_id=real_user_id, chat_id=task.session_id
             )
             response_text = result.get("content", "")
 

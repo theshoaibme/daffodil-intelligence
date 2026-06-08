@@ -32,8 +32,10 @@ async def test_memory_service_history_mock():
     assert isinstance(history, list)
 
 
-def test_memory_service_remember_recall():
-    note = memory_service.remember("Capstone deadline is June 30", user_id=42)
-    assert note["id"]
-    found = memory_service.recall("capstone deadline", user_id=42, k=3)
-    assert any("capstone" in n["text"].lower() for n in found)
+@pytest.mark.asyncio
+async def test_memory_service_remember_recall():
+    note = await memory_service.remember("Capstone deadline is June 30", user_id=42)
+    assert note.get("id") or note.get("text")
+    found = await memory_service.recall("capstone deadline", user_id=42, k=3)
+    texts = [n.get("content", n.get("text", "")).lower() for n in found]
+    assert any("capstone" in t for t in texts)

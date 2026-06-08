@@ -174,6 +174,11 @@ class SessionManager:
                 elif Thought is not None and isinstance(chunk, Thought):
                     if chunk.text:
                         yield {"type": "thinking", "content": chunk.text}
+                        await _maybe_store_subagent_thought(
+                            chunk.text,
+                            user_id=user_id,
+                            chat_id=chat_id,
+                        )
                 elif ToolCall is not None and isinstance(chunk, ToolCall):
                     for event in _complete_tools():
                         yield event
@@ -204,6 +209,33 @@ async def _collect(response: Any, attr: str) -> List[Any]:
     except Exception as e:  # pragma: no cover - defensive
         logger.debug(f"Could not collect {attr}: {e}")
     return items
+
+
+async def _maybe_store_subagent_thought(
+    text: str,
+    *,
+    user_id: Any,
+    chat_id: Any,
+) -> None:
+    """Heuristic: capture sub-agent delegation thoughts as memories."""
+    lower = (text or "").lower()
+    markers = ("sub-agent", "subagent", "delegat", "spawn agent")
+    if not any(m in lower for m in markers):
+        return
+    try:
+        from ..memory import memory_service
+
+        subagent_id = f"sub-{hash(text) % 100000:05d}"
+        await memory_service.store_subagent_event(
+            user_id=int(user_id or 0),
+            parent_agent_id="main",
+            subagent_id=subagent_id,
+            name="delegated",
+            task=text[:500],
+            chat_id=chat_id,
+        )
+    except Exception as e:
+        logger.debug("subagent memory store skipped: %s", e)
 
 
 session_manager = SessionManager()

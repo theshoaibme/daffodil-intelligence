@@ -11,6 +11,7 @@ from ..core.database import get_db
 from ..core.security import get_current_user
 from ..models.user import Chat, Message
 from ..schemas.user import ChatCreate, ChatResponse, MessageResponse, MessageCreate
+from ..memory import memory_service
 from ..runtime.pipeline import run_turn, run_turn_stream
 
 logger = logging.getLogger(__name__)
@@ -77,6 +78,11 @@ async def add_message(
     db.add(user_message)
     await db.commit()
     await db.refresh(user_message)
+
+    turn_count_result = await db.execute(
+        select(Message).where(Message.chat_id == chat_id, Message.role == "user")
+    )
+    turn_index = len(turn_count_result.scalars().all())
 
     async def generate():
         full_response = ""
@@ -149,6 +155,18 @@ async def add_message(
             db.add(assistant_message)
             await db.commit()
             await db.refresh(assistant_message)
+
+            try:
+                await memory_service.process_turn_memory(
+                    user_id=user_id,
+                    agent_id=resolved_agent,
+                    chat_id=chat_id,
+                    user_msg=message.content,
+                    assistant_msg=full_response,
+                    turn_index=turn_index,
+                )
+            except Exception as mem_err:
+                logger.warning("Turn memory processing failed: %s", mem_err)
             
             # Yield final message payload
             final_payload = {
