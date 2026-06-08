@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { changePassword, DELETE_ACCOUNT_PHRASE } from "../../lib/api";
 import { ROUTES } from "../../lib/routes";
+import { FIELD_CLASS } from "../../lib/formStyles";
 import { dropdownPanelVariants } from "../../lib/motion";
 
 interface ProfileForm {
@@ -146,8 +147,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-const inputClass =
-  "w-full px-3.5 py-2.5 rounded-xl border border-outline-variant/50 bg-surface-container-lowest text-sm text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors";
+const inputClass = FIELD_CLASS;
 
 const textButtonClass =
   "text-sm font-semibold text-primary hover:underline border-0 bg-transparent cursor-pointer p-0 disabled:opacity-40 disabled:cursor-not-allowed";

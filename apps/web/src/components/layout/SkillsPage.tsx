@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { ROUTES } from "../../lib/routes";
+import { FIELD_CLASS, FIELD_CLASS_COMPACT, SELECT_CLASS } from "../../lib/formStyles";
 import { hubApi, type AgentHubRecord, type SkillRecord } from "../../lib/hubApi";
 
 type AssignTarget = "global" | string;
@@ -196,13 +197,13 @@ export function SkillsPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search skills…"
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-sm"
+              className={`${FIELD_CLASS_COMPACT} pl-9`}
             />
           </div>
           <select
             value={source}
             onChange={(e) => setSource(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-sm"
+            className={SELECT_CLASS}
           >
             <option value="">All sources</option>
             <option value="manual">Manual</option>
@@ -212,7 +213,7 @@ export function SkillsPage() {
           <select
             value={tag}
             onChange={(e) => setTag(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-sm"
+            className={SELECT_CLASS}
           >
             <option value="">All tags</option>
             {allTags.map((t) => (
@@ -291,11 +292,11 @@ export function SkillsPage() {
               <button type="button" onClick={() => setDialogOpen(false)}><X size={18} /></button>
             </div>
             <div className="space-y-3">
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Name" className="w-full px-3 py-2 rounded-xl border text-sm" />
-              <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full px-3 py-2 rounded-xl border text-sm" />
-              <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="Markdown content" rows={6} className="w-full px-3 py-2 rounded-xl border text-sm" />
-              <input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="Tags (comma-separated)" className="w-full px-3 py-2 rounded-xl border text-sm" />
-              <input value={form.tool_names} onChange={(e) => setForm({ ...form, tool_names: e.target.value })} placeholder="Tool names (comma-separated)" className="w-full px-3 py-2 rounded-xl border text-sm" />
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Name" className={FIELD_CLASS_COMPACT} />
+              <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className={FIELD_CLASS_COMPACT} />
+              <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="Markdown content" rows={6} className={FIELD_CLASS_COMPACT} />
+              <input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="Tags (comma-separated)" className={FIELD_CLASS_COMPACT} />
+              <input value={form.tool_names} onChange={(e) => setForm({ ...form, tool_names: e.target.value })} placeholder="Tool names (comma-separated)" className={FIELD_CLASS_COMPACT} />
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.is_public} onChange={(e) => setForm({ ...form, is_public: e.target.checked })} />
                 Public skill
@@ -329,7 +330,7 @@ export function SkillsPage() {
                   setSelectedSkillIds(profile.skill_ids || []);
                 }
               }}
-              className="w-full px-3 py-2 rounded-xl border text-sm mb-4"
+              className={`${FIELD_CLASS_COMPACT} mb-4`}
             >
               <option value="global">Global (all agents)</option>
               {agents.map((a) => (

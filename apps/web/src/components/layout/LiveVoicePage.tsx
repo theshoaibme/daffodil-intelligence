@@ -490,7 +490,7 @@ export function LiveVoicePage() {
                         <select
                           value={language}
                           onChange={(e) => setLanguage(e.target.value as any)}
-                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                         >
                           <option value="auto">Auto Detect</option>
                           <option value="en">English</option>
@@ -502,7 +502,7 @@ export function LiveVoicePage() {
                         <select
                           value={voiceModel}
                           onChange={(e) => setVoiceModel(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                         >
                           <option value="Aoede">Aoede</option>
                           <option value="Puck">Puck</option>

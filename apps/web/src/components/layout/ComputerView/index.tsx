@@ -230,7 +230,7 @@ export default function ComputerView({ embedded = false, onExitCopycat }: Comput
               onChange={(e) => setTypeText(e.target.value)}
               placeholder="Type text to send…"
               autoFocus
-              className="flex-1 px-3 py-2 text-sm rounded-xl bg-surface-container-highest focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/50"
+              className="flex-1 px-3 py-2 text-sm rounded bg-surface-container-highest focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/50 border-0"
               onKeyDown={(e) => {
                 if (e.key === "Enter") sendText();
                 if (e.key === "Escape") setKeyboardOpen(false);

@@ -163,7 +163,7 @@ export function ModelManagementPage() {
                     placeholder="e.g. Llama 3 70B"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    className="bg-surface-container-high/60 border border-outline-variant/30 rounded px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                   />
                 </div>
 
@@ -172,7 +172,7 @@ export function ModelManagementPage() {
                   <select
                     value={provider}
                     onChange={(e) => setProvider(e.target.value)}
-                    className="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
+                    className="bg-surface-container-high/60 border border-outline-variant/30 rounded px-4 py-2.5 text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
                   >
                     <option value="OpenAI">OpenAI</option>
                     <option value="Gemini">Gemini</option>
@@ -197,7 +197,7 @@ export function ModelManagementPage() {
                     placeholder="e.g. LocalLLM"
                     value={customProvider}
                     onChange={(e) => setCustomProvider(e.target.value)}
-                    className="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    className="bg-surface-container-high/60 border border-outline-variant/30 rounded px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                   />
                 </motion.div>
               )}
@@ -209,7 +209,7 @@ export function ModelManagementPage() {
                   placeholder="e.g. http://localhost:11434/v1"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
-                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -220,7 +220,7 @@ export function ModelManagementPage() {
                   placeholder="Leave blank to use provider key settings"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -259,7 +259,7 @@ export function ModelManagementPage() {
                   placeholder="Enter Gemini API key"
                   value={geminiKey}
                   onChange={(e) => setGeminiKey(e.target.value)}
-                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -270,7 +270,7 @@ export function ModelManagementPage() {
                   placeholder="Enter OpenAI API key"
                   value={openaiKey}
                   onChange={(e) => setOpenaiKey(e.target.value)}
-                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -281,7 +281,7 @@ export function ModelManagementPage() {
                   placeholder="Enter Anthropic Claude API key"
                   value={claudeKey}
                   onChange={(e) => setClaudeKey(e.target.value)}
-                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  className="bg-surface-container-high/60 border border-outline-variant/30 rounded px-4 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                 />
               </div>
 

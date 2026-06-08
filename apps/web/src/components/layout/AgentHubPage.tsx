@@ -14,6 +14,13 @@ import {
 import { ROUTES } from "../../lib/routes";
 import { hubApi, type AgentHubRecord, type SkillRecord } from "../../lib/hubApi";
 import { parseN8nWorkflow, type AgentCapabilityInput } from "../../lib/n8nWorkflowParser";
+import {
+  FIELD_CLASS,
+  FIELD_LABEL_CLASS,
+  FIELD_PILL_CLASS,
+  SELECT_PILL_CLASS,
+  TEXTAREA_CLASS,
+} from "../../lib/formStyles";
 import { getAgentIconStyle } from "./AgentDashboard/agentIcons";
 import { CATEGORY_LABELS } from "./AgentDashboard/agentConstants";
 
@@ -27,18 +34,16 @@ const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS).map(([value, label]) =>
 
 const EMPTY_CAPABILITY: AgentCapabilityInput = { name: "", description: "", tools: [] };
 
-const inputClass =
-  "w-full px-3 py-2.5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/30";
-
-const labelClass = "block text-xs font-medium text-on-surface-variant mb-1.5";
+const capabilityRowClass =
+  "grid gap-2 sm:grid-cols-[1fr_1.5fr_auto] items-center";
 
 function AgentHubCard({
   agent,
-  onOpen,
+  onEdit,
   onDelete,
 }: {
   agent: AgentHubRecord;
-  onOpen: () => void;
+  onEdit: () => void;
   onDelete?: () => void;
 }) {
   const { icon: Icon, iconColor } = getAgentIconStyle(agent.id, agent.category);
@@ -46,60 +51,81 @@ function AgentHubCard({
 
   return (
     <li className="min-w-0">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="group relative aspect-square w-full rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-4 flex flex-col transition-all hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onEdit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onEdit();
+          }
+        }}
+        className="group relative w-full overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2.5 cursor-pointer transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        {agent.kind === "custom" && onDelete && (
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onDelete();
+              onEdit();
             }}
-            className="absolute top-3 right-3 z-10 p-1.5 rounded-lg text-on-surface-variant/50 opacity-0 group-hover:opacity-100 hover:bg-error/10 hover:text-error transition-all"
-            aria-label={`Delete ${agent.name}`}
+            className="p-1.5 rounded-full border border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant shadow-sm hover:bg-primary/10 hover:text-primary transition-colors"
+            aria-label={`Edit ${agent.name}`}
           >
-            <Trash2 size={14} />
+            <Pencil size={13} />
           </button>
-        )}
-
-        <div
-          className={`shrink-0 flex items-center justify-center w-14 h-14 rounded-2xl bg-surface-container-high/80 ${iconColor}`}
-        >
-          <Icon size={28} />
+          {agent.kind === "custom" && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1.5 rounded-full border border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant shadow-sm hover:bg-error/10 hover:text-error transition-colors"
+              aria-label={`Delete ${agent.name}`}
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
         </div>
 
-        <div className="flex-1 flex flex-col justify-end mt-3 min-h-0 text-left">
-          <p className="text-sm font-semibold text-on-surface line-clamp-2 leading-snug">
-            {agent.name}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-1 mt-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
-              {categoryLabel}
-            </span>
-            {agent.kind === "custom" && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-container-high text-on-surface-variant">
-                Custom
-              </span>
-            )}
+        <div className="flex items-center gap-2.5 pr-14 min-h-[52px]">
+          <div
+            className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-surface-container-high/80 ${iconColor}`}
+          >
+            <Icon size={20} />
           </div>
 
-          {agent.description && (
-            <p className="text-[11px] text-on-surface-variant/75 mt-2 leading-relaxed line-clamp-2">
-              {agent.description}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-on-surface truncate leading-tight">
+              {agent.name}
             </p>
-          )}
 
-          {(agent.skill_count ?? 0) > 0 && (
-            <p className="text-[10px] text-on-surface-variant/60 mt-1.5">
-              {agent.skill_count} skill{agent.skill_count === 1 ? "" : "s"}
-            </p>
-          )}
+            <div className="flex flex-wrap items-center gap-1 mt-1">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
+                {categoryLabel}
+              </span>
+              {agent.kind === "custom" && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-surface-container-high text-on-surface-variant">
+                  Custom
+                </span>
+              )}
+              {(agent.skill_count ?? 0) > 0 && (
+                <span className="text-[10px] text-on-surface-variant/60">
+                  {agent.skill_count} skill{agent.skill_count === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
+
+            {agent.description && (
+              <p className="text-[11px] text-on-surface-variant/70 mt-0.5 leading-snug line-clamp-1">
+                {agent.description}
+              </p>
+            )}
+          </div>
         </div>
-      </button>
+      </div>
     </li>
   );
 }
@@ -369,7 +395,7 @@ export function AgentHubPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search agents…"
-            className={`${inputClass} pl-9`}
+            className={`${FIELD_CLASS} pl-9`}
           />
         </div>
 
@@ -380,12 +406,12 @@ export function AgentHubPage() {
           <p className="text-sm text-on-surface-variant">No agents match your filters.</p>
         )}
 
-        <ul className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {agents.map((agent) => (
             <AgentHubCard
               key={agent.id}
               agent={agent}
-              onOpen={() => openDetail(agent).catch(console.error)}
+              onEdit={() => openDetail(agent).catch(console.error)}
               onDelete={
                 agent.kind === "custom"
                   ? () => removeAgent(agent.id).catch(console.error)
@@ -429,7 +455,7 @@ export function AgentHubPage() {
 
             <div className="overflow-y-auto px-5 py-4 space-y-4 flex-1">
               {createMode === "n8n" ? (
-                <div className="rounded-xl border border-dashed border-outline-variant/50 p-6 text-center">
+                <div className="rounded-2xl border border-dashed border-outline-variant/50 p-6 text-center">
                   <FileJson size={32} className="mx-auto text-primary mb-3" />
                   <p className="text-sm text-on-surface-variant mb-4">
                     Upload an n8n workflow export (.json). We extract the AI Agent prompt, tools, and
@@ -449,7 +475,7 @@ export function AgentHubPage() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 rounded-xl text-sm bg-primary text-on-primary"
+                    className="px-4 py-2 rounded-full text-sm bg-primary text-on-primary"
                   >
                     Choose workflow file
                   </button>
@@ -459,20 +485,20 @@ export function AgentHubPage() {
                 <>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
-                      <label className={labelClass}>Name</label>
+                      <label className={FIELD_LABEL_CLASS}>Name</label>
                       <input
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                         placeholder="Proxmox Agent"
-                        className={inputClass}
+                        className={FIELD_PILL_CLASS}
                       />
                     </div>
                     <div>
-                      <label className={labelClass}>Category</label>
+                      <label className={FIELD_LABEL_CLASS}>Category</label>
                       <select
                         value={form.category}
                         onChange={(e) => setForm({ ...form, category: e.target.value })}
-                        className={inputClass}
+                        className={SELECT_PILL_CLASS}
                       >
                         {CATEGORY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -484,48 +510,45 @@ export function AgentHubPage() {
                   </div>
 
                   <div>
-                    <label className={labelClass}>Description</label>
+                    <label className={FIELD_LABEL_CLASS}>Description</label>
                     <input
                       value={form.description}
                       onChange={(e) => setForm({ ...form, description: e.target.value })}
                       placeholder="Manages Proxmox VMs via API commands"
-                      className={inputClass}
+                      className={FIELD_PILL_CLASS}
                     />
                   </div>
 
                   <div>
-                    <label className={labelClass}>System prompt</label>
+                    <label className={FIELD_LABEL_CLASS}>System prompt</label>
                     <textarea
                       value={form.system_prompt}
                       onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
                       placeholder="You are a Proxmox AI Agent expert designed to generate API commands..."
                       rows={8}
-                      className={`${inputClass} font-mono text-xs leading-relaxed`}
+                      className={`${TEXTAREA_CLASS} font-mono text-xs min-h-[140px]`}
                     />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className={labelClass}>Capabilities & tools</label>
+                      <label className={`${FIELD_LABEL_CLASS} mb-0`}>Capabilities & tools</label>
                       <button
                         type="button"
                         onClick={addCapability}
-                        className="text-xs font-medium text-primary hover:underline"
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium text-primary border border-primary/30 hover:bg-primary/10 transition-colors"
                       >
                         + Add capability
                       </button>
                     </div>
                     <div className="space-y-2">
                       {form.capabilities.map((cap, index) => (
-                        <div
-                          key={index}
-                          className="grid gap-2 sm:grid-cols-[1fr_1.5fr_auto] items-start rounded-xl border border-outline-variant/30 p-3"
-                        >
+                        <div key={index} className={capabilityRowClass}>
                           <input
                             value={cap.name}
                             onChange={(e) => updateCapability(index, { name: e.target.value })}
                             placeholder="Tool name"
-                            className={inputClass}
+                            className={FIELD_PILL_CLASS}
                           />
                           <input
                             value={cap.description}
@@ -533,12 +556,12 @@ export function AgentHubPage() {
                               updateCapability(index, { description: e.target.value })
                             }
                             placeholder="What this tool does"
-                            className={inputClass}
+                            className={FIELD_PILL_CLASS}
                           />
                           <button
                             type="button"
                             onClick={() => removeCapability(index)}
-                            className="p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10"
+                            className="p-2 rounded-full text-on-surface-variant hover:text-error hover:bg-error/10 self-center"
                             aria-label="Remove capability"
                           >
                             <Trash2 size={14} />
@@ -564,7 +587,7 @@ export function AgentHubPage() {
               <button
                 type="button"
                 onClick={() => setDialogOpen(false)}
-                className="px-4 py-2 rounded-xl text-sm border border-outline-variant/40"
+                className="px-4 py-2 rounded-full text-sm border border-outline-variant/40"
               >
                 Cancel
               </button>
@@ -573,7 +596,7 @@ export function AgentHubPage() {
                   type="button"
                   onClick={() => createAgent().catch(console.error)}
                   disabled={!canCreate}
-                  className="px-4 py-2 rounded-xl text-sm bg-primary text-on-primary disabled:opacity-50"
+                  className="px-4 py-2 rounded-full text-sm bg-primary text-on-primary disabled:opacity-50"
                 >
                   Create agent
                 </button>
@@ -617,15 +640,20 @@ export function AgentHubPage() {
               <div className="mb-4">
                 <h3 className="text-sm font-medium mb-2">Capabilities</h3>
                 <ul className="space-y-1.5">
-                  {(detail.capabilities as AgentCapabilityInput[]).map((cap, i) => (
+                  {detail.capabilities.map((cap, i) => (
                     <li
                       key={i}
                       className="text-xs rounded-lg bg-surface-container-high/50 px-3 py-2"
                     >
-                      <span className="font-medium text-on-surface">{cap.name}</span>
-                      {cap.description && (
-                        <span className="text-on-surface-variant"> — {cap.description}</span>
-                      )}
+                      <span className="font-medium text-on-surface">
+                        {String(cap.name ?? "Capability")}
+                      </span>
+                      {String(cap.description ?? "").trim() ? (
+                        <span className="text-on-surface-variant">
+                          {" "}
+                          — {String(cap.description)}
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -635,7 +663,7 @@ export function AgentHubPage() {
             {detail.kind === "custom" && detail.system_prompt && (
               <div className="mb-4">
                 <h3 className="text-sm font-medium mb-2">System prompt</h3>
-                <p className="text-xs text-on-surface-variant/70 whitespace-pre-wrap rounded-xl bg-surface-container-high/50 p-3 max-h-40 overflow-y-auto font-mono leading-relaxed">
+                <p className="text-xs text-on-surface-variant/70 whitespace-pre-wrap rounded bg-surface-container-high/50 p-3 max-h-40 overflow-y-auto font-mono leading-relaxed">
                   {detail.system_prompt}
                 </p>
               </div>
@@ -665,14 +693,14 @@ export function AgentHubPage() {
               <button
                 type="button"
                 onClick={() => setDetail(null)}
-                className="px-4 py-2 rounded-xl text-sm border border-outline-variant/40"
+                className="px-4 py-2 rounded-full text-sm border border-outline-variant/40"
               >
                 Close
               </button>
               <button
                 type="button"
                 onClick={() => saveDetailSkills().catch(console.error)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm bg-primary text-on-primary"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm bg-primary text-on-primary"
               >
                 <Pencil size={14} /> Save skills
               </button>

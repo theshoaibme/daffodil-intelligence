@@ -181,7 +181,7 @@ export function Sidebar({
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search chats..."
                 tabIndex={sidebarOpen ? 0 : -1}
-                className="w-full bg-surface-container-high/50 rounded-xl pl-9 pr-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:ring-1 focus:ring-primary outline-none transition-all"
+                className="w-full bg-surface-container-high/50 rounded pl-9 pr-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:ring-1 focus:ring-primary outline-none transition-all border-0"
               />
             </div>
           </div>
