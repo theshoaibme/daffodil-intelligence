@@ -23,7 +23,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..core.security import get_current_user
@@ -31,7 +31,7 @@ from ..computer_use.screen import ScreenCapture
 from ..computer_use.mouse import MouseController
 from ..computer_use.keyboard import KeyboardController
 from ..computer_use.recorder import get_recorder
-from ..computer_use.replayer import ActionReplayer
+from ..computer_use.replayer import get_replayer
 
 router = APIRouter(prefix="/api/computer", tags=["computer-use"])
 logger = logging.getLogger(__name__)
@@ -40,7 +40,26 @@ logger = logging.getLogger(__name__)
 _screen = ScreenCapture(fps=10, quality=70)
 _mouse = MouseController()
 _keyboard = KeyboardController()
-_replayer = ActionReplayer()
+_replayer = get_replayer()
+
+COPYCAT_MESSAGE = "CopyCat is running — mouse and keyboard are disabled"
+
+
+def _copycat_blocks_input() -> bool:
+    """True when replay is active and user input must be blocked."""
+    return _replayer.is_running
+
+
+def _raise_if_copycat_active() -> None:
+    if _copycat_blocks_input():
+        raise HTTPException(
+            status_code=423,
+            detail={
+                "error": "copycat_running",
+                "message": COPYCAT_MESSAGE,
+                "blocked": True,
+            },
+        )
 
 
 # ─── Request models ──────────────────────────────────────────────────────────
@@ -118,18 +137,21 @@ async def take_screenshot(
 
 @router.post("/mouse/move")
 async def mouse_move(req: MouseMoveRequest):
+    _raise_if_copycat_active()
     result = await _mouse.move(req.x, req.y, req.duration)
     return result
 
 
 @router.post("/mouse/click")
 async def mouse_click(req: MouseClickRequest):
+    _raise_if_copycat_active()
     result = await _mouse.click(req.x, req.y, req.button)
     return result
 
 
 @router.post("/mouse/scroll")
 async def mouse_scroll(req: MouseScrollRequest):
+    _raise_if_copycat_active()
     result = await _mouse.scroll(req.x, req.y, req.dy)
     return result
 
@@ -144,18 +166,21 @@ async def get_mouse_position():
 
 @router.post("/keyboard/type")
 async def keyboard_type(req: KeyboardTypeRequest):
+    _raise_if_copycat_active()
     result = await _keyboard.type_text(req.text, req.interval)
     return result
 
 
 @router.post("/keyboard/hotkey")
 async def keyboard_hotkey(req: KeyboardHotkeyRequest):
+    _raise_if_copycat_active()
     result = await _keyboard.hotkey(*req.keys)
     return result
 
 
 @router.post("/keyboard/press")
 async def keyboard_press(key: str):
+    _raise_if_copycat_active()
     result = await _keyboard.press_key(key)
     return result
 
@@ -165,72 +190,73 @@ async def keyboard_press(key: str):
 @router.websocket("/screen-stream")
 async def screen_stream_ws(websocket: WebSocket):
     """
-    WebSocket endpoint that streams screen frames as base64 JPEG.
+    Adaptive screen stream — dynamic FPS/quality/scale from measured latency.
 
-    Client sends JSON messages to control streaming:
-      {"action": "start", "fps": 5, "quality": 70}
+    Client control messages:
+      {"action": "start", "config": {"max_fps": 30, "focus_mode": true, ...}}
       {"action": "stop"}
-      {"action": "region", "x": 0, "y": 0, "width": 1920, "height": 1080}
-
-    Server sends JSON frames:
-      {"type": "frame", "frame": "<base64>", "width": 1920, "height": 1080, "timestamp": ...}
+      {"action": "configure", "config": {...}}
     """
-    await websocket.accept()
-    logger.info("Screen stream WebSocket connected")
+    from ..kit.stream_adapter import adaptive_frames
 
-    fps = 5
-    quality = 70
-    region = None
+    await websocket.accept()
+    logger.info("Adaptive screen stream connected")
+
     streaming = False
-    stream_task = None
+    stream_config: dict = {}
+    frame_gen = None
+    stop_event = asyncio.Event()
+
+    async def pump_frames():
+        nonlocal frame_gen
+        try:
+            async for frame in adaptive_frames(stream_config):
+                if stop_event.is_set():
+                    break
+                await websocket.send_json(frame)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error("Stream pump error: %s", e)
+
+    pump_task: asyncio.Task | None = None
 
     try:
         while True:
-            try:
-                # Wait for control message (non-blocking with timeout)
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
-                msg = json.loads(data)
-                action = msg.get("action")
+            data = await websocket.receive_text()
+            msg = json.loads(data)
+            action = msg.get("action")
 
-                if action == "start":
-                    fps = msg.get("fps", 5)
-                    quality = msg.get("quality", 70)
-                    streaming = True
+            if action == "start":
+                stream_config = msg.get("config") or {}
+                if msg.get("fps"):
+                    stream_config.setdefault("max_fps", msg["fps"])
+                if msg.get("quality"):
+                    stream_config.setdefault("max_quality", msg["quality"])
+                stop_event.clear()
+                streaming = True
+                if pump_task:
+                    pump_task.cancel()
+                pump_task = asyncio.create_task(pump_frames())
 
-                elif action == "stop":
-                    streaming = False
+            elif action == "stop":
+                streaming = False
+                stop_event.set()
+                if pump_task:
+                    pump_task.cancel()
+                    pump_task = None
 
-                elif action == "region":
-                    region = (
-                        msg.get("x", 0), msg.get("y", 0),
-                        msg.get("width", 1920), msg.get("height", 1080)
-                    )
-
-            except asyncio.TimeoutError:
-                pass  # No message this cycle — continue streaming
-            except Exception:
-                break
-
-            # Send a frame if streaming
-            if streaming:
-                sc = ScreenCapture(fps=fps, quality=quality)
-                b64 = sc.capture_as_base64(region=region)
-                if b64:
-                    width, height = sc.get_screen_size()
-                    await websocket.send_json({
-                        "type": "frame",
-                        "frame": b64,
-                        "width": width if not region else region[2],
-                        "height": height if not region else region[3],
-                        "timestamp": asyncio.get_event_loop().time(),
-                    })
-
-                await asyncio.sleep(1.0 / fps)
+            elif action == "configure":
+                stream_config.update(msg.get("config") or {})
 
     except WebSocketDisconnect:
-        logger.info("Screen stream WebSocket disconnected")
+        logger.info("Screen stream disconnected")
     except Exception as e:
-        logger.error(f"Screen stream error: {e}")
+        logger.error("Screen stream error: %s", e)
+    finally:
+        stop_event.set()
+        if pump_task:
+            pump_task.cancel()
 
 
 # ─── CopyCat Recording ───────────────────────────────────────────────────────
@@ -322,14 +348,53 @@ async def delete_recording(name: str):
     return {"error": f"Recording '{name}' not found"}
 
 
+@router.post("/record/stop-replay")
+async def stop_replay():
+    """Stop an active CopyCat replay and release input lock."""
+    if not _replayer.is_running:
+        return {"stopped": False, "message": "No replay in progress"}
+    _replayer.stop()
+    return {"stopped": True, "message": "CopyCat replay stopped"}
+
+
 @router.get("/record/status")
 async def replay_status():
     """Check if a replay is currently running."""
+    from ..computer_use.copycat_lock import is_locked
+
+    replaying = _replayer.is_running
+    locked = is_locked() or replaying
     return {
-        "is_replaying": _replayer.is_running,
-        "current_action_index": _replayer.current_action if _replayer.is_running else None,
+        "is_replaying": replaying,
+        "copycat_running": locked,
+        "message": COPYCAT_MESSAGE if locked else None,
+        "current_action_index": _replayer.current_action if replaying else None,
         "is_recording": get_recorder().is_recording,
     }
+
+
+@router.get("/audit/tail")
+async def audit_tail(limit: int = 50):
+    """Local CopyCat security audit log (machine running the API/kit)."""
+    try:
+        from daffodil_kit.audit import read_audit_tail
+        return {"entries": read_audit_tail(limit)}
+    except ImportError:
+        return {"entries": [], "note": "Install daffodil-kit for local audit logs"}
+
+
+@router.get("/audit/system-log")
+async def audit_system_log(lines: int = 30):
+    """Recent OS + kit log lines (local read only)."""
+    try:
+        from daffodil_kit.audit import read_kit_log_tail, read_system_log_tail
+        return {
+            "system": read_system_log_tail(lines),
+            "kit_log": read_kit_log_tail(lines),
+            "local_only": True,
+        }
+    except ImportError:
+        return {"system": {"lines": []}, "kit_log": [], "local_only": True}
 
 
 @router.get("/info")

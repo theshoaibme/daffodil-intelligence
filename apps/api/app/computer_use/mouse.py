@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 try:
     import pyautogui
     pyautogui.FAILSAFE = True   # Move to corner to abort
-    pyautogui.PAUSE = 0.05      # Small pause between actions for reliability
+    pyautogui.PAUSE = 0
     PYAUTOGUI_AVAILABLE = True
 except ImportError:
     PYAUTOGUI_AVAILABLE = False

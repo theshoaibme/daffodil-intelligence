@@ -1,0 +1,154 @@
+name: CopyCat Kit CI/CD
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "packages/daffodil-kit/**"
+      - ".github/workflows/copycat-kit.yml"
+    tags:
+      - "copycat-v*"
+  pull_request:
+    paths:
+      - "packages/daffodil-kit/**"
+      - ".github/workflows/copycat-kit.yml"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version bump (optional, e.g. 0.1.1)"
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  PACKAGE_DIR: packages/daffodil-kit
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  version-check:
+    name: Version sync
+    if: ${{ !startsWith(github.ref, 'refs/tags/copycat-v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify VERSION matches pyproject.toml
+        run: |
+          V=$(tr -d '[:space:]' < packages/daffodil-kit/VERSION)
+          P=$(grep -E '^version = ' packages/daffodil-kit/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          I=$(grep -E '^__version__ = ' packages/daffodil-kit/daffodil_kit/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
+          echo "VERSION=$V pyproject=$P __init__=$I"
+          test "$V" = "$P"
+          test "$V" = "$I"
+
+  test:
+    name: Test (${{ matrix.os }})
+    needs: version-check
+    if: ${{ always() && (needs.version-check.result == 'success' || needs.version-check.result == 'skipped') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e "${{ env.PACKAGE_DIR }}[dev]"
+
+      - name: Run tests
+        shell: bash
+        run: |
+          cd "${{ env.PACKAGE_DIR }}"
+          python -m pytest tests/ -v --tb=short
+
+      - name: CLI smoke test
+        shell: bash
+        run: |
+          daffodil-kit status
+          python -c "import daffodil_kit; print(daffodil_kit.__version__)"
+
+  install-script-smoke:
+    name: install.sh dry-run (${{ matrix.os }})
+    needs: version-check
+    if: ${{ always() && (needs.version-check.result == 'success' || needs.version-check.result == 'skipped') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Local install from repo
+        shell: bash
+        env:
+          DAFFODIL_KIT_VERSION: ${{ github.sha }}
+          DAFFODIL_KIT_REPO: ${{ github.repository }}
+        run: |
+          # CI uses local tree — override git install with editable for speed
+          export DAFFODIL_KIT_PREFIX="$HOME/.local"
+          python -m venv "$DAFFODIL_KIT_PREFIX/daffodil-kit-venv"
+          source "$DAFFODIL_KIT_PREFIX/daffodil-kit-venv/bin/activate"
+          pip install -e packages/daffodil-kit
+          daffodil-kit status
+
+  build-release:
+    name: Build & release
+    needs: [test, install-script-smoke]
+    if: startsWith(github.ref, 'refs/tags/copycat-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Sync version from tag
+        run: |
+          TAG="${GITHUB_REF_NAME#copycat-v}"
+          echo "$TAG" > packages/daffodil-kit/VERSION
+          bash packages/daffodil-kit/scripts/sync-version.sh
+
+      - name: Build sdist and wheel
+        run: |
+          pip install build
+          python -m build packages/daffodil-kit --outdir dist/
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+            packages/daffodil-kit/install.sh
+            packages/daffodil-kit/install.ps1
+          generate_release_notes: true
+
+  publish-install-urls:
+    name: Post release install commands
+    needs: build-release
+    if: startsWith(github.ref, 'refs/tags/copycat-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print install URLs
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          REPO="${{ github.repository }}"
+          echo "## CopyCat Kit install ($TAG)"
+          echo "Linux/macOS:"
+          echo "  curl -fsSL https://raw.githubusercontent.com/${REPO}/${TAG}/packages/daffodil-kit/install.sh | bash"
+          echo "Windows (PowerShell):"
+          echo "  irm https://raw.githubusercontent.com/${REPO}/${TAG}/packages/daffodil-kit/install.ps1 | iex"

@@ -19,6 +19,16 @@ except ImportError:
     PYAUTOGUI_AVAILABLE = False
 
 
+_replayer_singleton: Optional["ActionReplayer"] = None
+
+
+def get_replayer() -> "ActionReplayer":
+    global _replayer_singleton
+    if _replayer_singleton is None:
+        _replayer_singleton = ActionReplayer()
+    return _replayer_singleton
+
+
 class ActionReplayer:
     """
     Replays a sequence of recorded actions.
@@ -60,6 +70,9 @@ class ActionReplayer:
         if not recording or not recording.actions:
             return {"error": "No actions to replay"}
 
+        from .copycat_lock import acquire, release
+
+        acquire(mode="replay", recording_name=getattr(recording, "name", None))
         self._running = True
         self._current_action_index = 0
         start_time = time.time()
@@ -71,33 +84,35 @@ class ActionReplayer:
         if skip_mouse_moves:
             actions = [a for a in actions if a.type != "mouse_move"]
 
-        for i, action in enumerate(actions):
-            if not self._running:
-                break
+        try:
+            for i, action in enumerate(actions):
+                if not self._running:
+                    break
 
-            self._current_action_index = i
+                self._current_action_index = i
 
-            if on_action:
+                if on_action:
+                    try:
+                        await on_action(i, action, total)
+                    except Exception:
+                        pass
+
                 try:
-                    await on_action(i, action, total)
-                except Exception:
-                    pass
+                    await self._execute_action(action)
+                    executed += 1
+                except Exception as e:
+                    logger.error(f"Replay action {i} failed: {e}")
+                    errors += 1
 
-            try:
-                await self._execute_action(action)
-                executed += 1
-            except Exception as e:
-                logger.error(f"Replay action {i} failed: {e}")
-                errors += 1
+                delay = getattr(action, "delay_after", 0) or 0
+                if delay > 0 and speed > 0:
+                    adjusted = delay / speed
+                    if adjusted > 0.01:
+                        await asyncio.sleep(min(adjusted, 5.0))
+        finally:
+            self._running = False
+            release()
 
-            # Wait for the recorded delay before next action
-            delay = getattr(action, "delay_after", 0) or 0
-            if delay > 0 and speed > 0:
-                adjusted = delay / speed
-                if adjusted > 0.01:  # Don't sleep for tiny amounts
-                    await asyncio.sleep(min(adjusted, 5.0))  # Cap at 5s
-
-        self._running = False
         elapsed = time.time() - start_time
 
         return {

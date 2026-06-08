@@ -16,6 +16,7 @@ from .core.middleware import LoggingMiddleware
 from .mcp.client import mcp_client
 from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth, status, skills, agent_hub
 from .api.computer_use import router as computer_use_router
+from .api.kit import router as kit_router
 from .live_broadcaster import live_router
 from .messaging_gateway import messaging_router
 
@@ -121,6 +122,7 @@ app.include_router(memory.router, prefix="/api")
 app.include_router(live_router)
 app.include_router(messaging_router)
 app.include_router(computer_use_router)
+app.include_router(kit_router)
 app.websocket("/ws/{user_id}")(websocket.websocket_endpoint)
 app.websocket("/voice/ws/{user_id}")(voice.voice_websocket)
 
