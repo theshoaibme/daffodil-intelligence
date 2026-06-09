@@ -98,6 +98,10 @@ async def test_text_handler_routes_through_orchestrator(monkeypatch, tmp_path):
     assert update.message.replies
     assert "answer to:" in update.message.replies[0]
     assert "test@diu.edu.bd" in update.message.replies[0]
+    assert captured.get("metadata", {}).get("channel") == "telegram"
+    assert captured.get("metadata", {}).get("telegram_chat_id") == 4242
+    assert "MCP" in captured.get("metadata", {}).get("selected_tools", [])
+    assert any("get_class_routine" in r for r in update.message.replies)
 
 
 def test_bot_disabled_when_not_configured(monkeypatch):
