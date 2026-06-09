@@ -63,6 +63,20 @@ class HookRecord:
 
 
 @dataclass
+class PersonalRoutineRecord:
+    id: str
+    user_id: int
+    name: str
+    schedule: str
+    tasks: List[str] = field(default_factory=list)
+    active: bool = True
+    created_at: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class LoopRecord:
     """Recurring prompt/command run on a fixed interval."""
 
@@ -92,6 +106,7 @@ class AutomationStore:
         self._subscriptions: Dict[str, AutomationSubscription] = {}
         self._hooks: Dict[str, HookRecord] = {}
         self._loops: Dict[str, LoopRecord] = {}
+        self._personal_routines: Dict[str, PersonalRoutineRecord] = {}
         self._loaded = False
 
     def _load(self) -> None:
@@ -112,11 +127,15 @@ class AutomationStore:
                 for lp in raw.get("loops", []):
                     loop = LoopRecord(**lp)
                     self._loops[loop.id] = loop
+                for pr in raw.get("personal_routines", []):
+                    rec = PersonalRoutineRecord(**pr)
+                    self._personal_routines[rec.id] = rec
             except Exception:
                 self._reminders = {}
                 self._subscriptions = {}
                 self._hooks = {}
                 self._loops = {}
+                self._personal_routines = {}
         self._loaded = True
 
     def _save(self) -> None:
@@ -125,8 +144,49 @@ class AutomationStore:
             "subscriptions": [s.to_dict() for s in self._subscriptions.values()],
             "hooks": [h.to_dict() for h in self._hooks.values()],
             "loops": [lp.to_dict() for lp in self._loops.values()],
+            "personal_routines": [r.to_dict() for r in self._personal_routines.values()],
         }
         self._path.write_text(json.dumps(payload, indent=2), "utf-8")
+
+    def create_personal_routine(
+        self,
+        *,
+        user_id: int,
+        name: str,
+        schedule: str,
+        tasks: Optional[List[str]] = None,
+    ) -> PersonalRoutineRecord:
+        with self._lock:
+            self._load()
+            rec = PersonalRoutineRecord(
+                id=str(uuid.uuid4())[:12],
+                user_id=user_id,
+                name=name.strip(),
+                schedule=schedule.strip(),
+                tasks=list(tasks or []),
+                created_at=datetime.utcnow().isoformat(),
+            )
+            self._personal_routines[rec.id] = rec
+            self._save()
+            return rec
+
+    def list_personal_routines(self, user_id: int, active_only: bool = True) -> List[PersonalRoutineRecord]:
+        with self._lock:
+            self._load()
+            items = [r for r in self._personal_routines.values() if r.user_id == user_id]
+            if active_only:
+                items = [r for r in items if r.active]
+            return sorted(items, key=lambda r: r.created_at)
+
+    def delete_personal_routine(self, user_id: int, routine_id: str) -> bool:
+        with self._lock:
+            self._load()
+            rec = self._personal_routines.get(routine_id)
+            if not rec or rec.user_id != user_id:
+                return False
+            rec.active = False
+            self._save()
+            return True
 
     def create_reminder(
         self,

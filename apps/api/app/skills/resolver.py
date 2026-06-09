@@ -84,6 +84,10 @@ async def _resolve(repo: HubRepository, agent_id: Optional[str], user_id: Any) -
     tool_names_acc: List[str] = []
     if custom and custom.get("tool_names"):
         tool_names_acc.extend(custom["tool_names"])
+    if effective_id == "routine":
+        from ..agents.routine import ROUTINE_TOOLS
+
+        tool_names_acc.extend(ROUTINE_TOOLS)
 
     uid = int(user_id or 0)
     for rs_id in ruleset_ids:
@@ -156,6 +160,10 @@ def _resolve_sync(agent_id, user_id, skill_store, ruleset_store, global_config_s
     tool_names_acc: List[str] = []
     if custom and custom.get("tool_names"):
         tool_names_acc.extend(custom["tool_names"])
+    if effective_id == "routine":
+        from ..agents.routine import ROUTINE_TOOLS
+
+        tool_names_acc.extend(ROUTINE_TOOLS)
 
     for rs_id in ruleset_ids:
         rs = ruleset_store.get(rs_id)

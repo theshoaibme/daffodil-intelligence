@@ -19,6 +19,60 @@ if TYPE_CHECKING:
     from ..bot import TelegramBot
 
 
+async def dispatch_product_command(
+    bot: "TelegramBot",
+    update,
+    ctx,
+    cmd: str,
+    args: list[str],
+) -> bool:
+    """Run a product slash command by name. Returns True if handled."""
+    cmd = (cmd or "").lower()
+    agents = AgentHandlers(bot)
+    skills = SkillHandlers(bot)
+    copycat = CopycatHandlers(bot)
+    automation = AutomationHandlers(bot)
+    registration = RegistrationHandlers(bot)
+    runtime = RuntimeHandlers(bot)
+
+    ctx.args = args
+
+    handlers = {
+        "skip": registration.cmd_skip,
+        "agent": agents.cmd_agent,
+        "agents": agents.cmd_agents,
+        "agentinfo": agents.cmd_agentinfo,
+        "createagent": agents.cmd_createagent,
+        "createsubagent": agents.cmd_createsubagent,
+        "editagent": agents.cmd_editagent,
+        "deleteagent": agents.cmd_deleteagent,
+        "skills": skills.cmd_skills,
+        "createskill": skills.cmd_createskill,
+        "editskill": skills.cmd_editskill,
+        "deleteskill": skills.cmd_deleteskill,
+        "agentskills": skills.cmd_agentskills,
+        "automation": automation.cmd_automation,
+        "automate": automation.cmd_automate,
+        "loop": automation.cmd_loop,
+        "createhook": automation.cmd_createhook,
+        "reminders": automation.cmd_reminders,
+        "tools": runtime.cmd_tools,
+        "mcp": runtime.cmd_mcp,
+        "flow": runtime.cmd_flow,
+        "logs": runtime.cmd_logs,
+        "shell": runtime.cmd_shell,
+        "copycat": copycat.cmd_copycat,
+        "recordings": copycat.cmd_recordings,
+        "record": copycat.cmd_record,
+        "replay": copycat.cmd_replay,
+    }
+    handler = handlers.get(cmd)
+    if not handler:
+        return False
+    await handler(update, ctx)
+    return True
+
+
 def register_product_handlers(app: "Application", bot: "TelegramBot") -> None:
     agents = AgentHandlers(bot)
     skills = SkillHandlers(bot)

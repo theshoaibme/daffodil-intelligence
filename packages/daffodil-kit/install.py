@@ -3,7 +3,7 @@
 CopyCat Kit — universal cross-platform installer (Linux · macOS · Windows).
 
 One command (auto-detects OS):
-  curl -fsSL https://cdn.jsdelivr.net/gh/the-shoaib2/daffodil-intelligence/install | sh
+  curl -fsSL https://raw.githubusercontent.com/the-shoaib2/daffodil-intelligence/main/install | sh
 
 Or directly:
   curl -fsSL .../install.py | python3 -

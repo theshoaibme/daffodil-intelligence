@@ -1,5 +1,6 @@
 """MCP server + config wiring tests."""
 
+from app.mcp import McpBuilder, get_local_tool_catalog
 from app.mcp.server import get_mcp_server, create_mcp_server
 from app.mcp.servers import get_mcp_server_configs, daffodil_self_server
 from app.mcp.client import TOOL_REGISTRY, execute_tool
@@ -32,3 +33,13 @@ def test_self_server_config():
     # Available when the Antigravity SDK is installed.
     if cfg is not None:
         assert cfg.name == "daffodil"
+
+
+def test_builder_self_spec_matches_server_module():
+    spec = McpBuilder.daffodil_self_spec()
+    assert spec.name == "daffodil"
+    assert spec.args[-1] == "stdio"
+
+
+def test_local_catalog_via_package():
+    assert len(get_local_tool_catalog()) == len(TOOL_REGISTRY)

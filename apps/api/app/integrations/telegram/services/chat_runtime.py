@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from ....agents.builder import get_agent
 from ....agents.registry import AGENT_MAP
 from ....core.config import get_settings
-from ....runtime.intent_router import route_message
 from ..auth_store import TelegramAccount
 from ..web_auth import resolve_runtime_user_id
 
@@ -108,25 +107,6 @@ def next_turn_index(runtime_user_id: int, chat_id: Any) -> int:
     key = f"{runtime_user_id}:{chat_id}"
     _TURN_COUNTERS[key] = _TURN_COUNTERS.get(key, 0) + 1
     return _TURN_COUNTERS[key]
-
-
-async def try_local_tool_reply(
-    text: str,
-    *,
-    account: Optional[TelegramAccount] = None,
-) -> Optional[str]:
-    """Answer tool-style requests without LLM when routing is unambiguous."""
-    plan = route_message(text)
-    if plan.primary != "routine" or not plan.section:
-        return None
-
-    from ....agents.routine import RoutineAgent
-
-    agent = RoutineAgent()
-    return agent.handle_class_routine(
-        text,
-        {"section": plan.section, "department": (account.department if account else "")},
-    )
 
 
 def build_telegram_turn(

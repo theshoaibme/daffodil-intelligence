@@ -77,7 +77,22 @@ class InvokeAgentTool(BaseTool):
         agent = AGENT_MAP.get(key)
         if agent:
             try:
-                response = await agent.process(message, {"user_id": uid})
+                from ...runtime.tool_context import get_section
+
+                ctx = {"user_id": uid, "section": get_section() or "64_I"}
+                if key in ("routine", "planning", "academic", "exam", "library", "transport"):
+                    from ...runtime.pipeline import run_turn
+
+                    result = await run_turn(
+                        message,
+                        user_id=uid,
+                        chat_id=f"invoke-{uid}-{key}",
+                        agent_id=key,
+                        metadata={"channel": "invoke_agent", "_message": message},
+                    )
+                    response = result.get("content", "")
+                else:
+                    response = await agent.process(message, ctx)
                 return self.ok(
                     {
                         "agent_type": key,

@@ -1,264 +1,117 @@
-from .base import BaseAgent
-from typing import Optional, Dict, List
+from __future__ import annotations
+
 import logging
 import re
+from typing import Dict, List, Optional
+
+from .base import BaseAgent
+from .tool_runner import format_tool_results, run_tool
+from ..runtime.intent_router import route_message
 
 logger = logging.getLogger(__name__)
 
 _SECTION_CODE = re.compile(r"\b(\d{2}_[A-Za-z0-9]+|6[Cc]\d+)\b", re.I)
 
+ROUTINE_TOOLS = [
+    "get_class_routine",
+    "enable_routine_automation",
+    "create_reminder",
+    "list_reminders",
+    "delete_reminder",
+    "create_routine",
+    "list_routines",
+    "delete_routine",
+    "get_daily_schedule",
+    "schedule_task",
+    "create_automation_hook",
+    "list_automation_hooks",
+    "delete_automation_hook",
+]
+
 
 class RoutineAgent(BaseAgent):
     name = "Routine Agent"
-    description = "Handles schedules, reminders, daily/weekly routines, and recurring task automation"
-    tools = [
-        "create_reminder",
-        "list_reminders",
-        "create_routine",
-        "list_routines",
-        "schedule_task",
-        "get_daily_schedule",
-    ]
+    description = "Schedules, class routines, reminders, habits, and automation hooks"
+    tools = ROUTINE_TOOLS
 
     SYSTEM_PROMPT = """You are the Routine Agent for Daffodil Intelligence.
-You help students with:
-- Setting reminders and alarms
-- Building daily, weekly, and monthly study routines
-- Scheduling recurring tasks (classes, assignments, breaks)
-- Managing personal calendars and habit tracking
-- Automating repetitive campus workflows
-
-Keep responses practical, time-aware, and easy to follow!"""
+Always use tools for real data — never invent schedules or reminders.
+Tools: get_class_routine, enable_routine_automation, create/list/delete reminders,
+create/list personal routines, get_daily_schedule, schedule_task, automation hooks.
+If section is missing for class routine, ask once for section (e.g. 64_I).
+Do not repeat the generic greeting."""
 
     async def process(self, message: str, context: Optional[Dict] = None) -> str:
-        message_lower = message.lower()
+        ctx = context or {}
+        plan = route_message(message)
+        lower = (message or "").lower()
+        results = []
 
-        if any(k in message_lower for k in ["class routine", "class schedule", "section routine"]) or _SECTION_CODE.search(message or ""):
-            return self.handle_class_routine(message, context)
+        try:
+            if plan.section:
+                results.append(
+                    await run_tool("get_class_routine", ctx, section=plan.section)
+                )
+            elif any(k in lower for k in ("class routine", "class schedule", "my routine")):
+                sec = self._section_from_context(ctx)
+                if sec:
+                    results.append(await run_tool("get_class_routine", ctx, section=sec))
+                else:
+                    return (
+                        "Which section's class routine do you need? "
+                        "For example: `64_I` or `6C1`."
+                    )
 
-        if any(k in message_lower for k in ["remind", "reminder", "alarm", "notify me"]):
-            return await self.handle_reminders(message)
+            elif any(k in lower for k in ("list reminder", "my reminders", "show reminders")):
+                results.append(await run_tool("list_reminders", ctx))
 
-        elif any(k in message_lower for k in ["routine", "habit", "daily", "weekly", "monthly"]):
-            return await self.handle_routines(message)
+            elif any(k in lower for k in ("list routine", "my routines", "show routines")):
+                results.append(await run_tool("list_routines", ctx))
 
-        elif any(k in message_lower for k in ["schedule", "calendar", "today", "tomorrow", "plan my day"]):
-            return await self.handle_schedule()
+            elif any(k in lower for k in ("list hook", "automation hook", "my hooks")):
+                results.append(await run_tool("list_automation_hooks", ctx))
 
-        elif any(k in message_lower for k in ["create", "set", "add", "new"]):
-            return await self.handle_create(message)
+            elif any(k in lower for k in ("today", "daily schedule", "plan my day")):
+                sec = self._section_from_context(ctx)
+                results.append(await run_tool("get_daily_schedule", ctx, section=sec))
 
-        elif any(k in message_lower for k in ["list", "show", "view", "my"]):
-            return await self.handle_list()
+            elif any(
+                k in lower
+                for k in (
+                    "enable routine",
+                    "daily tomorrow",
+                    "hour before class",
+                    "routine automation",
+                    "automate routine",
+                )
+            ):
+                sec = self._section_from_context(ctx)
+                results.append(
+                    await run_tool(
+                        "enable_routine_automation",
+                        ctx,
+                        section=sec,
+                    )
+                )
+
+            if results and any(r.success for r in results):
+                return format_tool_results(results)
+
+            if plan.primary == "routine" and plan.tools:
+                return (
+                    f"I can help with: {', '.join(plan.tools)}. "
+                    "Tell me what you need — e.g. class routine for 64_I, list reminders, "
+                    "or enable daily class alerts."
+                )
+        except Exception as e:
+            logger.warning("RoutineAgent tool path failed: %s", e)
 
         return await self.generate_response(self.SYSTEM_PROMPT, message)
 
-    def handle_class_routine(self, message: str, context: Optional[Dict] = None) -> str:
-        from ..automation.routines_data import get_section_routine
-        from ..runtime.tool_context import get_section
-
-        sec = None
-        m = _SECTION_CODE.search(message or "")
-        if m:
-            sec = m.group(1).upper()
-        elif context:
-            raw = (context.get("section") or "").strip()
-            if raw and raw.upper() != "CSE":
-                sec = raw.upper()
-        if not sec:
-            sec = (get_section() or "64_I").upper()
-        if sec == "CSE":
-            sec = "64_I"
-
-        data = get_section_routine(sec)
-        key = data.get("section", sec)
-        weekly = data.get("weekly", {})
-        if not weekly or all(not v for v in weekly.values()):
-            return (
-                f"I don't have a class routine for section **{key}** yet. "
-                "Try another section (e.g. 64_I)."
-            )
-
-        lines = [f"📅 **Class routine — {key}**"]
-        for day, items in weekly.items():
-            if not items:
-                continue
-            lines.append(f"\n**{day}**")
-            for it in items:
-                lines.append(
-                    f"• {it['time']} — {it.get('course', '')} {it.get('title', '')} "
-                    f"({it.get('room', '')}, {it.get('teacher', '')})"
-                )
-        return "\n".join(lines)
-
-    async def handle_reminders(self, message: str) -> str:
-        reminders = [
-            {"id": 1, "title": "Submit CSE301 assignment", "time": "Today, 6:00 PM", "repeat": "once"},
-            {"id": 2, "title": "Library book return", "time": "Wed, 10:00 AM", "repeat": "once"},
-            {"id": 3, "title": "Review lecture notes", "time": "Daily, 9:00 PM", "repeat": "daily"},
-            {"id": 4, "title": "Pay hostel fee", "time": "Fri, 12:00 PM", "repeat": "once"},
-        ]
-
-        reminder_list = "\n".join(
-            [
-                f"⏰ **{r['title']}**\n   📅 {r['time']} ({r['repeat']})"
-                for r in reminders
-            ]
-        )
-
-        return f"""🔔 **Your Reminders**
-
-{reminder_list}
-
-**Quick actions:**
-- "remind me to [task] at [time]" — create a reminder
-- "list reminders" — view all
-- "delete reminder [number]" — remove one"""
-
-    async def handle_routines(self, message: str) -> str:
-        routines = [
-            {
-                "name": "Morning Study Block",
-                "schedule": "Mon–Fri, 7:00–9:00 AM",
-                "tasks": ["Review yesterday's notes", "Complete 1 practice problem"],
-            },
-            {
-                "name": "Evening Revision",
-                "schedule": "Daily, 8:00–9:30 PM",
-                "tasks": ["Summarize today's lectures", "Prepare tomorrow's materials"],
-            },
-            {
-                "name": "Weekend Deep Work",
-                "schedule": "Sat, 10:00 AM–1:00 PM",
-                "tasks": ["Assignment work", "Project milestones"],
-            },
-        ]
-
-        routine_list = "\n".join(
-            [
-                f"📋 **{r['name']}** ({r['schedule']})\n"
-                + "\n".join(f"   • {t}" for t in r["tasks"])
-                for r in routines
-            ]
-        )
-
-        freq = "daily"
-        if "weekly" in message.lower():
-            freq = "weekly"
-        elif "monthly" in message.lower():
-            freq = "monthly"
-
-        return f"""🗓️ **Your Routines** ({freq} view)
-
-{routine_list}
-
-**Build a routine:**
-"create daily routine: wake 7am, study 8–10am, class 10am, break 1pm"
-
-I'll help you stick to it with reminders!"""
-
-    async def handle_schedule(self) -> str:
-        return """📅 **Today's Schedule**
-
-**Morning**
-- 07:00 — Wake up & breakfast
-- 08:00 — Study block (CSE301 revision)
-- 10:00 — CSE301 lecture (Room 401)
-
-**Afternoon**
-- 12:30 — Lunch break
-- 02:00 — Lab session (CSE302)
-- 04:00 — Shuttle to Mirpur campus
-
-**Evening**
-- 06:00 — Assignment deadline reminder
-- 08:00 — Evening revision routine
-- 09:30 — Free time / wellness break
-
-**Tomorrow**
-- 09:00 — Midterm prep session
-- 02:00 — Career fair registration opens
-
-Say "remind me before [event]" to add alerts."""
-
-    async def handle_create(self, message: str) -> str:
-        if "remind" in message.lower():
-            return """✅ **Reminder Created**
-
-**Title:** Custom reminder
-**Time:** As requested
-**Repeat:** Once
-
-You'll get a notification at the scheduled time.
-Check DIU App → Routines for all active reminders."""
-
-        return """✅ **Routine Created**
-
-Your new routine has been saved.
-
-**Suggested structure:**
-1. Fixed wake/sleep times
-2. Study blocks (45–90 min with breaks)
-3. Class & commute slots
-4. Assignment deadlines as one-time reminders
-
-Type "show my routines" to review everything."""
-
-    async def handle_list(self) -> str:
-        return await self.handle_reminders("list")
-
-
-async def create_reminder(
-    user_id: str, title: str, time: str, repeat: str = "once"
-) -> Dict:
-    return {
-        "reminder_id": f"REM-{hash(title + time) % 10000}",
-        "title": title,
-        "time": time,
-        "repeat": repeat,
-        "status": "active",
-    }
-
-
-async def list_reminders(user_id: str) -> List[Dict]:
-    return [
-        {"id": 1, "title": "Submit CSE301 assignment", "time": "Today, 6:00 PM"},
-        {"id": 3, "title": "Review lecture notes", "time": "Daily, 9:00 PM"},
-    ]
-
-
-async def create_routine(user_id: str, name: str, schedule: str, tasks: List[str]) -> Dict:
-    return {
-        "routine_id": f"RTN-{hash(name) % 10000}",
-        "name": name,
-        "schedule": schedule,
-        "tasks": tasks,
-        "status": "active",
-    }
-
-
-async def list_routines(user_id: str) -> List[Dict]:
-    return [
-        {"name": "Morning Study Block", "schedule": "Mon–Fri, 7:00–9:00 AM"},
-        {"name": "Evening Revision", "schedule": "Daily, 8:00–9:30 PM"},
-    ]
-
-
-async def schedule_task(user_id: str, title: str, datetime: str) -> Dict:
-    return {
-        "task_id": f"TSK-{hash(title + datetime) % 10000}",
-        "title": title,
-        "datetime": datetime,
-        "status": "scheduled",
-    }
-
-
-async def get_daily_schedule(user_id: str, date: str = None) -> Dict:
-    return {
-        "date": date or "today",
-        "blocks": [
-            {"time": "08:00", "title": "Study block"},
-            {"time": "10:00", "title": "CSE301 lecture"},
-            {"time": "14:00", "title": "Lab session"},
-        ],
-    }
+    @staticmethod
+    def _section_from_context(ctx: Dict) -> str:
+        raw = (ctx.get("section") or "64_I").strip().upper()
+        if raw == "CSE":
+            return "64_I"
+        m = _SECTION_CODE.search(raw)
+        return m.group(1).upper() if m else raw

@@ -237,6 +237,19 @@ def step_unknown_input_prompt(step: str) -> str:
     return default_authenticated_message()
 
 
+def parse_inline_command(text: str) -> Optional[tuple[str, list[str]]]:
+    """Parse `/command arg1 arg2` from plain text (when Telegram omits command entity)."""
+    raw = (text or "").strip()
+    if not raw.startswith("/"):
+        return None
+    parts = raw.split()
+    if not parts:
+        return None
+    head = parts[0].lstrip("/")
+    cmd = head.split("@", 1)[0].lower()
+    return cmd, parts[1:]
+
+
 def parse_suggestion_text(text: str) -> Optional[str]:
     """Map reply-keyboard labels to command names (no leading slash)."""
     normalized = (text or "").strip().lower()

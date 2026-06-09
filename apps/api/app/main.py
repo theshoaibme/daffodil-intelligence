@@ -14,7 +14,7 @@ from .core.database import init_db, close_db
 from .core.logging import configure_logging, log_startup_banner, log_startup_ready, mark_startup_begin
 from .core.middleware import LoggingMiddleware
 from .mcp.client import mcp_client
-from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth, status, skills, agent_hub
+from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth, status, skills, agent_hub, mcp_builder
 from .api.computer_use import router as computer_use_router
 from .api.kit import router as kit_router
 from .live_broadcaster import live_router
@@ -43,6 +43,7 @@ OPENAPI_TAGS = [
     {"name": "skills", "description": "Skill hub, rulesets, and global agent config"},
     {"name": "messaging", "description": "Telegram / WhatsApp webhooks"},
     {"name": "live", "description": "Gemini live sessions"},
+    {"name": "mcp", "description": "MCP server builder, probe, and catalog"},
 ]
 
 
@@ -123,6 +124,7 @@ app.include_router(live_router)
 app.include_router(messaging_router)
 app.include_router(computer_use_router)
 app.include_router(kit_router)
+app.include_router(mcp_builder.router, prefix="/api")
 app.websocket("/ws/{user_id}")(websocket.websocket_endpoint)
 app.websocket("/voice/ws/{user_id}")(voice.voice_websocket)
 

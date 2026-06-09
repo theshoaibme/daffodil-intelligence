@@ -1,5 +1,5 @@
 # CopyCat Kit — auto-installs Python on Windows if missing
-#   irm https://cdn.jsdelivr.net/gh/the-shoaib2/daffodil-intelligence/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/the-shoaib2/daffodil-intelligence/main/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 $Repo = if ($env:DAFFODIL_KIT_REPO) { $env:DAFFODIL_KIT_REPO } else { "the-shoaib2/daffodil-intelligence" }

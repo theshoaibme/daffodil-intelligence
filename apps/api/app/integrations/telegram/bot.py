@@ -45,6 +45,7 @@ from .commands import (
     default_authenticated_message,
     default_guest_message,
     help_text,
+    parse_inline_command,
     parse_suggestion_text,
     step_empty_prompt,
     step_unknown_input_prompt,
@@ -555,7 +556,15 @@ class TelegramBot:
         )
 
     async def _on_unknown_command(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
-        raw = (update.message.text or "").strip().split()[0].lower().lstrip("/")
+        text = (update.message.text or "").strip()
+        parsed = parse_inline_command(text)
+        if parsed:
+            cmd, args = parsed
+            from .handlers.registry import dispatch_product_command
+
+            if await dispatch_product_command(self, update, ctx, cmd, args):
+                return
+        raw = text.split()[0].lower().lstrip("/").split("@", 1)[0]
         if raw in ("loginn", "loging", "signin"):
             await self._cmd_login(update, ctx)
             return
@@ -895,6 +904,15 @@ class TelegramBot:
         text = (update.message.text or "").strip()
         profile = profile_store.get(uid)
         self._sync(update, profile)
+
+        if text.startswith("/") and self._is_authenticated(uid):
+            parsed = parse_inline_command(text)
+            if parsed:
+                from .handlers.registry import dispatch_product_command
+
+                cmd, args = parsed
+                if await dispatch_product_command(self, update, ctx, cmd, args):
+                    return
 
         if not text:
             if self._is_authenticated(uid) and profile.step == STEP_COMPLETE:
@@ -1243,14 +1261,6 @@ class TelegramBot:
         profile = profile_store.get(uid)
         agent_id = resolve_agent_id(profile)
         chat_id = f"tg-{uid}"
-
-        from .services.chat_runtime import try_local_tool_reply
-
-        local_reply = await try_local_tool_reply(text, account=account)
-        if local_reply:
-            for chunk in _chunk(local_reply, 4000):
-                await update.message.reply_text(chunk, parse_mode="Markdown")
-            return
 
         runtime_user_id, metadata, model_id, turn_index = build_telegram_turn(
             telegram_id=uid,

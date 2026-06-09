@@ -156,7 +156,19 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
 }
 
 AGENT_TOOLS: dict[str, List[str]] = {
-    "routine": ["get_class_routine", "enable_routine_automation", "create_reminder", "list_reminders"],
+    "routine": [
+        "get_class_routine",
+        "enable_routine_automation",
+        "create_reminder",
+        "list_reminders",
+        "delete_reminder",
+        "create_routine",
+        "list_routines",
+        "get_daily_schedule",
+        "schedule_task",
+        "create_automation_hook",
+        "list_automation_hooks",
+    ],
     "academic": ["get_cgpa", "get_courses", "get_results", "get_attendance"],
     "exam": ["get_exam_schedule"],
     "library": ["search_books", "get_book_availability"],

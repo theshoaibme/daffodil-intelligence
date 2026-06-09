@@ -9,13 +9,13 @@ Always installs the **latest** from the default branch. CopyCat Kit **auto-updat
 **Unix · macOS · WSL · Git Bash**
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/the-shoaib2/daffodil-intelligence/install | sh
+curl -fsSL https://raw.githubusercontent.com/the-shoaib2/daffodil-intelligence/main/install | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/the-shoaib2/daffodil-intelligence/install.ps1 | iex
+irm https://raw.githubusercontent.com/the-shoaib2/daffodil-intelligence/main/install.ps1 | iex
 ```
 
 ## From source

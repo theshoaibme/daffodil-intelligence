@@ -32,8 +32,8 @@ def is_newer(latest: str, installed: str) -> bool:
     return parse_version(latest) > parse_version(installed)
 
 
-def version_url(repo: str = DEFAULT_REPO) -> str:
-    return f"https://cdn.jsdelivr.net/gh/{repo}/packages/daffodil-kit/VERSION"
+def version_url(repo: str = DEFAULT_REPO, ref: str = DEFAULT_REF) -> str:
+    return f"https://raw.githubusercontent.com/{repo}/{ref}/packages/daffodil-kit/VERSION"
 
 
 def fetch_latest_version(repo: str = DEFAULT_REPO) -> str:
