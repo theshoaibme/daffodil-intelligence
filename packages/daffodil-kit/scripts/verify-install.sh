@@ -3,8 +3,34 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=scripts/lib/install-log.sh
-source "${SCRIPT_DIR}/scripts/lib/install-log.sh"
+
+copycat_banner() {
+  echo "== $1 =="
+}
+
+copycat_step() {
+  echo "-- $1"
+}
+
+copycat_ok() {
+  echo "✓ $1"
+}
+
+copycat_warn() {
+  echo "⚠ $1"
+}
+
+copycat_fail() {
+  echo "✗ $1" >&2
+}
+
+copycat_info() {
+  echo "· $1"
+}
+
+copycat_summary() {
+  echo "== $1 =="
+}
 
 copycat_banner "verify"
 COPYCAT_STEP_TOTAL=5
