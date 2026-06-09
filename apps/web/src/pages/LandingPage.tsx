@@ -27,7 +27,7 @@ import {
   MapPin,
   Phone,
 } from "lucide-react";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@lib";
 
 /* ─── Product Items (hover dropdown) ─── */
 const productItems = [
