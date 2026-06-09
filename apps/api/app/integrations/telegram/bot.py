@@ -1243,6 +1243,15 @@ class TelegramBot:
         profile = profile_store.get(uid)
         agent_id = resolve_agent_id(profile)
         chat_id = f"tg-{uid}"
+
+        from .services.chat_runtime import try_local_tool_reply
+
+        local_reply = await try_local_tool_reply(text, account=account)
+        if local_reply:
+            for chunk in _chunk(local_reply, 4000):
+                await update.message.reply_text(chunk, parse_mode="Markdown")
+            return
+
         runtime_user_id, metadata, model_id, turn_index = build_telegram_turn(
             telegram_id=uid,
             account=account,

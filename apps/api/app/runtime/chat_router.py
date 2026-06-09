@@ -2,10 +2,36 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, List, Optional
 
 from ..core.config import get_settings
 from .agent_factory import AgentPersona
+
+_SECTION_CODE = re.compile(r"\b(\d{2}_[A-Za-z0-9]+|6[Cc]\d+)\b")
+_TOOL_KEYWORDS = (
+    "class routine",
+    "class schedule",
+    "my routine",
+    "cgpa",
+    "gpa",
+    "grade",
+    "result",
+    "attendance",
+    "shuttle",
+    "bus route",
+    "remind",
+    "reminder",
+    "exam schedule",
+    "fee",
+    "tuition",
+    "library",
+    "book",
+    "internship",
+    "job",
+    "invoke_agent",
+    "get_class_routine",
+)
 
 _MAIN_AGENTS = frozenset({"main", "supervisor", "default", ""})
 # Modes that require Antigravity tool-calling (MCP alone is a hint only).
@@ -18,6 +44,17 @@ _FULL_RUNTIME_ROUTINGS = frozenset({
     "long_context",
 })
 # "complex" stays on Groq (larger model) when tools are not required.
+
+
+def message_needs_tools(message: str) -> bool:
+    """True when a turn needs tool-calling (not plain Groq chat)."""
+    text = (message or "").strip()
+    if not text:
+        return False
+    if _SECTION_CODE.search(text):
+        return True
+    lower = text.lower()
+    return any(k in lower for k in _TOOL_KEYWORDS)
 
 
 def groq_model_for_routing(routing: str) -> str:
@@ -51,7 +88,15 @@ def should_use_fast_groq(
     if routing in _FULL_RUNTIME_ROUTINGS:
         return False
 
-    selected = (metadata or {}).get("selected_tools") or []
+    meta = metadata or {}
+    if meta.get("channel") == "telegram":
+        return False
+    if message_needs_tools(meta.get("_message", "")):
+        return False
+
+    selected = meta.get("selected_tools") or []
+    if settings.MCP_ENABLED and "MCP" in selected:
+        return False
     if any(mode in _TOOL_MODES for mode in selected):
         return False
 

@@ -16,6 +16,7 @@ from ..prompts.modes import build_mode_system_prompt, mode_status_messages
 from ..skills.resolver import resolve_runtime_config
 from . import groq_chat, orchestrator
 from .chat_router import groq_model_for_routing, should_use_fast_groq
+from .intent_router import route_message
 from .stream_signals import stream_turn_preamble
 from .tool_context import clear_turn_context, set_turn_context
 from .trace import estimate_tokens, trace_recorder
@@ -119,15 +120,19 @@ async def _run_turn_inner(
         chat_id=chat_id,
     )
     extra_system = cfg.extra_system or ""
+    route_hint = route_message(message).hint_block()
+    if route_hint:
+        extra_system = f"{route_hint}\n\n{extra_system}".strip() if extra_system else route_hint
     if recall_block:
         extra_system = f"{recall_block}\n\n{extra_system}".strip() if extra_system else recall_block
     prompt = _compose_message(message, context_prefix)
 
+    meta = {**(metadata or {}), "_message": message}
     use_fast_groq = should_use_fast_groq(
         attachments=bool(attachments),
         routing=routing,
         was_auto=was_auto,
-        metadata=metadata,
+        metadata=meta,
         agent_id=cfg.agent_id,
         persona=cfg.persona,
         include_tools=cfg.tool_names,
@@ -162,6 +167,7 @@ async def _run_turn_inner(
             extra_system=extra_system or None,
             model=resolved_model,
             include_tools=cfg.tool_names,
+            metadata=meta,
         )
 
     result["agent_id"] = cfg.agent_id
@@ -230,15 +236,19 @@ async def _run_turn_stream_inner(
         chat_id=chat_id,
     )
     extra_system = cfg.extra_system or ""
+    route_hint = route_message(message).hint_block()
+    if route_hint:
+        extra_system = f"{route_hint}\n\n{extra_system}".strip() if extra_system else route_hint
     if recall_block:
         extra_system = f"{recall_block}\n\n{extra_system}".strip() if extra_system else recall_block
     prompt = _compose_message(message, context_prefix)
 
+    meta = {**(metadata or {}), "_message": message}
     use_fast_groq = should_use_fast_groq(
         attachments=bool(attachments),
         routing=routing,
         was_auto=was_auto,
-        metadata=metadata,
+        metadata=meta,
         agent_id=cfg.agent_id,
         persona=cfg.persona,
         include_tools=cfg.tool_names,
@@ -315,6 +325,7 @@ async def _run_turn_stream_inner(
                 extra_system=extra_system or None,
                 model=resolved_model,
                 include_tools=cfg.tool_names,
+                metadata=meta,
             ):
                 etype = event.get("type") if isinstance(event, dict) else None
                 if etype == "content":

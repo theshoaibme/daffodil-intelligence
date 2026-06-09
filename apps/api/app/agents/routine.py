@@ -1,8 +1,11 @@
 from .base import BaseAgent
 from typing import Optional, Dict, List
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+_SECTION_CODE = re.compile(r"\b(\d{2}_[A-Za-z0-9]+|6[Cc]\d+)\b", re.I)
 
 
 class RoutineAgent(BaseAgent):
@@ -30,6 +33,9 @@ Keep responses practical, time-aware, and easy to follow!"""
     async def process(self, message: str, context: Optional[Dict] = None) -> str:
         message_lower = message.lower()
 
+        if any(k in message_lower for k in ["class routine", "class schedule", "section routine"]) or _SECTION_CODE.search(message or ""):
+            return self.handle_class_routine(message, context)
+
         if any(k in message_lower for k in ["remind", "reminder", "alarm", "notify me"]):
             return await self.handle_reminders(message)
 
@@ -46,6 +52,44 @@ Keep responses practical, time-aware, and easy to follow!"""
             return await self.handle_list()
 
         return await self.generate_response(self.SYSTEM_PROMPT, message)
+
+    def handle_class_routine(self, message: str, context: Optional[Dict] = None) -> str:
+        from ..automation.routines_data import get_section_routine
+        from ..runtime.tool_context import get_section
+
+        sec = None
+        m = _SECTION_CODE.search(message or "")
+        if m:
+            sec = m.group(1).upper()
+        elif context:
+            raw = (context.get("section") or "").strip()
+            if raw and raw.upper() != "CSE":
+                sec = raw.upper()
+        if not sec:
+            sec = (get_section() or "64_I").upper()
+        if sec == "CSE":
+            sec = "64_I"
+
+        data = get_section_routine(sec)
+        key = data.get("section", sec)
+        weekly = data.get("weekly", {})
+        if not weekly or all(not v for v in weekly.values()):
+            return (
+                f"I don't have a class routine for section **{key}** yet. "
+                "Try another section (e.g. 64_I)."
+            )
+
+        lines = [f"📅 **Class routine — {key}**"]
+        for day, items in weekly.items():
+            if not items:
+                continue
+            lines.append(f"\n**{day}**")
+            for it in items:
+                lines.append(
+                    f"• {it['time']} — {it.get('course', '')} {it.get('title', '')} "
+                    f"({it.get('room', '')}, {it.get('teacher', '')})"
+                )
+        return "\n".join(lines)
 
     async def handle_reminders(self, message: str) -> str:
         reminders = [
