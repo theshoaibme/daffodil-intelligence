@@ -16,9 +16,9 @@ try:
     pyautogui.FAILSAFE = True
     pyautogui.PAUSE = 0         # agent-speed: no artificial delay between actions
     PYAUTOGUI_AVAILABLE = True
-except ImportError:
+except Exception:
     PYAUTOGUI_AVAILABLE = False
-    logger.warning("pyautogui not installed. Mouse control disabled. Run: pip install pyautogui")
+    logger.warning("pyautogui not available. Mouse control disabled.")
 
 PYNPUT_AVAILABLE = importlib.util.find_spec("pynput.mouse") is not None
 

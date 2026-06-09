@@ -20,12 +20,16 @@ from .agent_factory import AgentPersona
 logger = logging.getLogger(__name__)
 
 
-async def _legacy_run(message: str, user_id: Any) -> dict:
+async def _legacy_run(message: str, user_id: Any, metadata: Optional[dict] = None) -> dict:
     from ..agents.supervisor import detect_intent, process_with_agents, synthesize_response
+    from .intent_router import route_message
+
+    plan = route_message(message)
     agents = detect_intent(message)
-    results = await process_with_agents(message, agents, {"user_id": user_id})
+    ctx = {"user_id": user_id, "section": (metadata or {}).get("section") or plan.section}
+    results = await process_with_agents(message, agents, ctx)
     content = await synthesize_response(results, message)
-    return {"content": content, "tool_calls": [], "agents": agents, "engine": "legacy"}
+    return {"content": content, "tool_calls": plan.tools, "agents": agents, "engine": "legacy"}
 
 
 async def run(
@@ -37,6 +41,9 @@ async def run(
     lang: Optional[str] = None,
     agent_id: Optional[str] = None,
     extra_system: Optional[str] = None,
+    model: Optional[str] = None,
+    include_tools: Optional[List[str]] = None,
+    metadata: Optional[dict] = None,
 ) -> dict:
     """Run one turn and return {content, tool_calls/agents, engine}."""
     if extra_system is None and agent_id:
@@ -44,19 +51,22 @@ async def run(
         cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
         extra_system = cfg.extra_system or None
         persona = cfg.persona
+        if include_tools is None:
+            include_tools = cfg.tool_names
 
     if session_manager.available():
         try:
             res = await session_manager.chat(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
-                extra_system=extra_system,
+                extra_system=extra_system, model=model,
+                include_tools=include_tools,
             )
             res["engine"] = "antigravity"
             return res
         except Exception as e:
             logger.error(f"Antigravity run failed, falling back to legacy: {e}")
-    return await _legacy_run(message, user_id)
+    return await _legacy_run(message, user_id, metadata)
 
 
 async def run_stream(
@@ -68,6 +78,9 @@ async def run_stream(
     lang: Optional[str] = None,
     agent_id: Optional[str] = None,
     extra_system: Optional[str] = None,
+    model: Optional[str] = None,
+    include_tools: Optional[List[str]] = None,
+    metadata: Optional[dict] = None,
 ) -> AsyncIterator[dict]:
     """Yield structured stream events for one turn (Antigravity, else legacy)."""
     if extra_system is None and agent_id:
@@ -75,20 +88,38 @@ async def run_stream(
         cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
         extra_system = cfg.extra_system or None
         persona = cfg.persona
+        if include_tools is None:
+            include_tools = cfg.tool_names
 
     if session_manager.available():
         try:
             async for event in session_manager.stream(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
-                extra_system=extra_system,
+                extra_system=extra_system, model=model,
+                include_tools=include_tools,
             ):
                 yield event
             return
         except Exception as e:
-            logger.error(f"Antigravity stream failed, falling back to legacy: {e}")
+            logger.error(f"Antigravity stream failed, falling back: {e}")
 
-    result = await _legacy_run(message, user_id)
+    from .chat_router import message_needs_tools
+    from .groq_chat import is_available as groq_available, stream_chat as groq_stream
+
+    if groq_available() and not message_needs_tools(message):
+        try:
+            async for event in groq_stream(
+                message,
+                extra_system=extra_system,
+                model=model,
+            ):
+                yield event
+            return
+        except Exception as e:
+            logger.error(f"Groq stream failed, falling back to legacy: {e}")
+
+    result = await _legacy_run(message, user_id, metadata)
     content = result["content"] or ""
     for word in content.split(" "):
         yield {"type": "content", "content": word + " "}

@@ -1,4 +1,4 @@
-# CopyCat — irm https://cdn.jsdelivr.net/gh/the-shoaib2/daffodil-intelligence/install.ps1 | iex
+# CopyCat — irm https://raw.githubusercontent.com/the-shoaib2/daffodil-intelligence/main/install.ps1 | iex
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $local = Join-Path $here "packages\daffodil-kit\install.ps1"

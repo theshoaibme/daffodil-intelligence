@@ -97,12 +97,8 @@ If query is complex (multiple topics), call multiple agents in parallel.
         greetings_bn = ["হ্যালো", "হাই", "আসসালামু আলাইকুম", "শুভ সকাল", "শুভ দুপুর", "শুভ সন্ধ্যা"]
         
         if any(g in msg_clean for g in greetings_en + greetings_bn):
-            # Check if any other agent keyword is present
-            has_other_keywords = False
-            for agent, words in KEYWORDS.items():
-                if any(word in msg_clean for word in words):
-                    has_other_keywords = True
-                    break
+            from ..runtime.intent_router import route_message
+            has_other_keywords = route_message(message).primary != "general"
             if not has_other_keywords:
                 from ..prompts.manager import get_greeting
                 return get_greeting(lang)
@@ -113,48 +109,9 @@ If query is complex (multiple topics), call multiple agents in parallel.
         return response
 
 
-KEYWORDS = {
-    "academic": ["cgpa", "gpa", "grade", "result", "course", "syllabus", "semester", "attendance", "marks"],
-    "library": ["book", "journal", "pdf", "borrow", "library", "research paper", "isbn"],
-    "campus": ["shuttle", "room", "notice", "campus", "building", "facility"],
-    "career": ["job", "internship", "cv", "resume", "interview", "career", "roadmap", "placement"],
-    "coding": ["code", "debug", "programming", "algorithm", "error", "bug", "develop", "function"],
-    "research": ["thesis", "paper", "research", "citation", "literature", "abstract", "publication"],
-    "wellness": ["stress", "mental", "study tips", "motivation", "relax", "anxiety", "health"],
-    "finance": ["fee", "payment", "waiver", "scholarship", "tuition", "money", "cost"],
-    "vision": ["image", "screenshot", "photo", "analyze", "read image"],
-    "voice": ["speak", "voice", "speech", "audio", "talk", "voice chat"],
-    "exam": ["exam", "exam schedule", "seating", "seat plan", "midterm", "final exam"],
-    "hostel": ["hostel", "hostel room", "bed", "mess", "check in", "check out", "ac room"],
-    "transport": ["shuttle", "bus", "transport", "route", "track shuttle", "vehicle", "van"],
-    "event": ["event", "workshop", "seminar", "club", "activity", "register event"],
-    "complaint": ["complaint", "complain", "issue", "problem", "feedback", "escalate", "grievance"],
-    "notification": ["notification", "notifications", "alert", "announcement", "message", "subscribe"],
-    "fee": ["tuition fee", "installment", "due", "pay fee", "emi", "semester fee"],
-    # New universal agent keywords
-    "computer_use": ["click", "mouse", "keyboard", "screen", "open app", "control", "type", "automate", "window", "cursor"],
-    "copycat": ["record", "replay", "repeat", "macro", "copy action", "রেকর্ড", "আবার কর"],
-    "planning": ["plan", "step by step", "first then", "multiple steps", "sequence", "workflow"],
-    "routine": [
-        "remind", "reminder", "alarm", "routine", "daily", "weekly", "monthly",
-        "schedule my day", "habit", "recurring", "every day", "every week",
-    ],
-}
-
-
 def detect_intent(message: str) -> list[str]:
-    message_lower = message.lower()
-    agents = []
-
-    for agent, words in KEYWORDS.items():
-        if any(word in message_lower for word in words):
-            agents.append(agent)
-
-    # Fallback to general agent for greetings or unknown queries
-    if not agents:
-        agents = ["general"]
-
-    return agents
+    from ..runtime.intent_router import detect_intent as _route
+    return _route(message)
 
 
 async def process_with_agents(message: str, agents: list[str], context: dict = None) -> dict:

@@ -1,8 +1,37 @@
-import { useState, useCallback } from "react";
-import { 
-  createChat, 
-  sendMessage 
+import { useState, useCallback, useRef } from "react";
+import {
+  createChat,
+  sendMessage,
 } from "../lib/api";
+import type { StreamEvent } from "../lib/api";
+import { emitFlow, getFlow, resetFlow } from "../lib/flowBus";
+import type { ChatContextUsage } from "../lib/chatContext";
+
+function humanizeName(name: string): string {
+  return name
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+function normalizeStatus(status?: string): ThinkingStep["status"] {
+  if (status === "success" || status === "done" || status === "completed") return "success";
+  if (status === "active" || status === "running" || status === "start") return "active";
+  return "active";
+}
+
+function upsertStep(
+  steps: ThinkingStep[],
+  id: string,
+  title: string,
+  status: ThinkingStep["status"]
+): ThinkingStep[] {
+  const existing = steps.find((s) => s.id === id);
+  if (!existing) {
+    return [...steps, { id, title, status }];
+  }
+  return steps.map((s) => (s.id === id ? { ...s, status } : s));
+}
 
 export interface ChatMessage {
   id: string;
@@ -35,17 +64,42 @@ export function useChat(options?: UseChatOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStreamingContent, setCurrentStreamingContent] = useState("");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [thinkingText, setThinkingText] = useState("");
+  const [thinkingMs, setThinkingMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastContext, setLastContext] = useState<ChatContextUsage | null>(null);
+  const sendGenerationRef = useRef(0);
+  const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const thinkingStartRef = useRef<number | null>(null);
+
+  const stopThinkingTimer = useCallback(() => {
+    if (thinkingTimerRef.current) {
+      clearInterval(thinkingTimerRef.current);
+      thinkingTimerRef.current = null;
+    }
+  }, []);
+
+  const isSendStale = useCallback(
+    (generation: number) => generation !== sendGenerationRef.current,
+    []
+  );
 
   const loadSession = useCallback((nextChatId: number | null, nextMessages: ChatMessage[]) => {
+    sendGenerationRef.current += 1;
+    stopThinkingTimer();
+    resetFlow();
+    thinkingStartRef.current = null;
     setChatId(nextChatId);
     setMessages(nextMessages);
     setThinkingSteps([]);
+    setThinkingText("");
+    setThinkingMs(null);
     setCurrentStreamingContent("");
     setError(null);
     setIsLoading(false);
     setIsStreaming(false);
-  }, []);
+    setLastContext(null);
+  }, [stopThinkingTimer]);
 
   const initializeChat = useCallback(async () => {
     try {
@@ -62,7 +116,13 @@ export function useChat(options?: UseChatOptions) {
     }
   }, []);
 
-  const send = useCallback(async (content: string) => {
+  const send = useCallback(async (
+    content: string,
+    modelId?: string,
+    metadata?: Record<string, unknown>
+  ) => {
+    const generation = sendGenerationRef.current;
+
     try {
       setError(null);
       setIsLoading(true);
@@ -72,6 +132,7 @@ export function useChat(options?: UseChatOptions) {
       
       if (!currentChatId) {
         const chat = await createChat("supervisor");
+        if (isSendStale(generation)) return;
         currentChatId = chat.id;
         setChatId(chat.id);
       }
@@ -86,6 +147,16 @@ export function useChat(options?: UseChatOptions) {
       setMessages(prev => [...prev, userMessage]);
 
       setThinkingSteps([]);
+      setThinkingText("");
+      setThinkingMs(0);
+      resetFlow();
+      thinkingStartRef.current = Date.now();
+      stopThinkingTimer();
+      thinkingTimerRef.current = setInterval(() => {
+        if (thinkingStartRef.current != null && !isSendStale(generation)) {
+          setThinkingMs(Date.now() - thinkingStartRef.current);
+        }
+      }, 100);
 
       const assistantMessageId = `assistant-${Date.now()}`;
       const assistantMessage: ChatMessage = {
@@ -101,18 +172,98 @@ export function useChat(options?: UseChatOptions) {
 
       let fullContent = "";
 
-      const response = await sendMessage(currentChatId, content, (chunk) => {
-        fullContent += chunk;
-        setCurrentStreamingContent(fullContent);
-        
-        setMessages(prev => 
-          prev.map(m => 
-            m.id === assistantMessageId 
-              ? { ...m, content: fullContent } 
-              : m
-          )
-        );
-      });
+      const response = await sendMessage(
+        currentChatId,
+        content,
+        (chunk) => {
+          if (isSendStale(generation)) return;
+          if (thinkingTimerRef.current) {
+            stopThinkingTimer();
+            if (thinkingStartRef.current != null) {
+              setThinkingMs(Date.now() - thinkingStartRef.current);
+            }
+            setThinkingSteps((prev) =>
+              prev.map((s) => (s.status === "active" ? { ...s, status: "success" } : s))
+            );
+          }
+          fullContent += chunk;
+          setCurrentStreamingContent(fullContent);
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId ? { ...m, content: fullContent } : m
+            )
+          );
+        },
+        modelId,
+        (ctx) => {
+          if (!isSendStale(generation)) setLastContext(ctx);
+        },
+        metadata,
+        (event: StreamEvent) => {
+          if (isSendStale(generation)) return;
+          if (event.type === "thinking" && event.content) {
+            setThinkingText((prev) => prev + event.content);
+          } else if (event.type === "status" && event.content) {
+            setThinkingSteps((prev) => [
+              ...prev,
+              {
+                id: `status:${prev.length}`,
+                title: event.content!,
+                status: "success",
+              },
+            ]);
+          } else if (event.type === "model" && event.content) {
+            setThinkingSteps((prev) =>
+              upsertStep(
+                prev,
+                "model",
+                `Model: ${event.content}${event.name ? ` (${event.name})` : ""}`,
+                "success"
+              )
+            );
+            emitFlow({ modelActive: true });
+          } else if (event.type === "tool" && event.name) {
+            setThinkingSteps((prev) =>
+              upsertStep(
+                prev,
+                `tool:${event.name}`,
+                `Using ${humanizeName(event.name!)}`,
+                normalizeStatus(event.status)
+              )
+            );
+            if (normalizeStatus(event.status) === "active") {
+              emitFlow({
+                modelActive: true,
+                activeTools: Array.from(
+                  new Set([...getFlow().activeTools, event.name!])
+                ),
+              });
+            }
+          } else if ((event.type === "agent" || event.type === "subagent") && event.name) {
+            const label = event.type === "subagent" ? "Delegating to" : "Agent";
+            setThinkingSteps((prev) =>
+              upsertStep(
+                prev,
+                `${event.type}:${event.agent_id ?? event.name}`,
+                `${label} ${humanizeName(event.name!)}`,
+                normalizeStatus(event.status)
+              )
+            );
+            const id = event.agent_id ?? event.name!;
+            emitFlow({ modelActive: true, activeAgentIds: [id] });
+          }
+        }
+      );
+
+      if (isSendStale(generation)) return;
+
+      if (thinkingTimerRef.current) {
+        stopThinkingTimer();
+        if (thinkingStartRef.current != null) {
+          setThinkingMs(Date.now() - thinkingStartRef.current);
+        }
+      }
 
       setThinkingSteps(prev => 
         prev.map(s => ({ ...s, status: "success" }))
@@ -133,16 +284,22 @@ export function useChat(options?: UseChatOptions) {
 
       setIsStreaming(false);
       setCurrentStreamingContent("");
-      
+      resetFlow();
+
       return response;
     } catch (err) {
+      stopThinkingTimer();
+      resetFlow();
+      if (isSendStale(generation)) return;
       setError(err instanceof Error ? err.message : "Failed to send message");
       setIsStreaming(false);
       throw err;
     } finally {
-      setIsLoading(false);
+      if (!isSendStale(generation)) {
+        setIsLoading(false);
+      }
     }
-  }, [chatId]);
+  }, [chatId, isSendStale, stopThinkingTimer]);
 
   const clearChat = useCallback(() => {
     loadSession(null, []);
@@ -155,7 +312,10 @@ export function useChat(options?: UseChatOptions) {
     isStreaming,
     currentStreamingContent,
     thinkingSteps,
+    thinkingText,
+    thinkingMs,
     error,
+    lastContext,
     send,
     clearChat,
     loadSession,

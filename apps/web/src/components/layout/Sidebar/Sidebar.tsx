@@ -2,10 +2,10 @@ import { useMemo, type ReactNode } from "react";
 import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ROUTES } from "../../../lib/routes";
+import { ROUTES } from "@lib";
 import type { SidebarProps } from "./types";
-import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "../../../lib/motion";
-import { useChatHistory } from "../../../context/ChatHistoryContext";
+import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "@lib";
+import { useChatHistory } from "@context";
 import { ChatHistoryItem } from "./ChatHistoryItem";
 
 export type { SidebarProps } from "./types";
@@ -131,7 +131,7 @@ export function Sidebar({
           <RailButton label="Expand sidebar" onClick={toggleSidebar}>
             <Menu size={22} />
           </RailButton>
-          <RailButton label="New chat" onClick={() => onNewChat?.()}>
+          <RailButton label="New agent" onClick={() => onNewChat?.()}>
             <Plus size={22} />
           </RailButton>
           <div className="flex-1" />
@@ -199,20 +199,20 @@ export function Sidebar({
           </nav>
 
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 pr-4">
-            <div className="mb-8">
+            <div className="mb-4">
               <button
                 type="button"
                 onClick={() => onNewChat?.()}
-                className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer bg-transparent"
+                className="w-full mb-2 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium text-on-surface-variant bg-surface-container-high/60 hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer border-0"
               >
-                <Plus size={16} />
-                New chat
+                <Plus size={15} />
+                New agent
               </button>
-              <h3 className="text-[11px] uppercase tracking-widest text-on-surface-variant font-bold mb-4 px-2">
+              <h3 className="text-xs text-on-surface-variant font-medium mb-2 px-2">
                 Chat history
               </h3>
               {visibleHistories.length > 0 ? (
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {visibleHistories.map((entry) => (
                     <ChatHistoryItem
                       key={entry.id}
@@ -220,10 +220,7 @@ export function Sidebar({
                       title={entry.title}
                       updatedAt={entry.updatedAt}
                       active={activeHistoryId === entry.id}
-                      onSelect={() => {
-                        onSelectHistory?.(entry.id);
-                        navigate(ROUTES.home);
-                      }}
+                      onSelect={() => onSelectHistory?.(entry.id)}
                       onDelete={() => onDeleteHistory?.(entry.id)}
                       onShare={() => onShareHistory?.(entry.id)}
                     />

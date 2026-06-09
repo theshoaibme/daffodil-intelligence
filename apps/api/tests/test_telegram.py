@@ -5,7 +5,12 @@ import types
 import pytest
 
 from app.integrations.telegram import telegram_bot
-from app.integrations.telegram.profiles import STEP_COMPLETE, STEP_REGISTER_EMAIL, STEP_REGISTER_OTP
+from app.integrations.telegram.profiles import (
+    STEP_AUTH_MENU,
+    STEP_COMPLETE,
+    STEP_REGISTER_EMAIL,
+    STEP_REGISTER_OTP,
+)
 from app.integrations.telegram.otp import otp_service
 from app.integrations.telegram.tokens import sign_state, verify_state
 
@@ -68,20 +73,35 @@ async def test_text_handler_routes_through_orchestrator(monkeypatch, tmp_path):
     p.step = STEP_COMPLETE
     prof_store.save(p)
 
-    async def fake_run_turn(text, **kwargs):
+    captured = {}
+
+    async def fake_run_turn_stream(text, **kwargs):
+        captured.update(kwargs)
         prefix = kwargs.get("context_prefix", "")
         composed = f"{prefix}\n\n{text}" if prefix else text
-        return {"content": f"answer to: {composed}", "tool_calls": []}
+        yield {"type": "agent", "agent_id": kwargs.get("agent_id", "main"), "name": "main", "status": "active"}
+        yield {"type": "tool", "name": "get_class_routine", "status": "active"}
+        yield {"type": "content", "content": f"answer to: {composed}"}
 
-    monkeypatch.setattr("app.integrations.telegram.bot.run_turn", fake_run_turn)
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr("app.integrations.telegram.bot.run_turn_stream", fake_run_turn_stream)
+    monkeypatch.setattr(
+        "app.integrations.telegram.bot.memory_service.process_turn_memory",
+        AsyncMock(),
+    )
 
     update = _FakeUpdate("what is my cgpa?")
     ctx = types.SimpleNamespace(bot=None, args=[])
     await telegram_bot._on_text(update, ctx)
 
     assert update.message.replies
-    assert "answer to:" in update.message.replies[0]
-    assert "test@diu.edu.bd" in update.message.replies[0]
+    assert any("answer to:" in r for r in update.message.replies)
+    assert any("test@diu.edu.bd" in r for r in update.message.replies)
+    assert captured.get("metadata", {}).get("channel") == "telegram"
+    assert captured.get("metadata", {}).get("telegram_chat_id") == 4242
+    assert "MCP" in captured.get("metadata", {}).get("selected_tools", [])
+    assert any("get_class_routine" in r for r in update.message.replies)
 
 
 def test_bot_disabled_when_not_configured(monkeypatch):
@@ -132,6 +152,81 @@ async def test_start_shows_auth_menu(monkeypatch, tmp_path):
     assert "JARVIS" not in update.message.replies[0].upper()
 
 
+async def test_empty_message_shows_default_guest_prompt(monkeypatch, tmp_path):
+    from app.integrations.telegram import auth_store as astore_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    astore = astore_mod.TelegramAuthStore(str(tmp_path / "users.json"))
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    monkeypatch.setattr(astore_mod, "auth_store", astore)
+    monkeypatch.setattr("app.integrations.telegram.bot.auth_store", astore)
+    monkeypatch.setattr(prof_mod, "profile_store", prof_store)
+    monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
+
+    update = _FakeUpdate("")
+    ctx = types.SimpleNamespace(bot=None, args=[])
+    await telegram_bot._on_text(update, ctx)
+
+    body = "\n".join(update.message.replies)
+    assert "Register" in body or "register" in body.lower()
+
+
+async def test_empty_message_shows_default_when_authenticated(monkeypatch, tmp_path):
+    from app.integrations.telegram import auth_store as astore_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    astore = astore_mod.TelegramAuthStore(str(tmp_path / "users.json"))
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    monkeypatch.setattr(astore_mod, "auth_store", astore)
+    monkeypatch.setattr("app.integrations.telegram.bot.auth_store", astore)
+    monkeypatch.setattr(prof_mod, "profile_store", prof_store)
+    monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
+
+    astore.create_email_account(
+        telegram_id=4242,
+        email="test@diu.edu.bd",
+        password="secret12",
+        full_name="Test User",
+        first_name="Test",
+        last_name="User",
+        username="testuser",
+        phone="",
+        role="student",
+        student_id="",
+        department="",
+    )
+    p = prof_store.get(4242)
+    p.step = STEP_COMPLETE
+    prof_store.save(p)
+
+    update = _FakeUpdate("")
+    ctx = types.SimpleNamespace(bot=None, args=[])
+    await telegram_bot._on_text(update, ctx)
+
+    body = "\n".join(update.message.replies).lower()
+    assert "help" in body
+
+
+async def test_help_keyboard_suggestion(monkeypatch, tmp_path):
+    from app.integrations.telegram import auth_store as astore_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    astore = astore_mod.TelegramAuthStore(str(tmp_path / "users.json"))
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    monkeypatch.setattr(astore_mod, "auth_store", astore)
+    monkeypatch.setattr("app.integrations.telegram.bot.auth_store", astore)
+    monkeypatch.setattr(prof_mod, "profile_store", prof_store)
+    monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
+
+    update = _FakeUpdate("Help")
+    ctx = types.SimpleNamespace(bot=None, args=[])
+    await telegram_bot._on_text(update, ctx)
+
+    body = "\n".join(update.message.replies)
+    assert "/register" in body
+    assert "/recordings" not in body
+
+
 async def test_auth_menu_register_suggestion(monkeypatch, tmp_path):
     from app.integrations.telegram import auth_store as astore_mod
     from app.integrations.telegram import profiles as prof_mod
@@ -176,7 +271,9 @@ async def test_registration_email_otp_flow(monkeypatch, tmp_path):
     update = _FakeUpdate("Register")
     ctx = types.SimpleNamespace(bot=_FakeBot(), args=[])
     await telegram_bot._on_text(update, ctx)
-    assert prof_store.get(4242).step == STEP_REGISTER_EMAIL
+    profile = prof_store.get(4242)
+    assert profile.step == STEP_AUTH_MENU
+    assert profile.mode == "register"
 
     update.message.text = "newuser@diu.edu.bd"
     await telegram_bot._on_text(update, ctx)

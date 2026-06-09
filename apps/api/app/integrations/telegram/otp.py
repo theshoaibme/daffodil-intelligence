@@ -1,23 +1,30 @@
-"""Email OTP generation and verification for Telegram registration."""
+"""Email OTP generation, delivery, and verification."""
 
 from __future__ import annotations
 
 import logging
 import random
 import re
-import smtplib
 import threading
 import time
-from email.message import EmailMessage
+from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
 from ...core.config import get_settings
+from ..email.delivery import send_verification_email
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 OTP_TTL_SECONDS = 600  # 10 minutes
+
+
+@dataclass(frozen=True)
+class OtpSendResult:
+    sent: bool
+    dev_code: str = ""
+    error: str = ""
 
 
 class OTPService:
@@ -52,37 +59,25 @@ class OTPService:
             del self._codes[email]
             return True
 
+    def deliver(self, email: str, code: str) -> OtpSendResult:
+        """Send OTP email. In development, returns dev_code when delivery is not configured."""
+        result = send_verification_email(email, code, ttl_minutes=OTP_TTL_SECONDS // 60)
+        if result.sent:
+            return OtpSendResult(sent=True)
+
+        if settings.NODE_ENV == "development":
+            logger.info("OTP for %s: %s (email delivery: %s)", email, code, result.error or "not_configured")
+            return OtpSendResult(sent=False, dev_code=code, error=result.error or "not_configured")
+
+        logger.error("OTP delivery failed for %s: %s", email, result.error or "not_configured")
+        return OtpSendResult(sent=False, error=result.error or "not_configured")
+
     def send(self, email: str, code: str) -> Tuple[bool, str]:
-        """Send OTP email. Returns (success, user-facing message)."""
-        host = getattr(settings, "SMTP_HOST", "") or ""
-        port = int(getattr(settings, "SMTP_PORT", 587) or 587)
-        user = getattr(settings, "SMTP_USER", "") or ""
-        password = getattr(settings, "SMTP_PASSWORD", "") or ""
-        from_addr = getattr(settings, "SMTP_FROM", "") or user or "noreply@daffodil.edu.bd"
-
-        if not host:
-            logger.info("OTP for %s: %s (SMTP not configured)", email, code)
-            return False, code
-
-        msg = EmailMessage()
-        msg["Subject"] = "Daffodil Intelligence — verification code"
-        msg["From"] = from_addr
-        msg["To"] = email
-        msg.set_content(
-            f"Your Daffodil Intelligence verification code is: {code}\n\n"
-            f"This code expires in {OTP_TTL_SECONDS // 60} minutes.\n"
-            "If you did not request this, ignore this email."
-        )
-        try:
-            with smtplib.SMTP(host, port, timeout=15) as smtp:
-                smtp.starttls()
-                if user and password:
-                    smtp.login(user, password)
-                smtp.send_message(msg)
+        """Backward-compatible send API. Returns (success, dev_code_or_empty)."""
+        result = self.deliver(email, code)
+        if result.sent:
             return True, ""
-        except Exception as e:
-            logger.error("Failed to send OTP email to %s: %s", email, e)
-            return False, code
+        return False, result.dev_code
 
 
 otp_service = OTPService()

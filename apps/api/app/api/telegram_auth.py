@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
 from ..core.database import get_db
-from ..core.google_oauth_urls import google_oauth_redirect_uri, is_web_oauth_state
+from ..core.google_oauth_urls import is_web_oauth_state, telegram_google_oauth_redirect_uri
 from ..core.security import create_access_token
 from ..integrations.telegram.auth_store import auth_store
 from ..integrations.telegram.profiles import profile_store, STEP_COMPLETE
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/auth/telegram", tags=["telegram-auth"])
 
 
 def _redirect_uri() -> str:
-    return google_oauth_redirect_uri()
+    return telegram_google_oauth_redirect_uri()
 
 
 async def _notify_telegram_login(telegram_id: int, account, photo_url: str = ""):

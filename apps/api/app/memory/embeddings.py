@@ -30,11 +30,21 @@ def _hash_embed(text: str, dim: int = _DIM) -> List[float]:
     return [v / norm for v in values]
 
 
+def _remote_embeddings_available() -> bool:
+    if not settings.OPENAI_API_KEY:
+        return False
+    base = (settings.OPENAI_BASE_URL or "").lower()
+    # Gemini's OpenAI-compat surface does not expose /embeddings (404).
+    if "generativelanguage.googleapis.com" in base:
+        return False
+    return True
+
+
 async def embed_text(text: str) -> List[float]:
     if not text or not text.strip():
         return _hash_embed("empty")
 
-    if settings.OPENAI_API_KEY:
+    if _remote_embeddings_available():
         try:
             return await _openai_embed(text)
         except Exception as e:

@@ -3,27 +3,36 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { enterOrSkip, modeSpring, overlayFade } from "./lib/motion";
-import { UiAnimationProvider, useUiAnimationReady } from "./context/UiAnimationContext";
-import { ChatHistoryProvider, useChatHistory } from "./context/ChatHistoryContext";
-import { getHistoryEntry } from "./lib/chatHistoryStorage";
-import { SuggestionChip } from "./components/ui";
-import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
-import type { TaskItem } from "./components/layout/TaskPanel/TaskPanel";
-import { useChat } from "./hooks/useChat";
-import { hubApi } from "./lib/hubApi";
-import { useLocalStorageState } from "./hooks/useLocalStorageState";
-import { useAuth } from "./context/AuthContext";
-import { ROUTES } from "./lib/routes";
+import {
+
+  AUTO_MODEL_ID,
+  enterOrSkip,
+  getHistoryEntry,
+  hubApi,
+  modeSpring,
+  overlayFade,
+  ROUTES,
+  sidebarWidthTransition,
+} from "@lib";
+import { useChat, useChatContext, useLocalStorageState } from "@hooks";
+import {
+  ChatHistoryProvider,
+  UiAnimationProvider,
+  useAuth,
+  useChatHistory,
+  useUiAnimationReady,
+} from "@context";
+import { SuggestionChip } from "@ui";
+import { Sidebar, Header, SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_WIDTH_EXPANDED } from "@layout";
+import { PromptBar, TaskPanel, AiResponseCard, AgentDashboard, ComputerView } from "@features";
+import type { TaskItem } from "@features/TaskPanel/TaskPanel";
 
 import { Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import {
   ModelManagementPage,
   LiveVoicePage,
-  AgentDashboard,
-  ComputerView,
   AuthTelegramPage,
   LoginPage,
   RegisterPage,
@@ -35,8 +44,8 @@ import {
   LandingPage,
   TermsPage,
   PrivacyPage,
-} from "./components/layout";
-import { ProtectedRoute } from "./components/auth";
+} from "@pages";
+import { ProtectedRoute } from "@auth";
 
 const LEGACY_REDIRECTS: { from: string; to: string }[] = [
   { from: "/intelligence/login", to: ROUTES.login },
@@ -101,15 +110,19 @@ const DASHBOARD_STORAGE_KEYS = {
 } as const;
 
 /** Horizontal column width — shared by welcome hero and prompt bar. */
-const MAIN_COLUMN = "w-full max-w-xl mx-auto";
+const MAIN_COLUMN = "w-full max-w-xl mx-auto min-w-0";
 
-/** Fills main below header; pb reserves prompt bar (bottom-6 + bar height). */
+/** Fills center column below header; pb reserves prompt bar. */
 const MAIN_STAGE =
-  "absolute inset-0 flex items-center justify-center px-4 pb-[8.5rem] pointer-events-none";
+  "absolute inset-0 flex items-center justify-center px-3 sm:px-4 pb-[7rem] sm:pb-[8.5rem] pointer-events-none min-w-0";
 
-/** Prompt bar slot — pinned to bottom of main stage, same horizontal axis as hero. */
+/** Prompt bar slot — pinned to bottom of center column. */
 const PROMPT_SLOT =
-  "absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 z-30 pointer-events-none";
+  "absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl px-3 sm:px-4 z-30 pointer-events-none min-w-0";
+
+/** Right rail: chat response + task panel (md+). */
+const RIGHT_RAIL =
+  "hidden md:flex flex-col self-stretch min-h-0 min-w-0 h-full gap-3 lg:gap-4 pr-3 lg:pr-5 xl:pr-6 pb-4 lg:pb-6 overflow-hidden pointer-events-none";
 
 function greetingDisplayName(fullName: string | null | undefined, email: string): string {
   if (fullName?.trim()) return fullName.trim();
@@ -141,17 +154,21 @@ function ChatDashboard() {
   const [agentViewOpen, setAgentViewOpen] = useState(false);
   const [selectedTools, setSelectedTools] = useLocalStorageState<string[]>(
     DASHBOARD_STORAGE_KEYS.selectedTools,
-    ["Agent", "Task"]
+    ["Agent"]
   );
   const [prompt, setPrompt] = useLocalStorageState(DASHBOARD_STORAGE_KEYS.promptDraft, "");
-  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [selectedModelId] = useLocalStorageState(
+    "di-dashboard-selected-model",
+    AUTO_MODEL_ID
+  );
+  const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useLocalStorageState(
     DASHBOARD_STORAGE_KEYS.tasksCollapsed,
     false
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const handledChatParam = useRef(false);
   const handledAgentsParam = useRef(false);
+  const lastUrlChatRef = useRef<string | null>(searchParams.get("chat"));
   const [agentLiveTasks, setAgentLiveTasks] = useState<TaskItem[] | null>(null);
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
 
@@ -176,16 +193,21 @@ function ChatDashboard() {
   const {
     chatId,
     messages,
-    isLoading,
     isStreaming,
     thinkingSteps,
+    thinkingText,
+    thinkingMs,
     error,
+    lastContext,
     send,
     loadSession,
   } = useChat({
     initialChatId: initialSession?.chatId ?? null,
     initialMessages: initialSession?.messages ?? [],
   });
+
+  const fetchedContext = useChatContext(chatId, messages, prompt, selectedModelId);
+  const chatContext = lastContext ?? fetchedContext;
 
   useEffect(() => {
     hubApi
@@ -203,16 +225,53 @@ function ChatDashboard() {
     syncActiveSession(chatId, messages);
   }, [chatId, messages, isStreaming, syncActiveSession]);
 
-  useEffect(() => {
-    if (handledChatParam.current) return;
-    const chatParam = searchParams.get("chat");
-    if (!chatParam) return;
+  const flushCurrentSession = useCallback(() => {
+    if (!isStreaming) {
+      syncActiveSession(chatId, messages);
+    }
+  }, [isStreaming, syncActiveSession, chatId, messages]);
 
-    handledChatParam.current = true;
+  // Load session when ?chat= in the URL changes (share links, browser back/forward).
+  useEffect(() => {
+    const chatParam = searchParams.get("chat");
+    if (!chatParam) {
+      lastUrlChatRef.current = null;
+      return;
+    }
+    if (lastUrlChatRef.current === chatParam) return;
+    lastUrlChatRef.current = chatParam;
+
     const session = selectHistory(chatParam);
     loadSession(session.chatId, session.messages);
-    setSearchParams({}, { replace: true });
-  }, [searchParams, selectHistory, loadSession, setSearchParams]);
+  }, [searchParams, selectHistory, loadSession]);
+
+  // Keep ?chat= in sync with the active sidebar session (no searchParams in deps — avoids loops).
+  useEffect(() => {
+    const chatParam = searchParams.get("chat");
+    if (activeHistoryId) {
+      if (chatParam !== activeHistoryId) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("chat", activeHistoryId);
+            return next;
+          },
+          { replace: true }
+        );
+      }
+      return;
+    }
+    if (chatParam) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("chat");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [activeHistoryId, setSearchParams]);
 
   useEffect(() => {
     if (handledAgentsParam.current) return;
@@ -223,16 +282,29 @@ function ChatDashboard() {
       prev.includes("Agent") ? prev : [...prev, "Agent"]
     );
     setAgentViewOpen(true);
-    setSearchParams({}, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("agents");
+        return next;
+      },
+      { replace: true }
+    );
   }, [searchParams, setSearchParams, setSelectedTools]);
 
   const handleSelectHistory = (id: string) => {
+    if (id === activeHistoryId) return;
+    flushCurrentSession();
+    lastUrlChatRef.current = id;
     const session = selectHistory(id);
     loadSession(session.chatId, session.messages);
+    setPrompt("");
   };
 
   const handleNewChat = () => {
+    flushCurrentSession();
     const session = startNewChat();
+    lastUrlChatRef.current = session.sessionId;
     loadSession(session.chatId, session.messages);
     setPrompt("");
     setAgentViewOpen(false);
@@ -240,6 +312,9 @@ function ChatDashboard() {
 
   const handleDeleteHistory = (id: string) => {
     const wasActive = activeHistoryId === id;
+    if (wasActive) {
+      flushCurrentSession();
+    }
     deleteHistory(id);
     if (wasActive) {
       loadSession(null, []);
@@ -279,20 +354,29 @@ function ChatDashboard() {
     }
   }, [prompt]);
 
-  const sendPrompt = async (text: string) => {
+  const sendPrompt = async (text: string, modelId?: string) => {
     if (!text.trim()) return;
 
     if (!activeHistoryId) {
       const session = startNewChat();
+      lastUrlChatRef.current = session.sessionId;
       loadSession(session.chatId, session.messages);
     }
 
+    const chatMetadata: Record<string, unknown> = {
+      selected_tools: selectedTools,
+      section: "64_I",
+    };
+    if (user?.student_id) {
+      chatMetadata.student_id = user.student_id;
+    }
+
     setPrompt("");
-    await send(text);
+    await send(text, modelId, chatMetadata);
   };
 
-  const handleSend = () => {
-    sendPrompt(prompt);
+  const handleSend = (modelId: string) => {
+    sendPrompt(prompt, modelId);
   };
 
   const handleEdit = () => {
@@ -336,10 +420,24 @@ function ChatDashboard() {
         onNewChat={handleNewChat}
       />
 
-      <main className="relative flex flex-1 flex-col min-w-0 w-full h-screen overflow-hidden bg-background">
-        <Header sidebarOpen={sidebarOpen} />
+      <motion.main
+        className="relative flex flex-1 flex-col min-w-0 w-full h-screen overflow-hidden bg-background"
+        initial={false}
+        animate={{
+          paddingLeft: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,
+        }}
+        transition={sidebarWidthTransition}
+      >
+        <Header />
 
-        <div className="relative flex-1 min-h-0">
+        <div
+          className={`relative flex-1 min-h-0 min-w-0 grid grid-cols-1 ${
+            copycatMode
+              ? ""
+              : "md:grid-cols-[minmax(0,1fr)_minmax(240px,min(360px,30vw))] lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]"
+          }`}
+        >
+        <div className="relative min-h-0 min-w-0">
           <AnimatePresence>
             {showWelcomeHero && (
               <motion.div
@@ -360,7 +458,7 @@ function ChatDashboard() {
                     copycatMode ? "pointer-events-none" : "pointer-events-auto"
                   }`}
                 >
-                <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight px-2">
+                <h1 className="text-3xl sm:text-4xl lg:text-[56px] leading-[1.1] font-medium tracking-tight px-2">
                   <span className="text-on-surface-variant">Hello, </span>
                   <span className="bg-gradient-to-r from-[#4285F4] via-[#9B72CB] to-[#D96570] bg-clip-text text-transparent">
                     {displayName}
@@ -383,13 +481,16 @@ function ChatDashboard() {
           </AnimatePresence>
 
           {hasMessages && (
-            <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-6`}>
-              <div className={`${MAIN_COLUMN} flex flex-col gap-4`}>
+            <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-4 sm:pt-6 overflow-y-auto`}>
+              <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
                 <AiResponseCard
+                  key={activeHistoryId ?? "active-chat"}
                   prompt={lastUserMessage?.content || ""}
                   response={lastAssistantMessage?.content || ""}
                   isStreaming={isStreaming}
                   thinkingSteps={thinkingSteps}
+                  thinkingText={thinkingText}
+                  thinkingMs={thinkingMs}
                   onEdit={handleEdit}
                   error={error}
                 />
@@ -407,7 +508,7 @@ function ChatDashboard() {
                 transition={overlayFade}
                 className={`${MAIN_STAGE} z-20`}
               >
-                <div className="w-full max-w-4xl mx-auto h-[min(480px,calc(100%-1rem))] pointer-events-auto">
+                <div className="w-full max-w-4xl mx-auto h-[min(480px,calc(100%-0.5rem))] min-h-[220px] sm:min-h-[280px] pointer-events-auto px-1 sm:px-0">
                   <AgentDashboard embedded onClose={handleCloseAgentView} />
                 </div>
               </motion.div>
@@ -436,10 +537,11 @@ function ChatDashboard() {
                     setPrompt={setPrompt}
                     isSent={hasMessages}
                     handleSend={handleSend}
-                    plusMenuOpen={plusMenuOpen}
-                    setPlusMenuOpen={setPlusMenuOpen}
+                    agentMenuOpen={agentMenuOpen}
+                    setAgentMenuOpen={setAgentMenuOpen}
                     textareaRef={textareaRef}
-                    isLoading={isLoading || isStreaming}
+                    isStreaming={isStreaming}
+                    context={chatContext}
                     onCopycatMode={() => setCopycatMode(true)}
                     copycatActive={copycatMode}
                     selectedTools={selectedTools}
@@ -451,48 +553,53 @@ function ChatDashboard() {
           </LayoutGroup>
         </div>
 
-        <motion.div
-          className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-40 pointer-events-none"
-          animate={{
-            opacity: copycatMode ? 0 : 1,
-            x: copycatMode ? 24 : 0,
-          }}
-          transition={modeSpring}
-        >
-          <AnimatePresence>
-            {hasMessages && (
-              <motion.div
-                initial={enterOrSkip(uiReady, { opacity: 0, y: -20, scale: 0.95 })}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="pointer-events-auto flex-shrink-0"
-              >
-                <AiResponseCard
-                  prompt={lastUserMessage?.content || ""}
-                  response={lastAssistantMessage?.content || ""}
-                  isStreaming={isStreaming}
-                  thinkingSteps={thinkingSteps}
-                  onEdit={handleEdit}
-                  error={error}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {!copycatMode && (
+          <motion.div
+            className={RIGHT_RAIL}
+            initial={false}
+            animate={{ opacity: 1, x: 0 }}
+            transition={modeSpring}
+          >
+            <AnimatePresence>
+              {hasMessages && (
+                <motion.div
+                  initial={enterOrSkip(uiReady, { opacity: 0, y: -20, scale: 0.95 })}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  className="pointer-events-auto flex-1 min-h-0 flex flex-col overflow-hidden"
+                >
+                  <AiResponseCard
+                    key={activeHistoryId ?? "active-chat"}
+                    prompt={lastUserMessage?.content || ""}
+                    response={lastAssistantMessage?.content || ""}
+                    isStreaming={isStreaming}
+                    thinkingSteps={thinkingSteps}
+                    thinkingText={thinkingText}
+                    thinkingMs={thinkingMs}
+                    onEdit={handleEdit}
+                    error={error}
+                    fillHeight
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          <div className="pointer-events-auto mt-auto">
-            <TaskPanel
-              tasksCollapsed={tasksCollapsed}
-              setTasksCollapsed={setTasksCollapsed}
-              uiReady={uiReady}
-              liveTasks={showAgentDashboard ? agentLiveTasks : null}
-              agentMode={showAgentDashboard}
-            />
-          </div>
-        </motion.div>
+            <div className="pointer-events-auto shrink-0 mt-auto">
+              <TaskPanel
+                tasksCollapsed={tasksCollapsed}
+                setTasksCollapsed={setTasksCollapsed}
+                uiReady={uiReady}
+                liveTasks={showAgentDashboard ? agentLiveTasks : null}
+                agentMode={showAgentDashboard}
+              />
+            </div>
+          </motion.div>
+        )}
+        </div>
 
-        <div className="md:hidden fixed bottom-28 left-0 right-0 z-20 flex justify-center px-4 pointer-events-none">
-          <div className="w-full max-w-md pointer-events-auto">
+        <div className="md:hidden fixed bottom-[7.25rem] sm:bottom-28 left-0 right-0 z-20 flex justify-center px-3 sm:px-4 pointer-events-none">
+          <div className="w-full max-w-md min-w-0 pointer-events-auto">
             <TaskPanel
               tasksCollapsed={tasksCollapsed}
               setTasksCollapsed={setTasksCollapsed}
@@ -503,7 +610,7 @@ function ChatDashboard() {
           </div>
         </div>
 
-      </main>
+      </motion.main>
     </div>
   );
 }

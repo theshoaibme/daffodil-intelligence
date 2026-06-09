@@ -16,6 +16,7 @@ from sqlalchemy import select
 from ..core.database import get_session_maker, MockSession
 from ..models.user import Chat, Message
 from .context_builder import build_turn_memory_context
+from .pg_user import pg_memory_user_id
 from .repository import MemoryRepository
 from .semantic import semantic_memory
 from .summarizer import maybe_rolling_summary, summarize_turn
@@ -112,11 +113,12 @@ class MemoryService:
         payload: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         uid = int(user_id or 0)
+        pg_uid = pg_memory_user_id(uid)
         try:
             async with _session() as db:
-                if hasattr(db, "commit"):
+                if pg_uid is not None and hasattr(db, "commit"):
                     row = await _repo(db).upsert(
-                        user_id=uid,
+                        user_id=pg_uid,
                         agent_id=agent_id,
                         content=text,
                         memory_type=memory_type,
@@ -142,12 +144,13 @@ class MemoryService:
         k: int = 5,
     ) -> List[Dict[str, Any]]:
         uid = int(user_id or 0)
+        pg_uid = pg_memory_user_id(uid)
         try:
             async with _session() as db:
-                if hasattr(db, "commit"):
+                if pg_uid is not None and hasattr(db, "commit"):
                     return await _repo(db).recall(
                         query,
-                        uid,
+                        pg_uid,
                         caller_agent_id=agent_id,
                         memory_types=memory_types,
                         chat_id=chat_id,
@@ -160,7 +163,7 @@ class MemoryService:
 
     async def list_memories(
         self,
-        user_id: int,
+        user_id: Any,
         *,
         agent_id: Optional[str] = None,
         memory_type: Optional[str] = None,
@@ -169,12 +172,14 @@ class MemoryService:
         limit: int = 50,
         offset: int = 0,
     ) -> Dict[str, Any]:
+        uid = int(user_id or 0)
+        pg_uid = pg_memory_user_id(uid)
         async with _session() as db:
-            if not hasattr(db, "commit"):
-                notes = self.semantic.all(user_id=user_id)
+            if pg_uid is None or not hasattr(db, "commit"):
+                notes = self.semantic.all(user_id=uid)
                 return {"items": notes, "total": len(notes)}
             items, total = await _repo(db).list_memories(
-                user_id,
+                pg_uid,
                 agent_id=agent_id,
                 memory_type=memory_type,
                 scope=scope,
@@ -184,45 +189,51 @@ class MemoryService:
             )
             return {"items": items, "total": total}
 
-    async def delete_memory(self, memory_id: str, user_id: int) -> bool:
+    async def delete_memory(self, memory_id: str, user_id: Any) -> bool:
+        pg_uid = pg_memory_user_id(user_id)
         async with _session() as db:
-            if not hasattr(db, "commit"):
+            if pg_uid is None or not hasattr(db, "commit"):
                 return False
-            return await _repo(db).delete_one(memory_id, user_id)
+            return await _repo(db).delete_one(memory_id, pg_uid)
 
     async def clear_memories(
         self,
-        user_id: int,
+        user_id: Any,
         *,
         agent_id: Optional[str] = None,
         memory_type: Optional[str] = None,
         chat_id: Optional[Any] = None,
         clear_all: bool = False,
     ) -> int:
+        uid = int(user_id or 0)
+        pg_uid = pg_memory_user_id(uid)
         async with _session() as db:
-            if not hasattr(db, "commit"):
-                self.semantic.clear(user_id=user_id)
+            if pg_uid is None or not hasattr(db, "commit"):
+                self.semantic.clear(user_id=uid)
                 return 0
             return await _repo(db).clear(
-                user_id,
+                pg_uid,
                 agent_id=agent_id,
                 memory_type=memory_type,
                 chat_id=chat_id,
                 clear_all=clear_all,
             )
 
-    async def stats(self, user_id: int) -> Dict[str, Any]:
+    async def stats(self, user_id: Any) -> Dict[str, Any]:
+        uid = int(user_id or 0)
+        pg_uid = pg_memory_user_id(uid)
         async with _session() as db:
-            if not hasattr(db, "commit"):
-                notes = self.semantic.all(user_id=user_id)
+            if pg_uid is None or not hasattr(db, "commit"):
+                notes = self.semantic.all(user_id=uid)
                 return {"total": len(notes), "by_type": {"fact": len(notes)}, "by_agent": {}, "qdrant_available": False}
-            return await _repo(db).stats(user_id)
+            return await _repo(db).stats(pg_uid)
 
-    async def get_context_snapshots(self, user_id: int, agent_id: str) -> List[Dict[str, Any]]:
+    async def get_context_snapshots(self, user_id: Any, agent_id: str) -> List[Dict[str, Any]]:
+        pg_uid = pg_memory_user_id(user_id)
         async with _session() as db:
-            if not hasattr(db, "commit"):
+            if pg_uid is None or not hasattr(db, "commit"):
                 return []
-            return await _repo(db).latest_config_snapshots(user_id, agent_id)
+            return await _repo(db).latest_config_snapshots(pg_uid, agent_id)
 
     async def build_recall_context(
         self,
@@ -247,14 +258,15 @@ class MemoryService:
         turn_index: int = 0,
     ) -> None:
         """Store turn + maybe rolling summary after a chat completes."""
+        pg_uid = pg_memory_user_id(user_id)
         try:
             async with _session() as db:
-                if not hasattr(db, "commit"):
+                if pg_uid is None or not hasattr(db, "commit"):
                     return
                 repo = _repo(db)
                 await summarize_turn(
                     repo,
-                    user_id=user_id,
+                    user_id=pg_uid,
                     agent_id=agent_id,
                     chat_id=chat_id,
                     user_msg=user_msg,
@@ -263,7 +275,7 @@ class MemoryService:
                 )
                 await maybe_rolling_summary(
                     repo,
-                    user_id=user_id,
+                    user_id=pg_uid,
                     agent_id=agent_id,
                     chat_id=chat_id,
                     turn_index=turn_index,
@@ -282,13 +294,14 @@ class MemoryService:
         result_summary: Optional[str] = None,
         chat_id: Optional[Any] = None,
     ) -> None:
+        pg_uid = pg_memory_user_id(user_id)
         try:
             async with _session() as db:
-                if not hasattr(db, "commit"):
+                if pg_uid is None or not hasattr(db, "commit"):
                     return
                 repo = _repo(db)
                 await repo.upsert(
-                    user_id=user_id,
+                    user_id=pg_uid,
                     agent_id=subagent_id,
                     parent_agent_id=parent_agent_id,
                     content=f"Sub-agent {name}: {task[:500]}",
@@ -305,7 +318,7 @@ class MemoryService:
                 )
                 if result_summary:
                     await repo.upsert(
-                        user_id=user_id,
+                        user_id=pg_uid,
                         agent_id=subagent_id,
                         parent_agent_id=parent_agent_id,
                         content=result_summary[:1000],
@@ -325,15 +338,16 @@ class MemoryService:
     async def consolidate(self, user_id: int) -> Dict[str, Any]:
         """Promote sub-agent memories with agent_tree visibility to shared."""
         promoted = 0
+        pg_uid = pg_memory_user_id(user_id)
         try:
             async with _session() as db:
-                if not hasattr(db, "commit"):
+                if pg_uid is None or not hasattr(db, "commit"):
                     return {"promoted": 0}
                 from ..models.memory import AgentMemory
 
                 result = await db.execute(
                     select(AgentMemory).where(
-                        AgentMemory.user_id == user_id,
+                        AgentMemory.user_id == pg_uid,
                         AgentMemory.scope == "subagent",
                         AgentMemory.visibility == "agent_tree",
                     )

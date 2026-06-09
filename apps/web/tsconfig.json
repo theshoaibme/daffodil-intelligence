@@ -17,7 +17,19 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
+      "@lib": ["src/lib/index.ts"],
+      "@hooks": ["src/hooks/index.ts"],
+      "@context": ["src/context/index.ts"],
+      "@styles": ["src/styles/index.ts"],
       "@ui": ["src/components/ui/index.ts"],
+      "@auth": ["src/components/auth/index.ts"],
+      "@auth/*": ["src/components/auth/*"],
+      "@layout": ["src/components/layout/index.ts"],
+      "@layout/*": ["src/components/layout/*"],
+      "@features": ["src/components/features/index.ts"],
+      "@features/*": ["src/components/features/*"],
+      "@pages": ["src/pages/index.ts"],
+      "@providers": ["src/providers/index.ts"],
       "@components/*": ["src/components/*"]
     }
   },
