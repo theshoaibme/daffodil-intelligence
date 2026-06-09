@@ -19,8 +19,17 @@ function Test-PythonCommand([string[]]$PyCommand) {
     }
     $prefix = @()
     if ($PyCommand.Length -gt 1) { $prefix = $PyCommand[1..($PyCommand.Length - 1)] }
-    & $exe @($prefix + @("-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)")) 2>$null | Out-Null
-    return $LASTEXITCODE -eq 0
+    $checkArgs = @($prefix + @("-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"))
+    $proc = Start-Process -FilePath $exe -ArgumentList $checkArgs -Wait -PassThru -NoNewWindow
+    return $proc.ExitCode -eq 0
+}
+
+function Invoke-PythonScript([string[]]$PyCommand, [string]$ScriptPath) {
+    $pythonExe = [string]$PyCommand[0]
+    $pythonArgs = @()
+    if ($PyCommand.Length -gt 1) { $pythonArgs = $PyCommand[1..($PyCommand.Length - 1)] }
+    $proc = Start-Process -FilePath $pythonExe -ArgumentList @($pythonArgs + $ScriptPath) -Wait -PassThru -NoNewWindow
+    return $proc.ExitCode
 }
 
 function Get-PythonCandidates {
@@ -52,7 +61,7 @@ function Get-PythonCandidates {
 
 function Find-Python {
     foreach ($cmd in Get-PythonCandidates) {
-        if (Test-PythonCommand $cmd) { return $cmd }
+        if (Test-PythonCommand $cmd) { return ,$cmd }
     }
     return $null
 }
@@ -110,8 +119,5 @@ if (-not $py) {
 if (-not $py) { throw "Python still not found after install — restart terminal and re-run" }
 
 Write-Log "Using Python: $($py -join ' ')"
-$pythonExe = $py[0]
-$pythonArgs = @()
-if ($py.Length -gt 1) { $pythonArgs = $py[1..($py.Length - 1)] }
-& "$pythonExe" @pythonArgs "$InstallPy"
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$exitCode = Invoke-PythonScript -PyCommand @($py) -ScriptPath $InstallPy
+if ($exitCode -ne 0) { exit $exitCode }
