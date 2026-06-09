@@ -68,7 +68,7 @@ from .queue import QueuedOutbound, outbound_queue
 from .services.agents import resolve_agent_id
 from .services.chat_runtime import build_telegram_turn
 from .services.registration import is_skip_input
-from .tokens import google_login_url, is_telegram_inline_url
+from .tokens import google_login_url, google_oauth_menu_hint, google_oauth_uses_inline_url, is_telegram_inline_url
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -112,21 +112,23 @@ def _welcome_unregistered(profile: TelegramProfile) -> str:
     )
 
 
-def _login_menu_text() -> str:
+def _login_menu_text(telegram_id: int) -> str:
     return (
         "*Sign in to Daffodil Intelligence*\n\n"
         "Choose how you want to log in:\n"
         "• *Email & password* — email, first name, last name, and password\n"
-        "• *Login with Google* — opens secure Google sign-in in your browser"
+        "• *Login with Google* — secure sign-in in your browser"
+        f"{google_oauth_menu_hint(telegram_id)}"
     )
 
 
-def _register_menu_text() -> str:
+def _register_menu_text(telegram_id: int) -> str:
     return (
         "*Register for Daffodil Intelligence*\n\n"
         "Choose how you want to sign up:\n"
         "• *Email & password* — OTP verification, then profile setup\n"
         "• *Register with Google* — quick sign-up in your browser"
+        f"{google_oauth_menu_hint(telegram_id)}"
     )
 
 
@@ -227,7 +229,7 @@ def _provider_label(provider: str) -> str:
 async def _reply_google_auth_prompt(query, uid: int, *, register: bool) -> None:
     label = "Register with Google" if register else "Login with Google"
     url = google_login_url(uid)
-    if is_telegram_inline_url(url):
+    if google_oauth_uses_inline_url():
         await query.edit_message_text(
             f"Tap *{label}* below to continue in your browser.\n\n"
             "After success, return to Telegram for confirmation.",
@@ -235,12 +237,9 @@ async def _reply_google_auth_prompt(query, uid: int, *, register: bool) -> None:
             reply_markup=InlineKeyboardMarkup([[_google_auth_button(uid, label=label)]]),
         )
         return
-    await query.edit_message_text(
-        f"*{label}*\n\n"
-        "Open this link in your browser:\n"
-        f"`{url}`\n\n"
-        "_Tip: set `TELEGRAM_OAUTH_PUBLIC_URL` to a public HTTPS URL in API .env for one-tap buttons._",
-        parse_mode="Markdown",
+    await query.message.reply_text(
+        f"{label}\n\nOpen this link to continue:\n{url}\n\n"
+        "After Google sign-in, return to Telegram.",
     )
 
 
@@ -539,7 +538,7 @@ class TelegramBot:
         profile.mode = "login"
         profile_store.save(profile)
         await update.message.reply_text(
-            _login_menu_text(),
+            _login_menu_text(uid),
             parse_mode="Markdown",
             reply_markup=_login_keyboard(uid),
         )
@@ -550,7 +549,7 @@ class TelegramBot:
         profile.mode = "register"
         profile_store.save(profile)
         await update.message.reply_text(
-            _register_menu_text(),
+            _register_menu_text(uid),
             parse_mode="Markdown",
             reply_markup=_register_keyboard(uid),
         )
@@ -732,7 +731,7 @@ class TelegramBot:
             profile.step = STEP_AUTH_MENU
             profile_store.save(profile)
             await query.edit_message_text(
-                _register_menu_text(),
+                _register_menu_text(uid),
                 parse_mode="Markdown",
                 reply_markup=_register_keyboard(uid),
             )
@@ -758,7 +757,7 @@ class TelegramBot:
             profile.step = STEP_AUTH_MENU
             profile_store.save(profile)
             await query.edit_message_text(
-                _login_menu_text(),
+                _login_menu_text(uid),
                 parse_mode="Markdown",
                 reply_markup=_login_keyboard(uid),
             )

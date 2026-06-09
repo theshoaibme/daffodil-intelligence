@@ -23,7 +23,8 @@ def google_auth_button(telegram_id: int, *, label: str) -> "InlineKeyboardButton
     url = google_login_url(telegram_id)
     if is_telegram_inline_url(url):
         return InlineKeyboardButton(label, url=url)
-    return InlineKeyboardButton(label, callback_data="auth:google")
+    # Telegram rejects localhost/private URLs on inline URL buttons — use callback + link in message.
+    return InlineKeyboardButton("Get Google link", callback_data="auth:google")
 
 
 def google_auth_row(telegram_id: int, *, label: str) -> List["InlineKeyboardButton"]:

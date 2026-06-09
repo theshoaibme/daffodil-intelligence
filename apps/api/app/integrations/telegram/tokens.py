@@ -57,6 +57,24 @@ def google_login_url(telegram_id: int) -> str:
     return f"{telegram_oauth_base()}/api/auth/telegram/google/start?token={token}"
 
 
+def google_oauth_uses_inline_url() -> bool:
+    """True when Telegram can show a one-tap URL button (public HTTPS host)."""
+    sample = f"{telegram_oauth_base()}/api/auth/telegram/google/start"
+    return is_telegram_inline_url(sample)
+
+
+def google_oauth_menu_hint(telegram_id: int) -> str:
+    """Extra instructions when inline URL buttons are unavailable (localhost dev)."""
+    if google_oauth_uses_inline_url():
+        return ""
+    url = google_login_url(telegram_id)
+    return (
+        "\n\n*Google sign-in* — tap this link in your browser:\n"
+        f"{url}\n\n"
+        "_Or tap **Get Google link** below to resend the link._"
+    )
+
+
 def sign_state(telegram_id: int, purpose: str = "google") -> str:
     secret = settings.JWT_SECRET or getattr(settings, "APP_SECRET_KEY", "") or "di-dev-secret"
     ts = int(time.time())

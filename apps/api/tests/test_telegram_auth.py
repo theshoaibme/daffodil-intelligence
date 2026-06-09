@@ -268,10 +268,11 @@ async def test_login_shows_google_and_email_menu_after_logout(tmp_path):
     assert len(FakeUpdate.message.replies) == 1
     reply = FakeUpdate.message.replies[0]
     assert "Sign in to Daffodil Intelligence" in reply["text"]
+    assert "google/start?token=" in reply["text"]
     markup = reply["reply_markup"]
     labels = [btn.text for row in markup.inline_keyboard for btn in row]
     assert "Email & password" in labels
-    assert "Login with Google" in labels
+    assert "Get Google link" in labels
 
 
 async def test_register_shows_google_and_email_menu(tmp_path):
@@ -315,13 +316,20 @@ async def test_register_shows_google_and_email_menu(tmp_path):
     assert len(FakeUpdate.message.replies) == 1
     reply = FakeUpdate.message.replies[0]
     assert "Register for Daffodil Intelligence" in reply["text"]
+    assert "google/start?token=" in reply["text"]
     labels = [btn.text for row in reply["reply_markup"].inline_keyboard for btn in row]
     assert "Email & password" in labels
-    assert "Register with Google" in labels
+    assert "Get Google link" in labels
 
 
 def test_telegram_inline_url_rejects_localhost():
-    from app.integrations.telegram.tokens import google_login_url, is_telegram_inline_url
+    from app.integrations.telegram.keyboards import google_auth_button
+    from app.integrations.telegram.tokens import (
+        google_login_url,
+        google_oauth_menu_hint,
+        google_oauth_uses_inline_url,
+        is_telegram_inline_url,
+    )
 
     assert not is_telegram_inline_url("http://localhost:8000/api/auth/telegram/google/start")
     assert not is_telegram_inline_url("http://127.0.0.1:3000/foo")
@@ -329,6 +337,12 @@ def test_telegram_inline_url_rejects_localhost():
     url = google_login_url(12345)
     assert "google/start?token=" in url
     assert "google:12345:" in url
+    assert not google_oauth_uses_inline_url()
+    hint = google_oauth_menu_hint(12345)
+    assert url in hint
+    btn = google_auth_button(12345, label="Login with Google")
+    assert btn.callback_data == "auth:google"
+    assert btn.text == "Get Google link"
 
 
 def test_google_callback_redirects_to_frontend():
