@@ -72,7 +72,11 @@ export function useChat(options?: UseChatOptions) {
     }
   }, []);
 
-  const send = useCallback(async (content: string, modelId?: string) => {
+  const send = useCallback(async (
+    content: string,
+    modelId?: string,
+    metadata?: Record<string, unknown>
+  ) => {
     const generation = sendGenerationRef.current;
 
     try {
@@ -131,7 +135,8 @@ export function useChat(options?: UseChatOptions) {
         modelId,
         (ctx) => {
           if (!isSendStale(generation)) setLastContext(ctx);
-        }
+        },
+        metadata
       );
 
       if (isSendStale(generation)) return;

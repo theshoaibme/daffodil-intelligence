@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     # === Telegram ===
     TELEGRAM_ENABLED: bool = False
     TELEGRAM_ALLOWED_USER_IDS: str = ""  # comma-separated telegram user ids (empty = allow all)
+    # Keep False so commands/messages sent during API restarts are processed when the bot is back.
+    TELEGRAM_DROP_PENDING_UPDATES: bool = False
+    # auto = model router; gemini-2.0-flash-lite = fastest replies on Telegram
+    TELEGRAM_CHAT_MODEL: str = "auto"
     API_PUBLIC_URL: str = "http://localhost:8000"
     FRONTEND_PUBLIC_URL: str = "http://localhost:3000"
     # Optional HTTPS/ngrok URL for Telegram Google sign-in buttons (empty = API_PUBLIC_URL)

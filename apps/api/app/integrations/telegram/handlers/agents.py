@@ -27,7 +27,7 @@ class AgentHandlers(HandlerBase):
         if not args:
             current = resolve_agent_id(profile)
             await update.message.reply_text(
-                format_agent_list(current_id=current),
+                format_agent_list(current_id=current, telegram_id=uid),
                 parse_mode="Markdown",
             )
             return

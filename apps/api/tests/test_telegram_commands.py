@@ -18,9 +18,9 @@ def test_guest_command_labels():
 
 
 def test_authenticated_command_labels():
-    assert "record" in AUTHENTICATED_COMMAND_LABELS
-    assert "recordings" in AUTHENTICATED_COMMAND_LABELS
-    assert "replay" in AUTHENTICATED_COMMAND_LABELS
+    assert "agent" in AUTHENTICATED_COMMAND_LABELS
+    assert "copycat" in AUTHENTICATED_COMMAND_LABELS
+    assert "automation" in AUTHENTICATED_COMMAND_LABELS
     assert "register" not in AUTHENTICATED_COMMAND_LABELS
 
 

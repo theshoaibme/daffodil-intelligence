@@ -382,13 +382,15 @@ export async function sendMessage(
   content: string,
   onChunk?: (chunk: string) => void,
   modelId?: string,
-  onContext?: (context: ChatContextUsage) => void
+  onContext?: (context: ChatContextUsage) => void,
+  metadata?: Record<string, unknown>
 ): Promise<{ content: string; metadata?: Record<string, unknown> }> {
   const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`), {
     method: "POST",
     body: JSON.stringify({
       content,
       model_id: modelId,
+      metadata: metadata ?? {},
     }),
   });
   if (!res.ok) throw new ApiError(await parseError(res), res.status);

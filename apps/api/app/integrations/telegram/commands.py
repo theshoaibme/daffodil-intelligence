@@ -22,6 +22,7 @@ GUEST_COMMANDS: List[tuple[str, str]] = [
     ("start", "Welcome & home"),
     ("register", "Create account (Google or email)"),
     ("login", "Sign in (Google or email)"),
+    ("skip", "Skip optional registration fields"),
     ("help", "Commands & how to use the bot"),
 ]
 
@@ -66,6 +67,7 @@ def help_text(*, authenticated: bool) -> str:
             "/automation — skills & workflow agents\n\n"
             "*Account*\n"
             "/start — welcome back\n"
+            "/help — this message\n"
             "/profile — your account\n"
             "/logout — sign out on this device\n\n"
             "_Tip: tap / below the message field to see these commands._"
@@ -76,6 +78,7 @@ def help_text(*, authenticated: bool) -> str:
         "/start — welcome & menu\n"
         "/register — Google or email OTP, then profile\n"
         "/login — Google or email, name & password\n"
+        "/skip — skip phone, student ID, or department\n"
         "/help — this message\n\n"
         "You can also tap *Register* or *Login* on the keyboard.\n\n"
         "_After sign-in you unlock chat, agents, copycat, and automation._"
@@ -158,9 +161,9 @@ def step_empty_prompt(step: str) -> str:
         "register_last_name": "Send your *last name* (at least 2 characters).",
         "register_password": "Choose a *password* (minimum 6 characters).",
         "register_role": "Tap one of the *role* buttons above (Student, Teacher, Staff, Manager).",
-        "register_phone": "Send your *phone number* (e.g. +8801XXXXXXXXX) or reply *skip*.",
-        "register_student_id": "Send your *Student ID* (e.g. 221-15-1234) or reply *skip*.",
-        "register_department": "Send your *department* (e.g. CSE) or reply *skip*.",
+        "register_phone": "Send your *phone number* (e.g. +8801XXXXXXXXX), or reply *skip* or /skip.",
+        "register_student_id": "Send your *Student ID* (e.g. 221-15-1234), or reply *skip* or /skip.",
+        "register_department": "Send your *department* (e.g. CSE), or reply *skip* or /skip.",
         "login_email": "Send the *email* for your account.",
         "login_first_name": "Send your *first name*.",
         "login_last_name": "Send your *last name*.",

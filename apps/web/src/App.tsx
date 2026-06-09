@@ -361,8 +361,16 @@ function ChatDashboard() {
       loadSession(session.chatId, session.messages);
     }
 
+    const chatMetadata: Record<string, unknown> = {
+      selected_tools: selectedTools,
+      section: "64_I",
+    };
+    if (user?.student_id) {
+      chatMetadata.student_id = user.student_id;
+    }
+
     setPrompt("");
-    await send(text, modelId);
+    await send(text, modelId, chatMetadata);
   };
 
   const handleSend = (modelId: string) => {

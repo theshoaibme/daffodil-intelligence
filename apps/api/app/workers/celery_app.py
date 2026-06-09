@@ -10,6 +10,7 @@ Monitor with Flower:
 """
 
 from celery import Celery
+from celery.schedules import crontab
 from ..core.config import get_settings
 
 
@@ -41,6 +42,12 @@ def create_celery_app() -> Celery:
         task_routes={
             "app.workers.computer_tasks.*": {"queue": "computer"},
             "app.workers.agent_tasks.*": {"queue": "agents"},
+        },
+        beat_schedule={
+            "automation-hourly": {
+                "task": "agent_tasks.send_university_reminders",
+                "schedule": crontab(minute=0),
+            },
         },
     )
 

@@ -5,7 +5,12 @@ import types
 import pytest
 
 from app.integrations.telegram import telegram_bot
-from app.integrations.telegram.profiles import STEP_COMPLETE, STEP_REGISTER_EMAIL, STEP_REGISTER_OTP
+from app.integrations.telegram.profiles import (
+    STEP_AUTH_MENU,
+    STEP_COMPLETE,
+    STEP_REGISTER_EMAIL,
+    STEP_REGISTER_OTP,
+)
 from app.integrations.telegram.otp import otp_service
 from app.integrations.telegram.tokens import sign_state, verify_state
 
@@ -68,12 +73,23 @@ async def test_text_handler_routes_through_orchestrator(monkeypatch, tmp_path):
     p.step = STEP_COMPLETE
     prof_store.save(p)
 
+    captured = {}
+
     async def fake_run_turn(text, **kwargs):
+        captured.update(kwargs)
         prefix = kwargs.get("context_prefix", "")
         composed = f"{prefix}\n\n{text}" if prefix else text
-        return {"content": f"answer to: {composed}", "tool_calls": []}
+        return {
+            "content": f"answer to: {composed}",
+            "tool_calls": ["get_class_routine"],
+            "agent_id": kwargs.get("agent_id", "main"),
+        }
 
     monkeypatch.setattr("app.integrations.telegram.bot.run_turn", fake_run_turn)
+    monkeypatch.setattr(
+        "app.integrations.telegram.bot.memory_service.process_turn_memory",
+        pytest.importorskip("unittest").mock.AsyncMock(),
+    )
 
     update = _FakeUpdate("what is my cgpa?")
     ctx = types.SimpleNamespace(bot=None, args=[])
@@ -251,7 +267,9 @@ async def test_registration_email_otp_flow(monkeypatch, tmp_path):
     update = _FakeUpdate("Register")
     ctx = types.SimpleNamespace(bot=_FakeBot(), args=[])
     await telegram_bot._on_text(update, ctx)
-    assert prof_store.get(4242).step == STEP_REGISTER_EMAIL
+    profile = prof_store.get(4242)
+    assert profile.step == STEP_AUTH_MENU
+    assert profile.mode == "register"
 
     update.message.text = "newuser@diu.edu.bd"
     await telegram_bot._on_text(update, ctx)

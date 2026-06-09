@@ -13,6 +13,27 @@ from ...models.user import User
 from .auth_store import TelegramAccount, auth_store
 
 
+def parse_web_user_id(account: Optional[TelegramAccount]) -> Optional[int]:
+    """Extract Postgres user id from linked account (`web:123`)."""
+    if not account:
+        return None
+    raw = (account.user_id or "").strip()
+    if raw.startswith("web:"):
+        try:
+            return int(raw.split(":", 1)[1])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def resolve_runtime_user_id(telegram_id: int, account: Optional[TelegramAccount]) -> int:
+    """User id for memory, skills, and tools — prefers linked web account."""
+    web_id = parse_web_user_id(account)
+    if web_id is not None:
+        return web_id
+    return int(telegram_id)
+
+
 def _split_full_name(full_name: str) -> Tuple[str, str]:
     parts = (full_name or "").strip().split(None, 1)
     if not parts:

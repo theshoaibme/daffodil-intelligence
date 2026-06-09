@@ -136,7 +136,8 @@ async def add_message(
                 chat_id=chat_id,
                 agent_id=agent_id,
                 model_id=message.model_id,
-                attachments=message.metadata.get("attachments") if has_attachments else None,
+                attachments=(message.metadata or {}).get("attachments") if has_attachments else None,
+                metadata=message.metadata,
             ):
                 if not event:
                     continue
@@ -174,7 +175,8 @@ async def add_message(
                     chat_id=chat_id,
                     agent_id=agent_id,
                     model_id=message.model_id,
-                    attachments=message.metadata.get("attachments") if has_attachments else None,
+                    attachments=(message.metadata or {}).get("attachments") if has_attachments else None,
+                    metadata=message.metadata,
                 )
                 full_response = result.get("content", "")
                 tool_calls = result.get("tool_calls", [])

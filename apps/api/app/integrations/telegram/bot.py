@@ -1,17 +1,20 @@
 """
 Telegram Bot — Daffodil Intelligence
 ====================================
-Registration: email → OTP → first name → last name → password → role → profile
-Login: email → first name → last name → password, or Google via browser link.
+Auth flows live in this module; product commands are in ``handlers/``:
+  /agent, /copycat, /automation (+ legacy /record, /recordings, /replay).
 """
 
 from __future__ import annotations
 
 import logging
+import time
+from types import SimpleNamespace
 from typing import Any, List, Optional
 
 from ...core.config import get_settings
 from ...prompts.manager import GREETING_EN
+from ...memory import memory_service
 from ...runtime.pipeline import run_turn
 from ...memory import memory_service
 from .profiles import (
@@ -59,7 +62,10 @@ from .keyboards import (
     role_keyboard as _role_keyboard,
 )
 from .otp import otp_service
+from .queue import QueuedOutbound, outbound_queue
 from .services.agents import resolve_agent_id
+from .services.chat_runtime import build_telegram_turn
+from .services.registration import is_skip_input
 from .tokens import google_login_url, is_telegram_inline_url
 
 logger = logging.getLogger(__name__)
@@ -77,6 +83,7 @@ try:
         MessageHandler,
         CallbackQueryHandler,
         ContextTypes,
+        TypeHandler,
         filters,
     )
     _PTB_AVAILABLE = True
@@ -264,7 +271,8 @@ def _register_start_text() -> str:
     return (
         "*Register for Daffodil Intelligence*\n\n"
         "Send your *email address* (required).\n"
-        "We will send a one-time verification code — registration continues only after you enter the correct OTP."
+        "We will send a one-time verification code — registration continues only after you enter the correct OTP.\n\n"
+        "_Optional later: phone, student ID, department — reply *skip* or /skip on those steps._"
     )
 
 
@@ -301,6 +309,8 @@ class TelegramBot:
     def __init__(self):
         self._app: Optional["Application"] = None
         self._started = False
+        self._online_at: float = 0.0
+        self._backlog_notified: set[int] = set()
 
     @property
     def enabled(self) -> bool:
@@ -312,6 +322,9 @@ class TelegramBot:
             return True
         return str(user_id) in {x.strip() for x in allow.split(",") if x.strip()}
 
+    def _ready_for_sends(self) -> bool:
+        return bool(self._started and self._app and self._app.bot)
+
     async def start(self):
         if not self.enabled or self._started:
             return
@@ -321,15 +334,78 @@ class TelegramBot:
         self._app = (
             ApplicationBuilder()
             .token(settings.TELEGRAM_BOT_TOKEN)
+            .concurrent_updates(False)
             .post_init(_post_init)
             .build()
         )
         self._register_handlers(self._app)
         await self._app.initialize()
         await self._app.start()
-        await self._app.updater.start_polling(drop_pending_updates=True)
+        await self._app.updater.start_polling(
+            drop_pending_updates=settings.TELEGRAM_DROP_PENDING_UPDATES,
+        )
+        self._online_at = time.time()
+        self._backlog_notified.clear()
         self._started = True
+        pending_outbound = outbound_queue.size()
+        logger.info(
+            "Telegram bot online — processing queued updates one by one"
+            + (f" ({pending_outbound} outbound queued)" if pending_outbound else "")
+        )
+        await self._drain_outbound_queue()
         logger.debug("Telegram bot polling active.")
+
+    async def _drain_outbound_queue(self) -> None:
+        if not self._app or not self._app.bot:
+            return
+        for item in outbound_queue.pop_all():
+            try:
+                if item.kind == "login_success":
+                    account_data = item.payload.get("account") or {}
+                    account = SimpleNamespace(**account_data)
+                    await send_auth_welcome(
+                        self._app.bot,
+                        item.telegram_id,
+                        account,
+                        title=item.payload.get("title", "Login successful"),
+                        photo_url=item.payload.get("photo_url"),
+                        telegram_id=item.telegram_id,
+                    )
+                else:
+                    text = item.payload.get("text")
+                    if text:
+                        await self._app.bot.send_message(
+                            chat_id=item.telegram_id,
+                            text=text,
+                            parse_mode=item.payload.get("parse_mode"),
+                        )
+            except Exception as e:
+                logger.warning(
+                    "Failed to deliver queued Telegram %s to %s: %s",
+                    item.kind,
+                    item.telegram_id,
+                    e,
+                )
+
+    async def _maybe_notify_backlog(self, update: "Update") -> None:
+        if not self._online_at:
+            return
+        user = update.effective_user
+        if not user or user.id in self._backlog_notified:
+            return
+        message = update.effective_message
+        if not message or not message.date:
+            return
+        sent_at = message.date.timestamp()
+        if sent_at >= self._online_at - 2:
+            return
+        try:
+            await message.reply_text(
+                "Bot is back online — processing your queued message…",
+            )
+        except Exception as e:
+            logger.debug("Backlog notice skipped for %s: %s", user.id, e)
+        self._backlog_notified.add(user.id)
 
     async def notify_login_success(
         self,
@@ -338,7 +414,21 @@ class TelegramBot:
         *,
         photo_url: Optional[str] = None,
     ) -> None:
-        if not self._app or not self._app.bot:
+        if not self._ready_for_sends():
+            from dataclasses import asdict, is_dataclass
+
+            account_payload = asdict(account) if is_dataclass(account) else dict(vars(account))
+            outbound_queue.enqueue(
+                QueuedOutbound(
+                    kind="login_success",
+                    telegram_id=telegram_id,
+                    payload={
+                        "title": "Login successful",
+                        "photo_url": photo_url,
+                        "account": account_payload,
+                    },
+                )
+            )
             return
         await send_auth_welcome(
             self._app.bot,
@@ -362,6 +452,10 @@ class TelegramBot:
             self._started = False
 
     def _register_handlers(self, app: "Application"):
+        app.add_handler(
+            TypeHandler(Update, self._maybe_notify_backlog),
+            group=-1,
+        )
         app.add_handler(CommandHandler("start", self._cmd_start))
         app.add_handler(CommandHandler("login", self._cmd_login))
         app.add_handler(CommandHandler("register", self._cmd_register))
@@ -678,9 +772,96 @@ class TelegramBot:
         profile.step = STEP_REGISTER_PHONE
         profile_store.save(profile)
         await query.edit_message_text(
-            f"Role: *{role.capitalize()}*\n\nSend your *phone number* (e.g. +8801XXXXXXXXX) or reply *skip*.",
+            f"Role: *{role.capitalize()}*\n\n"
+            "Send your *phone number* (e.g. +8801XXXXXXXXX), or reply *skip* or /skip.",
             parse_mode="Markdown",
         )
+
+    async def _finish_registration(
+        self,
+        update: "Update",
+        ctx: "ContextTypes.DEFAULT_TYPE",
+        profile: TelegramProfile,
+        uid: int,
+    ):
+        account = auth_store.create_email_account(
+            telegram_id=uid,
+            email=profile.email,
+            password=profile.pending_password,
+            full_name=profile.full_name,
+            first_name=profile.first_name,
+            last_name=profile.last_name,
+            username=profile.username,
+            phone=profile.phone,
+            role=profile.role,
+            student_id=profile.student_id,
+            department=profile.department,
+        )
+        profile.step = STEP_COMPLETE
+        profile.pending_password = ""
+        profile_store.save(profile)
+        await memory_service.remember(
+            account.context_line(),
+            user_id=uid,
+            metadata={"source": "telegram_register", "email": account.email},
+        )
+        await send_auth_welcome(
+            ctx.bot,
+            uid,
+            account,
+            title="Registration complete",
+            telegram_id=uid,
+        )
+
+    async def _apply_registration_optional_field(
+        self,
+        update: "Update",
+        ctx: "ContextTypes.DEFAULT_TYPE",
+        profile: TelegramProfile,
+        uid: int,
+        text: str,
+    ):
+        if profile.step == STEP_REGISTER_PHONE:
+            profile.phone = "" if is_skip_input(text) else text
+            if profile.role == "student":
+                profile.step = STEP_REGISTER_STUDENT_ID
+                profile_store.save(profile)
+                await update.message.reply_text(
+                    "Send your *Student ID* (e.g. 221-15-1234), or reply *skip* or /skip:",
+                    parse_mode="Markdown",
+                )
+            else:
+                profile.step = STEP_REGISTER_DEPARTMENT
+                profile_store.save(profile)
+                await update.message.reply_text(
+                    "Send your *department* (e.g. CSE), or reply *skip* or /skip:",
+                    parse_mode="Markdown",
+                )
+            return
+
+        if profile.step == STEP_REGISTER_STUDENT_ID:
+            profile.student_id = "" if is_skip_input(text) else text
+            profile.step = STEP_REGISTER_DEPARTMENT
+            profile_store.save(profile)
+            await update.message.reply_text(
+                "Send your *department* (e.g. CSE), or reply *skip* or /skip:",
+                parse_mode="Markdown",
+            )
+            return
+
+        if profile.step == STEP_REGISTER_DEPARTMENT:
+            profile.department = "" if is_skip_input(text) else text
+            profile_store.save(profile)
+            await self._finish_registration(update, ctx, profile, uid)
+
+    async def _apply_registration_skip(
+        self,
+        update: "Update",
+        ctx: "ContextTypes.DEFAULT_TYPE",
+        profile: TelegramProfile,
+        uid: int,
+    ):
+        await self._apply_registration_optional_field(update, ctx, profile, uid, "skip")
 
     async def _on_text(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
         uid = update.effective_user.id
@@ -913,61 +1094,8 @@ class TelegramBot:
             )
             return
 
-        if profile.step == STEP_REGISTER_PHONE:
-            profile.phone = "" if text.lower() == "skip" else text
-            if profile.role == "student":
-                profile.step = STEP_REGISTER_STUDENT_ID
-                profile_store.save(profile)
-                await update.message.reply_text(
-                    "Send your *Student ID* (e.g. 221-15-1234) or *skip*:",
-                    parse_mode="Markdown",
-                )
-            else:
-                profile.step = STEP_REGISTER_DEPARTMENT
-                profile_store.save(profile)
-                await update.message.reply_text(
-                    "Send your *department* (e.g. CSE) or *skip*:",
-                    parse_mode="Markdown",
-                )
-            return
-
-        if profile.step == STEP_REGISTER_STUDENT_ID:
-            profile.student_id = "" if text.lower() == "skip" else text
-            profile.step = STEP_REGISTER_DEPARTMENT
-            profile_store.save(profile)
-            await update.message.reply_text("Send your *department* or *skip*:", parse_mode="Markdown")
-            return
-
-        if profile.step == STEP_REGISTER_DEPARTMENT:
-            profile.department = "" if text.lower() == "skip" else text
-            account = auth_store.create_email_account(
-                telegram_id=uid,
-                email=profile.email,
-                password=profile.pending_password,
-                full_name=profile.full_name,
-                first_name=profile.first_name,
-                last_name=profile.last_name,
-                username=profile.username,
-                phone=profile.phone,
-                role=profile.role,
-                student_id=profile.student_id,
-                department=profile.department,
-            )
-            profile.step = STEP_COMPLETE
-            profile.pending_password = ""
-            profile_store.save(profile)
-            await memory_service.remember(
-                account.context_line(),
-                user_id=uid,
-                metadata={"source": "telegram_register", "email": account.email},
-            )
-            await send_auth_welcome(
-                ctx.bot,
-                uid,
-                account,
-                title="Registration complete",
-                telegram_id=uid,
-            )
+        if profile.step in (STEP_REGISTER_PHONE, STEP_REGISTER_STUDENT_ID, STEP_REGISTER_DEPARTMENT):
+            await self._apply_registration_optional_field(update, ctx, profile, uid, text)
             return
 
         if _in_auth_flow(profile):
@@ -1061,19 +1189,48 @@ class TelegramBot:
         prefix = account.context_line() if account else ""
         profile = profile_store.get(uid)
         agent_id = resolve_agent_id(profile)
+        chat_id = f"tg-{uid}"
+        runtime_user_id, metadata, model_id, turn_index = build_telegram_turn(
+            telegram_id=uid,
+            account=account,
+            agent_id=agent_id,
+            chat_id=chat_id,
+        )
         result = await run_turn(
             text,
-            user_id=uid,
-            chat_id=f"tg-{uid}",
+            user_id=runtime_user_id,
+            chat_id=chat_id,
             agent_id=agent_id,
             context_prefix=prefix,
             attachments=attachments,
+            model_id=model_id,
+            metadata=metadata,
         )
         content = (result.get("content") or "").strip()
+        tool_calls = result.get("tool_calls") or []
+        if tool_calls:
+            try:
+                await update.message.reply_text(
+                    f"_Used tools: {', '.join(tool_calls)}_",
+                    parse_mode="Markdown",
+                )
+            except Exception:
+                pass
         if not content:
             content = default_authenticated_message()
         for chunk in _chunk(content, 4000):
             await update.message.reply_text(chunk)
+        try:
+            await memory_service.process_turn_memory(
+                user_id=runtime_user_id,
+                agent_id=result.get("agent_id") or agent_id,
+                chat_id=chat_id,
+                user_msg=text,
+                assistant_msg=content,
+                turn_index=turn_index,
+            )
+        except Exception as mem_err:
+            logger.warning("Telegram turn memory failed: %s", mem_err)
 
     async def _download(self, media, ctx: "ContextTypes.DEFAULT_TYPE") -> Optional[bytes]:
         try:
