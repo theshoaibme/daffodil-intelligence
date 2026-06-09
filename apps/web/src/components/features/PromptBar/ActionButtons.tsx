@@ -1,9 +1,9 @@
-import { Link, Sparkles, ArrowUp, Loader2, Mic } from "lucide-react";
+import { Link, Sparkles, ArrowUp, Mic } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@lib";
 
 const promptIconButtonClass =
-  "w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-full transition-all cursor-pointer border-0 outline-none";
+  "w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface rounded-full transition-all cursor-pointer border-0 outline-none bg-transparent";
 
 export function FileAttachmentButton({ onClick }: { onClick?: () => void }) {
   return (
@@ -21,7 +21,7 @@ export function FileAttachmentButton({ onClick }: { onClick?: () => void }) {
 
 export function SparklesButton({ onSparklesClick }: { onSparklesClick?: () => void }) {
   return (
-    <button 
+    <button
       onClick={onSparklesClick}
       className="w-10 h-10 flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 rounded-full transition-all cursor-pointer border-0 outline-none"
     >
@@ -30,35 +30,48 @@ export function SparklesButton({ onSparklesClick }: { onSparklesClick?: () => vo
   );
 }
 
-export function LiveVoiceButton() {
+export function MicButton() {
   const navigate = useNavigate();
   return (
-    <button 
+    <button
+      type="button"
       onClick={() => navigate(ROUTES.live)}
-      className="w-10 h-10 flex items-center justify-center bg-secondary-container/50 text-secondary hover:bg-secondary-container rounded-full transition-all cursor-pointer border-0 outline-none"
+      aria-label="Live voice"
       title="Live Voice"
+      className="w-8 h-8 flex items-center justify-center rounded-full transition-all border-0 outline-none bg-[#5a5a5a] text-[#1a1a1a] hover:bg-[#666666] cursor-pointer"
     >
-      <Mic size={20} />
+      <Mic size={16} strokeWidth={2.5} />
     </button>
   );
 }
 
-export function SendButton({ onClick, disabled, loading }: { onClick?: () => void; disabled?: boolean; loading?: boolean }) {
+/** @deprecated Use MicButton */
+export const LiveVoiceButton = MicButton;
+
+export function SendButton({ onClick }: { onClick?: () => void }) {
   return (
-    <button 
-      onClick={disabled || loading ? undefined : onClick}
-      disabled={disabled || loading}
-      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all font-bold border-0 outline-none shadow-sm ${
-        disabled || loading
-          ? "bg-surface-container-highest text-on-surface-variant/30 cursor-not-allowed shadow-none" 
-          : "bg-primary text-on-primary hover:opacity-90 hover:shadow-md cursor-pointer"
-      }`}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Send message"
+      title="Send"
+      className="w-8 h-8 flex items-center justify-center rounded-full transition-all border-0 outline-none bg-neutral-300 text-neutral-900 hover:bg-neutral-200 cursor-pointer"
     >
-      {loading ? (
-        <Loader2 size={16} className="animate-spin" />
-      ) : (
-        <ArrowUp size={18} strokeWidth={3} />
-      )}
+      <ArrowUp size={18} strokeWidth={3} />
+    </button>
+  );
+}
+
+export function StopButton({ onClick }: { onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Stop generating"
+      title="Stop"
+      className="w-8 h-8 flex items-center justify-center rounded-full transition-all border-0 outline-none bg-white hover:bg-neutral-100 cursor-pointer"
+    >
+      <span className="block w-2.5 h-2.5 rounded-[2px] bg-neutral-900" />
     </button>
   );
 }

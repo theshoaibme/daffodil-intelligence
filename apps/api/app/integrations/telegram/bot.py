@@ -13,9 +13,7 @@ from typing import Any, List, Optional
 from ...core.config import get_settings
 from ...prompts.manager import GREETING_EN
 from ...runtime.pipeline import run_turn
-from ...skills.store import global_config_store
 from ...memory import memory_service
-from ...tools.registry import get_registry
 from .profiles import (
     profile_store,
     ROLES,
@@ -37,8 +35,32 @@ from .profiles import (
     STEP_COMPLETE,
 )
 from .auth_store import auth_store
+from .web_auth import resolve_login_email_status, verify_web_password_login
+from .commands import (
+    auth_required_message,
+    default_authenticated_message,
+    default_guest_message,
+    help_text,
+    parse_suggestion_text,
+    step_empty_prompt,
+    step_unknown_input_prompt,
+    sync_default_commands,
+    sync_user_commands,
+    unsupported_media_message,
+)
+from .handlers.registry import register_product_handlers
+from .keyboards import (
+    auth_keyboard as _auth_keyboard,
+    auth_suggestion_keyboard as _auth_suggestion_keyboard,
+    clear_suggestion_keyboard as _clear_suggestion_keyboard,
+    google_auth_button as _google_auth_button,
+    login_keyboard as _login_keyboard,
+    register_keyboard as _register_keyboard,
+    role_keyboard as _role_keyboard,
+)
 from .otp import otp_service
-from .tokens import sign_state, frontend_base
+from .services.agents import resolve_agent_id
+from .tokens import google_login_url, is_telegram_inline_url
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -46,11 +68,7 @@ settings = get_settings()
 try:
     from telegram import (
         Update,
-        InlineKeyboardButton,
         InlineKeyboardMarkup,
-        KeyboardButton,
-        ReplyKeyboardMarkup,
-        ReplyKeyboardRemove,
     )
     from telegram.ext import (
         Application,
@@ -75,60 +93,13 @@ except Exception:
     _MM_AVAILABLE = False
 
 
-def _google_login_button(telegram_id: int) -> "InlineKeyboardButton":
-    return InlineKeyboardButton("Login with Google", url=_google_login_url(telegram_id))
-
-
-def _login_keyboard(telegram_id: int) -> "InlineKeyboardMarkup":
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Email & password", callback_data="auth:login_email")],
-        [_google_login_button(telegram_id)],
-        [InlineKeyboardButton("Back", callback_data="auth:menu")],
-    ])
-
-
-def _auth_keyboard(telegram_id: int) -> "InlineKeyboardMarkup":
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Register", callback_data="auth:register")],
-        [InlineKeyboardButton("Login", callback_data="auth:login_menu")],
-    ])
-
-
-def _auth_suggestion_keyboard() -> "ReplyKeyboardMarkup":
-    """Persistent bottom buttons for first-time / logged-out users."""
-    return ReplyKeyboardMarkup(
-        [
-            [KeyboardButton("Register"), KeyboardButton("Login")],
-        ],
-        resize_keyboard=True,
-        input_field_placeholder="Tap Register or Login to continue…",
-    )
-
-
-def _clear_suggestion_keyboard() -> "ReplyKeyboardRemove":
-    return ReplyKeyboardRemove()
-
-
-def _role_keyboard() -> "InlineKeyboardMarkup":
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Student", callback_data="role:student"),
-            InlineKeyboardButton("Teacher", callback_data="role:teacher"),
-        ],
-        [
-            InlineKeyboardButton("Staff", callback_data="role:staff"),
-            InlineKeyboardButton("Manager", callback_data="role:manager"),
-        ],
-    ])
-
-
 def _welcome_unregistered(profile: TelegramProfile) -> str:
     name = profile.full_name or profile.first_name or "there"
     return (
         f"Welcome to *Daffodil Intelligence*, {name}!\n\n"
         "Tap *Register* or *Login* on the keyboard below to get started.\n"
-        "• *Register* — email verification (OTP) + profile setup\n"
-        "• *Login* — Google or email, first name, last name & password"
+        "• *Register* — Google or email (OTP) + profile setup\n"
+        "• *Login* — Google or email & password"
     )
 
 
@@ -138,6 +109,15 @@ def _login_menu_text() -> str:
         "Choose how you want to log in:\n"
         "• *Email & password* — email, first name, last name, and password\n"
         "• *Login with Google* — opens secure Google sign-in in your browser"
+    )
+
+
+def _register_menu_text() -> str:
+    return (
+        "*Register for Daffodil Intelligence*\n\n"
+        "Choose how you want to sign up:\n"
+        "• *Email & password* — OTP verification, then profile setup\n"
+        "• *Register with Google* — quick sign-up in your browser"
     )
 
 
@@ -207,6 +187,7 @@ async def send_auth_welcome(
         text=GREETING_EN,
         reply_markup=_clear_suggestion_keyboard(),
     )
+    await sync_user_commands(bot, chat_id, authenticated=True)
 
 
 def _profile_summary(account) -> str:
@@ -234,13 +215,49 @@ def _provider_label(provider: str) -> str:
     }.get(provider, provider)
 
 
-def _google_login_url(telegram_id: int) -> str:
-    token = sign_state(telegram_id)
-    return f"{frontend_base()}/api/auth/telegram/google/start?token={token}"
+async def _reply_google_auth_prompt(query, uid: int, *, register: bool) -> None:
+    label = "Register with Google" if register else "Login with Google"
+    url = google_login_url(uid)
+    if is_telegram_inline_url(url):
+        await query.edit_message_text(
+            f"Tap *{label}* below to continue in your browser.\n\n"
+            "After success, return to Telegram for confirmation.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[_google_auth_button(uid, label=label)]]),
+        )
+        return
+    await query.edit_message_text(
+        f"*{label}*\n\n"
+        "Open this link in your browser:\n"
+        f"`{url}`\n\n"
+        "_Tip: set `TELEGRAM_OAUTH_PUBLIC_URL` to a public HTTPS URL in API .env for one-tap buttons._",
+        parse_mode="Markdown",
+    )
 
 
 def _valid_person_name(name: str) -> bool:
     return len(name.strip()) >= 2
+
+
+_AUTH_FLOW_STEPS = frozenset({
+    STEP_REGISTER_EMAIL,
+    STEP_REGISTER_OTP,
+    STEP_REGISTER_FIRST_NAME,
+    STEP_REGISTER_LAST_NAME,
+    STEP_REGISTER_PASSWORD,
+    STEP_REGISTER_ROLE,
+    STEP_REGISTER_PHONE,
+    STEP_REGISTER_STUDENT_ID,
+    STEP_REGISTER_DEPARTMENT,
+    STEP_LOGIN_EMAIL,
+    STEP_LOGIN_FIRST_NAME,
+    STEP_LOGIN_LAST_NAME,
+    STEP_LOGIN_PASSWORD,
+})
+
+
+def _in_auth_flow(profile: TelegramProfile) -> bool:
+    return profile.step in _AUTH_FLOW_STEPS
 
 
 def _register_start_text() -> str:
@@ -253,22 +270,31 @@ def _register_start_text() -> str:
 
 async def _send_register_otp(update: "Update", profile: TelegramProfile, email: str) -> None:
     code = otp_service.generate(email)
-    sent, dev_code = otp_service.send(email, code)
-    profile.email = email
-    profile.step = STEP_REGISTER_OTP
-    profile_store.save(profile)
-    if sent:
+    result = otp_service.deliver(email, code)
+    if result.sent:
+        profile.email = email
+        profile.step = STEP_REGISTER_OTP
+        profile_store.save(profile)
         await update.message.reply_text(
             f"A 6-digit code was sent to *{email}*.\n\nEnter the code here:",
             parse_mode="Markdown",
         )
-    else:
+        return
+    if result.dev_code:
+        profile.email = email
+        profile.step = STEP_REGISTER_OTP
+        profile_store.save(profile)
         await update.message.reply_text(
-            f"Email delivery is not configured.\n\n"
-            f"Your verification code: `{dev_code}`\n\n"
+            f"*Development mode* — configure SMTP or Resend to send real email.\n\n"
+            f"Your verification code: `{result.dev_code}`\n\n"
             "Enter the code here:",
             parse_mode="Markdown",
         )
+        return
+    await update.message.reply_text(
+        "Could not send the verification email. Please try again in a few minutes.",
+        reply_markup=_auth_suggestion_keyboard(),
+    )
 
 
 class TelegramBot:
@@ -289,7 +315,15 @@ class TelegramBot:
     async def start(self):
         if not self.enabled or self._started:
             return
-        self._app = ApplicationBuilder().token(settings.TELEGRAM_BOT_TOKEN).build()
+        async def _post_init(app: "Application") -> None:
+            await sync_default_commands(app.bot)
+
+        self._app = (
+            ApplicationBuilder()
+            .token(settings.TELEGRAM_BOT_TOKEN)
+            .post_init(_post_init)
+            .build()
+        )
         self._register_handlers(self._app)
         await self._app.initialize()
         await self._app.start()
@@ -336,12 +370,21 @@ class TelegramBot:
         app.add_handler(CommandHandler("logout", self._cmd_logout))
         app.add_handler(CallbackQueryHandler(self._on_auth_callback, pattern=r"^auth:"))
         app.add_handler(CallbackQueryHandler(self._on_role_callback, pattern=r"^role:"))
-        app.add_handler(CommandHandler("recordings", self._cmd_recordings))
-        app.add_handler(CommandHandler("record", self._cmd_record))
-        app.add_handler(CommandHandler("replay", self._cmd_replay))
+        register_product_handlers(app, self)
         app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, self._on_voice))
         app.add_handler(MessageHandler(filters.PHOTO, self._on_photo))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._on_text))
+        app.add_handler(MessageHandler(filters.COMMAND, self._on_unknown_command))
+        unsupported = (
+            filters.Sticker.ALL
+            | filters.Document.ALL
+            | filters.VIDEO
+            | filters.ANIMATION
+            | filters.CONTACT
+            | filters.LOCATION
+            | filters.VENUE
+        )
+        app.add_handler(MessageHandler(unsupported, self._on_unsupported))
 
     def _sync(self, update: "Update", profile: TelegramProfile) -> TelegramProfile:
         return profile.sync_telegram_names(update.effective_user)
@@ -383,6 +426,10 @@ class TelegramBot:
             parse_mode="Markdown",
             reply_markup=_auth_suggestion_keyboard(),
         )
+        try:
+            await sync_user_commands(update.get_bot(), uid, authenticated=False)
+        except Exception:
+            pass
 
     async def _show_login_menu(self, update: "Update", uid: int):
         profile = profile_store.get(uid)
@@ -395,6 +442,100 @@ class TelegramBot:
             reply_markup=_login_keyboard(uid),
         )
 
+    async def _show_register_menu(self, update: "Update", uid: int):
+        profile = profile_store.get(uid)
+        profile.step = STEP_AUTH_MENU
+        profile.mode = "register"
+        profile_store.save(profile)
+        await update.message.reply_text(
+            _register_menu_text(),
+            parse_mode="Markdown",
+            reply_markup=_register_keyboard(uid),
+        )
+
+    async def _on_unknown_command(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
+        raw = (update.message.text or "").strip().split()[0].lower().lstrip("/")
+        if raw in ("loginn", "loging", "signin"):
+            await self._cmd_login(update, ctx)
+            return
+        if raw in ("registerr", "signup", "sign-up"):
+            await self._cmd_register(update, ctx)
+            return
+        await update.message.reply_text("Unknown command. Send /help to see available commands.")
+
+    async def _handle_login_email(
+        self,
+        update: "Update",
+        profile: TelegramProfile,
+        uid: int,
+        email: str,
+    ):
+        status, web_only = await resolve_login_email_status(email)
+        if status == "not_found":
+            await update.message.reply_text(
+                "No account with this email.\n\nSend /register to create one, or try another email.",
+                reply_markup=_login_keyboard(uid),
+            )
+            profile.step = STEP_AUTH_MENU
+            profile.mode = "login"
+            profile_store.save(profile)
+            return
+        if status == "google_only":
+            profile.email = email
+            profile.step = STEP_AUTH_MENU
+            profile.mode = "login"
+            profile_store.save(profile)
+            await update.message.reply_text(
+                f"*{email}* is registered with *Google sign-in*.\n\n"
+                "Tap the button below to continue with Google:",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([[_google_auth_button(uid, label="Login with Google")]]),
+            )
+            return
+        profile.email = email
+        profile.mode = "login"
+        if web_only:
+            profile.first_name = ""
+            profile.last_name = ""
+            profile.step = STEP_LOGIN_PASSWORD
+            profile_store.save(profile)
+            await update.message.reply_text(
+                "Web account found. Send your *password*:",
+                parse_mode="Markdown",
+            )
+            return
+        profile.step = STEP_LOGIN_FIRST_NAME
+        profile_store.save(profile)
+        await update.message.reply_text("Send your *first name*:", parse_mode="Markdown")
+
+    async def _finish_login(
+        self,
+        update: "Update",
+        ctx: "ContextTypes.DEFAULT_TYPE",
+        profile: TelegramProfile,
+        uid: int,
+        acct,
+    ):
+        acct.telegram_id = uid
+        auth_store.save(acct)
+        profile.step = STEP_COMPLETE
+        profile.role = acct.role
+        profile.email = acct.email
+        profile.full_name = acct.full_name
+        profile_store.save(profile)
+        await memory_service.remember(
+            acct.context_line(),
+            user_id=uid,
+            metadata={"source": "telegram_login", "email": acct.email},
+        )
+        await send_auth_welcome(
+            ctx.bot,
+            uid,
+            acct,
+            title="Login successful",
+            telegram_id=uid,
+        )
+
     async def _cmd_login(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
         uid = update.effective_user.id
         if auth_store.get_by_telegram_id(uid):
@@ -405,7 +546,11 @@ class TelegramBot:
         await self._show_login_menu(update, uid)
 
     async def _cmd_register(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
-        await self._begin_register(update)
+        uid = update.effective_user.id
+        if auth_store.get_by_telegram_id(uid):
+            await update.message.reply_text("You are already signed in. Send /start or /profile.")
+            return
+        await self._show_register_menu(update, uid)
 
     async def _begin_register(self, update: "Update"):
         uid = update.effective_user.id
@@ -423,14 +568,11 @@ class TelegramBot:
         )
 
     async def _cmd_help(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
+        uid = update.effective_user.id
+        authed = self._is_authenticated(uid)
         await update.message.reply_text(
-            "Daffodil Intelligence\n\n"
-            "/start — home\n"
-            "/register — create account (email OTP + password)\n"
-            "/login — sign in (Google or email & password)\n"
-            "/profile — view account\n"
-            "/logout — sign out\n\n"
-            "You can use *Google* or *email & password* — both work on /login."
+            help_text(authenticated=authed),
+            parse_mode="Markdown",
         )
 
     async def _cmd_profile(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
@@ -450,6 +592,10 @@ class TelegramBot:
             "Send /login or /register to continue.",
             reply_markup=_auth_suggestion_keyboard(),
         )
+        try:
+            await sync_user_commands(ctx.bot, uid, authenticated=False)
+        except Exception:
+            pass
 
     async def _on_auth_callback(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
         query = update.callback_query
@@ -458,6 +604,16 @@ class TelegramBot:
         action = (query.data or "").split(":", 1)[-1]
 
         if action == "register":
+            profile = profile_store.get(uid)
+            profile.mode = "register"
+            profile.step = STEP_AUTH_MENU
+            profile_store.save(profile)
+            await query.edit_message_text(
+                _register_menu_text(),
+                parse_mode="Markdown",
+                reply_markup=_register_keyboard(uid),
+            )
+        elif action == "register_email":
             profile = profile_store.get(uid)
             self._sync(update, profile)
             profile.mode = "register"
@@ -490,16 +646,13 @@ class TelegramBot:
             profile_store.save(profile)
             await query.edit_message_text(
                 "Email login — send your *email address*.\n\n"
-                "You will also need your *first name*, *last name*, and *password*.",
+                "Web accounts: email + password.\n"
+                "Telegram accounts: email, name, and password.",
                 parse_mode="Markdown",
             )
         elif action == "google":
-            await query.edit_message_text(
-                "Tap *Login with Google* below to open secure sign-in in your browser.\n\n"
-                "After success, return to Telegram — you will get a confirmation message.",
-                parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([[_google_login_button(uid)]]),
-            )
+            profile = profile_store.get(uid)
+            await _reply_google_auth_prompt(query, uid, register=profile.mode == "register")
         elif action == "menu":
             profile = profile_store.get(uid)
             profile.step = STEP_AUTH_MENU
@@ -539,20 +692,94 @@ class TelegramBot:
         profile = profile_store.get(uid)
         self._sync(update, profile)
 
-        if text.lower() in ("login", "/login"):
+        if not text:
+            if self._is_authenticated(uid) and profile.step == STEP_COMPLETE:
+                await update.message.reply_text(
+                    default_authenticated_message(),
+                    parse_mode="Markdown",
+                )
+            else:
+                await update.message.reply_text(
+                    step_empty_prompt(profile.step),
+                    parse_mode="Markdown",
+                )
+            return
+
+        quick = parse_suggestion_text(text)
+        if quick == "help":
+            await self._cmd_help(update, ctx)
+            return
+        if quick == "profile":
+            await self._cmd_profile(update, ctx)
+            return
+        if quick == "logout":
+            await self._cmd_logout(update, ctx)
+            return
+        if quick == "start":
+            await self._cmd_start(update, ctx)
+            return
+        if quick == "login":
             if auth_store.get_by_telegram_id(uid):
                 await update.message.reply_text("You are already signed in. Send /start or /logout.")
                 return
             await self._show_login_menu(update, uid)
             return
+        if quick == "register":
+            if auth_store.get_by_telegram_id(uid):
+                await update.message.reply_text("You are already signed in. Send /start or /profile.")
+                return
+            await self._show_register_menu(update, uid)
+            return
+        if quick == "recordings" and self._is_authenticated(uid):
+            from .handlers.copycat import CopycatHandlers
+
+            await CopycatHandlers(self).cmd_recordings(update, ctx)
+            return
+        if quick == "agent" and self._is_authenticated(uid):
+            from .handlers.agents import AgentHandlers
+
+            await AgentHandlers(self).cmd_agent(update, ctx)
+            return
+        if quick == "copycat" and self._is_authenticated(uid):
+            from .handlers.copycat import CopycatHandlers
+
+            await CopycatHandlers(self).cmd_copycat(update, ctx)
+            return
+        if quick == "automation" and self._is_authenticated(uid):
+            from .handlers.automation import AutomationHandlers
+
+            await AutomationHandlers(self).cmd_automation(update, ctx)
+            return
 
         if profile.step == STEP_AUTH_MENU:
-            choice = text.lower()
-            if choice == "register":
-                await self._begin_register(update)
+            if quick in ("register", "login"):
                 return
-            if choice == "login":
-                await self._show_login_menu(update, uid)
+            if profile.mode == "login":
+                if otp_service.is_valid_email(text):
+                    await self._handle_login_email(update, profile, uid, text.lower())
+                else:
+                    await update.message.reply_text(
+                        "Send your *email* to sign in, or use the buttons above.",
+                        parse_mode="Markdown",
+                        reply_markup=_login_keyboard(uid),
+                    )
+                return
+            if profile.mode == "register":
+                if otp_service.is_valid_email(text):
+                    email = text.lower()
+                    if auth_store.email_taken(email):
+                        await update.message.reply_text(
+                            "Email already registered. Use /login or another email.",
+                            reply_markup=_register_keyboard(uid),
+                        )
+                        return
+                    await _send_register_otp(update, profile, email)
+                else:
+                    await update.message.reply_text(
+                        "Send your *email* to register, or use the buttons above.",
+                        parse_mode="Markdown",
+                        reply_markup=_register_keyboard(uid),
+                    )
                 return
             await self._prompt_first_time_auth(update, profile, uid)
             return
@@ -561,31 +788,7 @@ class TelegramBot:
             if not otp_service.is_valid_email(text):
                 await update.message.reply_text("Invalid email. Try again:")
                 return
-            email = text.lower()
-            status = auth_store.login_email_status(email)
-            if status == "not_found":
-                await update.message.reply_text(
-                    "No account with this email.\n\nSend /register to create one, or try another email.",
-                    reply_markup=_login_keyboard(uid),
-                )
-                profile.step = STEP_AUTH_MENU
-                profile_store.save(profile)
-                return
-            if status == "google_only":
-                profile.email = email
-                profile.step = STEP_AUTH_MENU
-                profile_store.save(profile)
-                await update.message.reply_text(
-                    f"*{email}* is registered with *Google sign-in*.\n\n"
-                    "Tap the button below to continue with Google:",
-                    parse_mode="Markdown",
-                    reply_markup=InlineKeyboardMarkup([[_google_login_button(uid)]]),
-                )
-                return
-            profile.email = email
-            profile.step = STEP_LOGIN_FIRST_NAME
-            profile_store.save(profile)
-            await update.message.reply_text("Send your *first name*:", parse_mode="Markdown")
+            await self._handle_login_email(update, profile, uid, text.lower())
             return
 
         if profile.step == STEP_LOGIN_FIRST_NAME:
@@ -610,40 +813,33 @@ class TelegramBot:
             return
 
         if profile.step == STEP_LOGIN_PASSWORD:
-            acct = auth_store.verify_login_with_names(
-                profile.email,
-                text,
-                profile.first_name,
-                profile.last_name,
-            )
+            acct = None
+            if profile.first_name and profile.last_name:
+                acct = auth_store.verify_login_with_names(
+                    profile.email,
+                    text,
+                    profile.first_name,
+                    profile.last_name,
+                )
+            else:
+                acct = auth_store.verify_login(profile.email, text)
+                if not acct:
+                    acct = await verify_web_password_login(
+                        telegram_id=uid,
+                        email=profile.email,
+                        password=text,
+                        username=profile.username,
+                    )
             if not acct:
                 await update.message.reply_text(
-                    "Incorrect email, name, or password. Try again or send /login to restart.",
+                    "Incorrect email or password. Try again or send /login to restart.",
                     reply_markup=_login_keyboard(uid),
                 )
                 profile.step = STEP_LOGIN_EMAIL
                 profile_store.save(profile)
                 await update.message.reply_text("Send your *email* again:", parse_mode="Markdown")
                 return
-            acct.telegram_id = uid
-            auth_store.save(acct)
-            profile.step = STEP_COMPLETE
-            profile.role = acct.role
-            profile.email = acct.email
-            profile.full_name = acct.full_name
-            profile_store.save(profile)
-            await memory_service.remember(
-                acct.context_line(),
-                user_id=uid,
-                metadata={"source": "telegram_login", "email": acct.email},
-            )
-            await send_auth_welcome(
-                ctx.bot,
-                uid,
-                acct,
-                title="Login successful",
-                telegram_id=uid,
-            )
+            await self._finish_login(update, ctx, profile, uid, acct)
             return
 
         if profile.step == STEP_REGISTER_EMAIL:
@@ -709,6 +905,14 @@ class TelegramBot:
             )
             return
 
+        if profile.step == STEP_REGISTER_ROLE:
+            await update.message.reply_text(
+                step_empty_prompt(STEP_REGISTER_ROLE),
+                parse_mode="Markdown",
+                reply_markup=_role_keyboard(),
+            )
+            return
+
         if profile.step == STEP_REGISTER_PHONE:
             profile.phone = "" if text.lower() == "skip" else text
             if profile.role == "student":
@@ -766,6 +970,13 @@ class TelegramBot:
             )
             return
 
+        if _in_auth_flow(profile):
+            await update.message.reply_text(
+                step_unknown_input_prompt(profile.step),
+                parse_mode="Markdown",
+            )
+            return
+
         if not self._is_authenticated(uid):
             profile.step = STEP_AUTH_MENU
             profile_store.save(profile)
@@ -774,10 +985,31 @@ class TelegramBot:
 
         await self._handle_chat(update, text, uid)
 
+    async def _on_unsupported(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
+        uid = update.effective_user.id
+        if not self._allowed(uid):
+            await update.message.reply_text("Not authorized.")
+            return
+        authed = self._is_authenticated(uid)
+        await update.message.reply_text(
+            unsupported_media_message(authenticated=authed),
+            parse_mode="Markdown",
+        )
+        if not authed:
+            await update.message.reply_text(
+                auth_required_message(),
+                parse_mode="Markdown",
+                reply_markup=_auth_suggestion_keyboard(),
+            )
+
     async def _on_voice(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
         uid = update.effective_user.id
         if not self._is_authenticated(uid):
-            await update.message.reply_text("Please /register or /login first.")
+            await update.message.reply_text(
+                auth_required_message(),
+                parse_mode="Markdown",
+                reply_markup=_auth_suggestion_keyboard(),
+            )
             return
         attachments: List[Any] = []
         if _MM_AVAILABLE:
@@ -792,7 +1024,11 @@ class TelegramBot:
     async def _on_photo(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
         uid = update.effective_user.id
         if not self._is_authenticated(uid):
-            await update.message.reply_text("Please /register or /login first.")
+            await update.message.reply_text(
+                auth_required_message(),
+                parse_mode="Markdown",
+                reply_markup=_auth_suggestion_keyboard(),
+            )
             return
         attachments: List[Any] = []
         if _MM_AVAILABLE and update.message.photo:
@@ -810,13 +1046,21 @@ class TelegramBot:
         uid: int,
         attachments: Optional[List[Any]] = None,
     ):
+        if not (text or "").strip() and not attachments:
+            await update.message.reply_text(
+                default_authenticated_message(),
+                parse_mode="Markdown",
+            )
+            return
+
         account = auth_store.get_by_telegram_id(uid)
         try:
             await update.message.chat.send_action("typing")
         except Exception:
             pass
         prefix = account.context_line() if account else ""
-        agent_id = global_config_store.get().default_agent_id
+        profile = profile_store.get(uid)
+        agent_id = resolve_agent_id(profile)
         result = await run_turn(
             text,
             user_id=uid,
@@ -825,45 +1069,11 @@ class TelegramBot:
             context_prefix=prefix,
             attachments=attachments,
         )
-        content = result.get("content") or "(no response)"
+        content = (result.get("content") or "").strip()
+        if not content:
+            content = default_authenticated_message()
         for chunk in _chunk(content, 4000):
             await update.message.reply_text(chunk)
-
-    async def _cmd_recordings(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
-        result = await get_registry().execute("list_recordings")
-        if result.success:
-            recs = result.data.get("recordings", [])
-            await update.message.reply_text(
-                "No recordings yet." if not recs else "Recordings:\n" + "\n".join(
-                    f"• {r['name']}" for r in recs
-                )
-            )
-        else:
-            await update.message.reply_text(f"Error: {result.error}")
-
-    async def _cmd_record(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
-        args = ctx.args or []
-        if args and args[0] == "stop":
-            result = await get_registry().execute("stop_recording")
-            if result.success:
-                skill = (result.data or {}).get("skill")
-                msg = f"Saved: {result.data.get('name')} ({result.data.get('action_count')} actions)"
-                if skill:
-                    msg += f"\nSkill auto-created: {skill.get('name')}"
-            else:
-                msg = f"Error: {result.error}"
-        else:
-            result = await get_registry().execute("start_recording", name=args[0] if args else None)
-            msg = "Recording started. /record stop to finish." if result.success else f"Error: {result.error}"
-        await update.message.reply_text(msg)
-
-    async def _cmd_replay(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
-        args = ctx.args or []
-        if not args:
-            await update.message.reply_text("Usage: /replay <name> [speed]")
-            return
-        result = await get_registry().execute("replay_recording", name=args[0], speed=float(args[1]) if len(args) > 1 else 1.0)
-        await update.message.reply_text("Done." if result.success else f"Error: {result.error}")
 
     async def _download(self, media, ctx: "ContextTypes.DEFAULT_TYPE") -> Optional[bytes]:
         try:

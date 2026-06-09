@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     # Optional override; default matches /api/auth/telegram/google/callback on API_PUBLIC_URL
     GOOGLE_OAUTH_REDIRECT_URI: str = ""
+    TELEGRAM_GOOGLE_OAUTH_REDIRECT_URI: str = ""
     MICROSOFT_CLIENT_ID: str = ""
     MICROSOFT_CLIENT_SECRET: str = ""
     APPLE_CLIENT_ID: str = ""
@@ -54,6 +55,7 @@ class Settings(BaseSettings):
     ANTIGRAVITY_MODEL: str = "gemini-2.0-flash"
     ANTIGRAVITY_SAVE_DIR: str = "conversations"
     ANTIGRAVITY_ENABLE_SUBAGENTS: bool = True
+    CONTEXT_WINDOW_TOKENS: int = 128_000
 
     # === MCP ===
     MCP_SERVER_PORT: int = 8001
@@ -66,13 +68,20 @@ class Settings(BaseSettings):
     TELEGRAM_ALLOWED_USER_IDS: str = ""  # comma-separated telegram user ids (empty = allow all)
     API_PUBLIC_URL: str = "http://localhost:8000"
     FRONTEND_PUBLIC_URL: str = "http://localhost:3000"
+    # Optional HTTPS/ngrok URL for Telegram Google sign-in buttons (empty = API_PUBLIC_URL)
+    TELEGRAM_OAUTH_PUBLIC_URL: str = ""
 
-    # === Email OTP (Telegram registration) ===
+    # === Email OTP (registration) ===
+    # EMAIL_PROVIDER: auto | smtp | resend | none
+    EMAIL_PROVIDER: str = "auto"
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
+    SMTP_USE_SSL: bool = False
+    SMTP_STARTTLS: bool = True
+    RESEND_API_KEY: str = ""
 
     APP_SECRET_KEY: str = ""
 

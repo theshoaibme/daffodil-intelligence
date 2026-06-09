@@ -132,6 +132,81 @@ async def test_start_shows_auth_menu(monkeypatch, tmp_path):
     assert "JARVIS" not in update.message.replies[0].upper()
 
 
+async def test_empty_message_shows_default_guest_prompt(monkeypatch, tmp_path):
+    from app.integrations.telegram import auth_store as astore_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    astore = astore_mod.TelegramAuthStore(str(tmp_path / "users.json"))
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    monkeypatch.setattr(astore_mod, "auth_store", astore)
+    monkeypatch.setattr("app.integrations.telegram.bot.auth_store", astore)
+    monkeypatch.setattr(prof_mod, "profile_store", prof_store)
+    monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
+
+    update = _FakeUpdate("")
+    ctx = types.SimpleNamespace(bot=None, args=[])
+    await telegram_bot._on_text(update, ctx)
+
+    body = "\n".join(update.message.replies)
+    assert "Register" in body or "register" in body.lower()
+
+
+async def test_empty_message_shows_default_when_authenticated(monkeypatch, tmp_path):
+    from app.integrations.telegram import auth_store as astore_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    astore = astore_mod.TelegramAuthStore(str(tmp_path / "users.json"))
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    monkeypatch.setattr(astore_mod, "auth_store", astore)
+    monkeypatch.setattr("app.integrations.telegram.bot.auth_store", astore)
+    monkeypatch.setattr(prof_mod, "profile_store", prof_store)
+    monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
+
+    astore.create_email_account(
+        telegram_id=4242,
+        email="test@diu.edu.bd",
+        password="secret12",
+        full_name="Test User",
+        first_name="Test",
+        last_name="User",
+        username="testuser",
+        phone="",
+        role="student",
+        student_id="",
+        department="",
+    )
+    p = prof_store.get(4242)
+    p.step = STEP_COMPLETE
+    prof_store.save(p)
+
+    update = _FakeUpdate("")
+    ctx = types.SimpleNamespace(bot=None, args=[])
+    await telegram_bot._on_text(update, ctx)
+
+    body = "\n".join(update.message.replies).lower()
+    assert "help" in body
+
+
+async def test_help_keyboard_suggestion(monkeypatch, tmp_path):
+    from app.integrations.telegram import auth_store as astore_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    astore = astore_mod.TelegramAuthStore(str(tmp_path / "users.json"))
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    monkeypatch.setattr(astore_mod, "auth_store", astore)
+    monkeypatch.setattr("app.integrations.telegram.bot.auth_store", astore)
+    monkeypatch.setattr(prof_mod, "profile_store", prof_store)
+    monkeypatch.setattr("app.integrations.telegram.bot.profile_store", prof_store)
+
+    update = _FakeUpdate("Help")
+    ctx = types.SimpleNamespace(bot=None, args=[])
+    await telegram_bot._on_text(update, ctx)
+
+    body = "\n".join(update.message.replies)
+    assert "/register" in body
+    assert "/recordings" not in body
+
+
 async def test_auth_menu_register_suggestion(monkeypatch, tmp_path):
     from app.integrations.telegram import auth_store as astore_mod
     from app.integrations.telegram import profiles as prof_mod

@@ -53,6 +53,7 @@ class TelegramProfile:
     department: str = ""
     step: str = STEP_AUTH_MENU
     mode: str = ""  # register | login
+    selected_agent_id: str = ""  # empty = workspace default
 
     @property
     def is_complete(self) -> bool:

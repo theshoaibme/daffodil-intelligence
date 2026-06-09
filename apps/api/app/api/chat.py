@@ -10,7 +10,14 @@ import logging
 from ..core.database import get_db
 from ..core.security import get_current_user
 from ..models.user import Chat, Message
-from ..schemas.user import ChatCreate, ChatResponse, MessageResponse, MessageCreate
+from ..schemas.user import (
+    ChatCreate,
+    ChatResponse,
+    MessageResponse,
+    MessageCreate,
+    ChatContextUsageResponse,
+)
+from ..core.context_usage import compute_chat_context_usage
 from ..memory import memory_service
 from ..runtime.pipeline import run_turn, run_turn_stream
 
@@ -59,6 +66,24 @@ async def get_messages(
     return result.scalars().all()
 
 
+@router.get("/{chat_id}/context", response_model=ChatContextUsageResponse)
+async def get_chat_context_usage(
+    chat_id: int,
+    draft: str = "",
+    model_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    user_id = int(user.get("sub"))
+    return await compute_chat_context_usage(
+        db,
+        chat_id=chat_id,
+        user_id=user_id,
+        draft_message=draft,
+        model_id=model_id,
+    )
+
+
 @router.post("/{chat_id}/messages")
 async def add_message(
     chat_id: int,
@@ -96,6 +121,14 @@ async def add_message(
         resolved_model = message.model_id
         model_mode = "manual" if message.model_id and message.model_id != "auto" else "auto"
         model_routing = None
+        context_usage = await compute_chat_context_usage(
+            db,
+            chat_id=chat_id,
+            user_id=user_id,
+            draft_message=message.content,
+            model_id=message.model_id,
+        )
+        yield f'data: {json.dumps({"type": "context", **context_usage})}\n\n'
         try:
             async for event in run_turn_stream(
                 message.content,
@@ -158,6 +191,16 @@ async def add_message(
             yield f'data: {json.dumps({"content": full_response})}\n\n'
 
         # Save assistant message to the database
+        try:
+            context_usage = await compute_chat_context_usage(
+                db,
+                chat_id=chat_id,
+                user_id=user_id,
+                model_id=resolved_model,
+            )
+        except Exception:
+            context_usage = None
+
         assistant_metadata = {
             "engine": engine,
             "agent_id": resolved_agent,
@@ -166,6 +209,7 @@ async def add_message(
             "model_id": resolved_model,
             "model_mode": model_mode,
             "model_routing": model_routing,
+            "context_usage": context_usage,
         }
         
         try:

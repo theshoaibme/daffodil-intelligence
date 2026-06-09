@@ -37,16 +37,21 @@ class LoginRequest(BaseModel):
 
 
 class RegisterSendOtpRequest(BaseModel):
-    first_name: str = Field(min_length=1, max_length=100)
-    last_name: str = Field(min_length=1, max_length=100)
     email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
     accept_terms: bool
 
 
 class RegisterVerifyOtpRequest(BaseModel):
     email: EmailStr
     code: str = Field(min_length=4, max_length=8)
+
+
+class RegisterCompleteRequest(BaseModel):
+    email: EmailStr
+    first_name: str = Field(min_length=2, max_length=100)
+    last_name: str = Field(min_length=2, max_length=100)
+    password: str = Field(min_length=6, max_length=128)
+    role: str = Field(default="student", pattern=r"^(student|teacher|staff|manager)$")
 
 
 class RegisterOtpResponse(BaseModel):
@@ -85,6 +90,23 @@ class MessageResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ContextUsageBreakdown(BaseModel):
+    messages: int = 0
+    draft: int = 0
+    memory_recall: int = 0
+    system_overhead: int = 0
+
+
+class ChatContextUsageResponse(BaseModel):
+    usage_ratio: float
+    used_tokens: int
+    max_tokens: int
+    usage_percent: int
+    breakdown: ContextUsageBreakdown
+    message_count: int
+    model_id: Optional[str] = None
 
 
 class AgentRequest(BaseModel):

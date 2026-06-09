@@ -6,6 +6,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
+
+  AUTO_MODEL_ID,
   enterOrSkip,
   getHistoryEntry,
   hubApi,
@@ -14,7 +16,7 @@ import {
   ROUTES,
   sidebarWidthTransition,
 } from "@lib";
-import { useChat, useLocalStorageState } from "@hooks";
+import { useChat, useChatContext, useLocalStorageState } from "@hooks";
 import {
   ChatHistoryProvider,
   UiAnimationProvider,
@@ -152,10 +154,14 @@ function ChatDashboard() {
   const [agentViewOpen, setAgentViewOpen] = useState(false);
   const [selectedTools, setSelectedTools] = useLocalStorageState<string[]>(
     DASHBOARD_STORAGE_KEYS.selectedTools,
-    ["Agent", "Task"]
+    ["Agent"]
   );
   const [prompt, setPrompt] = useLocalStorageState(DASHBOARD_STORAGE_KEYS.promptDraft, "");
-  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [selectedModelId] = useLocalStorageState(
+    "di-dashboard-selected-model",
+    AUTO_MODEL_ID
+  );
+  const [agentMenuOpen, setAgentMenuOpen] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useLocalStorageState(
     DASHBOARD_STORAGE_KEYS.tasksCollapsed,
     false
@@ -187,16 +193,19 @@ function ChatDashboard() {
   const {
     chatId,
     messages,
-    isLoading,
     isStreaming,
     thinkingSteps,
     error,
+    lastContext,
     send,
     loadSession,
   } = useChat({
     initialChatId: initialSession?.chatId ?? null,
     initialMessages: initialSession?.messages ?? [],
   });
+
+  const fetchedContext = useChatContext(chatId, messages, prompt, selectedModelId);
+  const chatContext = lastContext ?? fetchedContext;
 
   useEffect(() => {
     hubApi
@@ -516,10 +525,11 @@ function ChatDashboard() {
                     setPrompt={setPrompt}
                     isSent={hasMessages}
                     handleSend={handleSend}
-                    plusMenuOpen={plusMenuOpen}
-                    setPlusMenuOpen={setPlusMenuOpen}
+                    agentMenuOpen={agentMenuOpen}
+                    setAgentMenuOpen={setAgentMenuOpen}
                     textareaRef={textareaRef}
-                    isLoading={isLoading}
+                    isStreaming={isStreaming}
+                    context={chatContext}
                     onCopycatMode={() => setCopycatMode(true)}
                     copycatActive={copycatMode}
                     selectedTools={selectedTools}

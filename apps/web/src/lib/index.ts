@@ -1,5 +1,6 @@
 export * from "./api";
 export * from "./authSession";
+export * from "./chatContext";
 export * from "./chatHistoryStorage";
 export * from "./chatStorage";
 export * from "./formStyles";

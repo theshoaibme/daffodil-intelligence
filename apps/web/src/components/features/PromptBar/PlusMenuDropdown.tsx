@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { Plus, Compass, Monitor, CheckCircle2, Settings2 } from "lucide-react";
+import { Plus, Compass, Monitor, Brain, Settings2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DropdownItem } from "../../ui";
 
@@ -41,11 +41,11 @@ export function PlusMenuDropdown({
     { text: "MCP", icon: <Compass size={16} strokeWidth={1.75} />, isMcp: true },
     { text: "Agent", icon: <Monitor size={16} strokeWidth={1.75} /> },
     { text: "Research", icon: <Compass size={16} strokeWidth={1.75} /> },
-    { text: "Task", icon: <CheckCircle2 size={16} strokeWidth={1.75} /> },
+    { text: "Planning", icon: <Brain size={16} strokeWidth={1.75} /> },
   ];
 
   const modes = [
-    { text: "Copycat Mode", icon: <Monitor size={16} strokeWidth={1.75} /> },
+    { text: "Copycat", icon: <Monitor size={16} strokeWidth={1.75} /> },
   ];
 
   const handleMcpClick = () => {

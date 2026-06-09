@@ -1,5 +1,6 @@
 export * from "./useAgents";
 export * from "./useChat";
+export * from "./useChatContext";
 export * from "./useComputerStream";
 export * from "./useKit";
 export * from "./useLocalStorageState";

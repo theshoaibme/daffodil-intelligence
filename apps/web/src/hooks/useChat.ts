@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef } from "react";
-import { 
-  createChat, 
-  sendMessage 
+import {
+  createChat,
+  sendMessage,
 } from "../lib/api";
+import type { ChatContextUsage } from "../lib/chatContext";
 
 export interface ChatMessage {
   id: string;
@@ -36,6 +37,7 @@ export function useChat(options?: UseChatOptions) {
   const [currentStreamingContent, setCurrentStreamingContent] = useState("");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [lastContext, setLastContext] = useState<ChatContextUsage | null>(null);
   const sendGenerationRef = useRef(0);
 
   const isSendStale = useCallback(
@@ -52,6 +54,7 @@ export function useChat(options?: UseChatOptions) {
     setError(null);
     setIsLoading(false);
     setIsStreaming(false);
+    setLastContext(null);
   }, []);
 
   const initializeChat = useCallback(async () => {
@@ -125,7 +128,10 @@ export function useChat(options?: UseChatOptions) {
             )
           );
         },
-        modelId
+        modelId,
+        (ctx) => {
+          if (!isSendStale(generation)) setLastContext(ctx);
+        }
       );
 
       if (isSendStale(generation)) return;
@@ -175,6 +181,7 @@ export function useChat(options?: UseChatOptions) {
     currentStreamingContent,
     thinkingSteps,
     error,
+    lastContext,
     send,
     clearChat,
     loadSession,

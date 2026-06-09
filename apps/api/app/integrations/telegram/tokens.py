@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 from ...core.config import get_settings
 
@@ -25,6 +26,35 @@ def frontend_base() -> str:
 def oauth_redirect_base() -> str:
     """OAuth callback base — prefer frontend so the browser stays on :3000."""
     return frontend_base()
+
+
+def telegram_oauth_base() -> str:
+    """Public origin for Telegram OAuth start links (API host, or TELEGRAM_OAUTH_PUBLIC_URL)."""
+    override = (getattr(settings, "TELEGRAM_OAUTH_PUBLIC_URL", "") or "").strip()
+    if override:
+        return override.rstrip("/")
+    return public_base().rstrip("/")
+
+
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
+
+
+def is_telegram_inline_url(url: str) -> bool:
+    """Telegram rejects localhost/private hosts on inline URL buttons."""
+    parsed = urlparse((url or "").strip())
+    if parsed.scheme not in ("http", "https"):
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host or host in _LOCAL_HOSTS:
+        return False
+    if host.endswith(".local") or host.endswith(".localhost"):
+        return False
+    return True
+
+
+def google_login_url(telegram_id: int) -> str:
+    token = sign_state(telegram_id)
+    return f"{telegram_oauth_base()}/api/auth/telegram/google/start?token={token}"
 
 
 def sign_state(telegram_id: int, purpose: str = "google") -> str:

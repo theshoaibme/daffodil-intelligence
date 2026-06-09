@@ -56,7 +56,7 @@ export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps)
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Select model"
         aria-expanded={isOpen}
-        className="flex items-center gap-1.5 bg-surface-container-highest/60 hover:bg-surface-container-highest px-2.5 py-1 text-on-surface-variant hover:text-on-surface transition-colors rounded-full cursor-pointer outline-none border-0"
+        className="flex items-center gap-0.5 px-1 py-1 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer outline-none border-0 bg-transparent"
       >
         <span className="text-xs font-medium">{displayName}</span>
         <ChevronDown size={14} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -69,7 +69,7 @@ export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps)
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className="absolute bottom-full right-0 mb-2 w-56 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
+            className="absolute bottom-full left-0 mb-2 w-56 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
           >
             <div className="max-h-72 overflow-y-auto custom-scrollbar px-1 pb-0.5">
               <SectionLabel>Routing</SectionLabel>

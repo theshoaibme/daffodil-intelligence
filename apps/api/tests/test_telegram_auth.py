@@ -274,6 +274,63 @@ async def test_login_shows_google_and_email_menu_after_logout(tmp_path):
     assert "Login with Google" in labels
 
 
+async def test_register_shows_google_and_email_menu(tmp_path):
+    from app.integrations.telegram import bot as bot_mod
+    from app.integrations.telegram import auth_store as astore_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    astore = TelegramAuthStore(str(tmp_path / "users.json"))
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    bot = bot_mod.TelegramBot()
+
+    class FakeMessage:
+        def __init__(self):
+            self.replies = []
+
+        async def reply_text(self, text, **kwargs):
+            self.replies.append({"text": text, **kwargs})
+
+    class FakeUser:
+        id = 424242
+        username = "newuser"
+        first_name = "New"
+        last_name = "User"
+
+    class FakeUpdate:
+        message = FakeMessage()
+        effective_user = FakeUser()
+
+    import app.integrations.telegram.bot as bot_pkg
+
+    orig_astore = bot_pkg.auth_store
+    orig_prof = bot_pkg.profile_store
+    bot_pkg.auth_store = astore
+    bot_pkg.profile_store = prof_store
+    try:
+        await bot._cmd_register(FakeUpdate(), None)
+    finally:
+        bot_pkg.auth_store = orig_astore
+        bot_pkg.profile_store = orig_prof
+
+    assert len(FakeUpdate.message.replies) == 1
+    reply = FakeUpdate.message.replies[0]
+    assert "Register for Daffodil Intelligence" in reply["text"]
+    labels = [btn.text for row in reply["reply_markup"].inline_keyboard for btn in row]
+    assert "Email & password" in labels
+    assert "Register with Google" in labels
+
+
+def test_telegram_inline_url_rejects_localhost():
+    from app.integrations.telegram.tokens import google_login_url, is_telegram_inline_url
+
+    assert not is_telegram_inline_url("http://localhost:8000/api/auth/telegram/google/start")
+    assert not is_telegram_inline_url("http://127.0.0.1:3000/foo")
+    assert is_telegram_inline_url("https://api.example.com/api/auth/telegram/google/start")
+    url = google_login_url(12345)
+    assert "google/start?token=" in url
+    assert "google:12345:" in url
+
+
 def test_google_callback_redirects_to_frontend():
     mock_token = Response(200, json={"access_token": "tok123"})
     mock_user = Response(
