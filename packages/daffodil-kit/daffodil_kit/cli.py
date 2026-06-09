@@ -10,8 +10,6 @@ import sys
 import httpx
 
 from . import __version__
-from .connector import connect_to_api
-from .daemon import run_daemon
 from .security import (
     get_or_create_device_id,
     load_config,
@@ -64,8 +62,10 @@ def cmd_start(args: argparse.Namespace) -> int:
         return 1
     try:
         if args.mode == "local":
+            from .daemon import run_daemon
             asyncio.run(run_daemon(host=args.host, port=args.port))
         else:
+            from .connector import connect_to_api
             asyncio.run(connect_to_api())
     except KeyboardInterrupt:
         return 0

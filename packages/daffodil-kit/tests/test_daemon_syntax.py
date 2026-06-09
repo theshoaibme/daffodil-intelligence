@@ -13,12 +13,29 @@ def test_daemon_module_compiles():
 
 def test_package_import_lazy_loads_display_modules():
     sys.modules.pop("daffodil_kit", None)
+    sys.modules.pop("daffodil_kit.cli", None)
+    sys.modules.pop("daffodil_kit.daemon", None)
     sys.modules.pop("daffodil_kit.keyboard", None)
     sys.modules.pop("daffodil_kit.mouse", None)
     sys.modules.pop("daffodil_kit.screen", None)
 
     importlib.import_module("daffodil_kit")
 
+    assert "daffodil_kit.keyboard" not in sys.modules
+    assert "daffodil_kit.mouse" not in sys.modules
+    assert "daffodil_kit.screen" not in sys.modules
+
+
+def test_cli_import_lazy_loads_display_modules():
+    sys.modules.pop("daffodil_kit.cli", None)
+    sys.modules.pop("daffodil_kit.daemon", None)
+    sys.modules.pop("daffodil_kit.keyboard", None)
+    sys.modules.pop("daffodil_kit.mouse", None)
+    sys.modules.pop("daffodil_kit.screen", None)
+
+    importlib.import_module("daffodil_kit.cli")
+
+    assert "daffodil_kit.daemon" not in sys.modules
     assert "daffodil_kit.keyboard" not in sys.modules
     assert "daffodil_kit.mouse" not in sys.modules
     assert "daffodil_kit.screen" not in sys.modules
