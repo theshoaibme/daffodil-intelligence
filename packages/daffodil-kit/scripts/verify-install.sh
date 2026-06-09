@@ -29,7 +29,7 @@ copycat_info() {
 }
 
 copycat_summary() {
-  echo "== $1 =="
+  copycat_banner "$1"
 }
 
 copycat_banner "verify"
