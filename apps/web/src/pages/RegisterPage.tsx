@@ -37,10 +37,6 @@ export function RegisterPage() {
       <GoogleAuthButton disabled={loading} />
       <AuthDivider />
       <RegisterForm onSuccess={handleSuccess} disabled={loading} />
-      <p className="mt-4 text-center text-xs text-on-surface-variant leading-relaxed">
-        Prefer Telegram? Open the Daffodil Intelligence bot and send{" "}
-        <span className="font-mono text-on-surface">/register</span> — same email OTP flow.
-      </p>
     </AuthLayout>
   );
 }
