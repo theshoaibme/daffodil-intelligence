@@ -220,13 +220,7 @@ export function Sidebar({
                       title={entry.title}
                       updatedAt={entry.updatedAt}
                       active={activeHistoryId === entry.id}
-                      onSelect={() => {
-                        onSelectHistory?.(entry.id);
-                        navigate({
-                          pathname: ROUTES.home,
-                          search: `?chat=${encodeURIComponent(entry.id)}`,
-                        });
-                      }}
+                      onSelect={() => onSelectHistory?.(entry.id)}
                       onDelete={() => onDeleteHistory?.(entry.id)}
                       onShare={() => onShareHistory?.(entry.id)}
                     />

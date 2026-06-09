@@ -281,11 +281,25 @@ async function consumeSSEStream(
 
       try {
         const parsed = JSON.parse(payload) as {
+          type?: string;
           content?: string;
           id?: number;
           role?: string;
           metadata?: Record<string, unknown>;
+          model_id?: string;
+          model_mode?: string;
+          model_routing?: string;
         };
+
+        if (parsed.type === "model") {
+          metadata = {
+            ...metadata,
+            model_id: parsed.model_id,
+            model_mode: parsed.model_mode,
+            model_routing: parsed.model_routing,
+          };
+          continue;
+        }
 
         if (typeof parsed.content !== "string") continue;
 
@@ -309,11 +323,15 @@ async function consumeSSEStream(
 export async function sendMessage(
   chatId: number,
   content: string,
-  onChunk?: (chunk: string) => void
+  onChunk?: (chunk: string) => void,
+  modelId?: string
 ): Promise<{ content: string; metadata?: Record<string, unknown> }> {
   const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`), {
     method: "POST",
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({
+      content,
+      model_id: modelId,
+    }),
   });
   if (!res.ok) throw new ApiError(await parseError(res), res.status);
 

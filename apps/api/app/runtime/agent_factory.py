@@ -83,6 +83,7 @@ def build_agent(
     lang: Optional[str] = None,
     extra_system: Optional[str] = None,
     enable_mcp: bool = True,
+    model: Optional[str] = None,
 ):
     """Construct (but do not start) an Antigravity ``Agent`` for a persona.
 
@@ -119,7 +120,7 @@ def build_agent(
         "tools": tools,
         "policies": policies,
         "gemini_config": GeminiConfig(api_key=settings.GEMINI_API_KEY),
-        "model": settings.ANTIGRAVITY_MODEL,
+        "model": model or settings.ANTIGRAVITY_MODEL,
         "save_dir": get_save_dir(),
     }
     if mcp_servers:
@@ -131,7 +132,7 @@ def build_agent(
 
     config = LocalAgentConfig(**config_kwargs)
     logger.info(
-        f"Built Antigravity agent persona={persona.value} tools={len(tools)} "
-        f"policies={len(policies)} mcp={len(mcp_servers)} conv={conversation_id}"
+        f"Built Antigravity agent persona={persona.value} model={config_kwargs['model']} "
+        f"tools={len(tools)} policies={len(policies)} mcp={len(mcp_servers)} conv={conversation_id}"
     )
     return Agent(config)

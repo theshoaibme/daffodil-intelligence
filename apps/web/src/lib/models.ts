@@ -7,6 +7,9 @@ export interface ModelInfo {
   apiKey?: string;
 }
 
+/** Sentinel id: backend picks the best model per message. */
+export const AUTO_MODEL_ID = "auto";
+
 /** Full catalog of built-in AI models available in the app. */
 export const DEFAULT_MODELS: ModelInfo[] = [
   // Gemini
@@ -67,6 +70,7 @@ export function getModels(): ModelInfo[] {
 }
 
 export function resolveModelName(modelId: string): string {
+  if (modelId === AUTO_MODEL_ID) return "Auto";
   const fromCatalog = MODEL_BY_ID.get(modelId);
   if (fromCatalog) return fromCatalog.name;
   const fromCustom = getModels().find((m) => m.id === modelId);

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
   enterOrSkip,
@@ -162,6 +162,7 @@ function ChatDashboard() {
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const handledAgentsParam = useRef(false);
+  const lastUrlChatRef = useRef<string | null>(searchParams.get("chat"));
   const [agentLiveTasks, setAgentLiveTasks] = useState<TaskItem[] | null>(null);
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
 
@@ -213,14 +214,25 @@ function ChatDashboard() {
     syncActiveSession(chatId, messages);
   }, [chatId, messages, isStreaming, syncActiveSession]);
 
-  // Load session when the URL ?chat= changes (share links, browser back/forward).
+  const flushCurrentSession = useCallback(() => {
+    if (!isStreaming) {
+      syncActiveSession(chatId, messages);
+    }
+  }, [isStreaming, syncActiveSession, chatId, messages]);
+
+  // Load session when ?chat= in the URL changes (share links, browser back/forward).
   useEffect(() => {
     const chatParam = searchParams.get("chat");
-    if (!chatParam || chatParam === activeHistoryId) return;
+    if (!chatParam) {
+      lastUrlChatRef.current = null;
+      return;
+    }
+    if (lastUrlChatRef.current === chatParam) return;
+    lastUrlChatRef.current = chatParam;
 
     const session = selectHistory(chatParam);
     loadSession(session.chatId, session.messages);
-  }, [searchParams, activeHistoryId, selectHistory, loadSession]);
+  }, [searchParams, selectHistory, loadSession]);
 
   // Keep ?chat= in sync with the active sidebar session (no searchParams in deps — avoids loops).
   useEffect(() => {
@@ -270,12 +282,18 @@ function ChatDashboard() {
   }, [searchParams, setSearchParams, setSelectedTools]);
 
   const handleSelectHistory = (id: string) => {
+    if (id === activeHistoryId) return;
+    flushCurrentSession();
+    lastUrlChatRef.current = id;
     const session = selectHistory(id);
     loadSession(session.chatId, session.messages);
+    setPrompt("");
   };
 
   const handleNewChat = () => {
+    flushCurrentSession();
     const session = startNewChat();
+    lastUrlChatRef.current = session.sessionId;
     loadSession(session.chatId, session.messages);
     setPrompt("");
     setAgentViewOpen(false);
@@ -283,6 +301,9 @@ function ChatDashboard() {
 
   const handleDeleteHistory = (id: string) => {
     const wasActive = activeHistoryId === id;
+    if (wasActive) {
+      flushCurrentSession();
+    }
     deleteHistory(id);
     if (wasActive) {
       loadSession(null, []);
@@ -322,20 +343,21 @@ function ChatDashboard() {
     }
   }, [prompt]);
 
-  const sendPrompt = async (text: string) => {
+  const sendPrompt = async (text: string, modelId?: string) => {
     if (!text.trim()) return;
 
     if (!activeHistoryId) {
       const session = startNewChat();
+      lastUrlChatRef.current = session.sessionId;
       loadSession(session.chatId, session.messages);
     }
 
     setPrompt("");
-    await send(text);
+    await send(text, modelId);
   };
 
-  const handleSend = () => {
-    sendPrompt(prompt);
+  const handleSend = (modelId: string) => {
+    sendPrompt(prompt, modelId);
   };
 
   const handleEdit = () => {
@@ -443,6 +465,7 @@ function ChatDashboard() {
             <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-4 sm:pt-6 overflow-y-auto`}>
               <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
                 <AiResponseCard
+                  key={activeHistoryId ?? "active-chat"}
                   prompt={lastUserMessage?.content || ""}
                   response={lastAssistantMessage?.content || ""}
                   isStreaming={isStreaming}
@@ -496,7 +519,7 @@ function ChatDashboard() {
                     plusMenuOpen={plusMenuOpen}
                     setPlusMenuOpen={setPlusMenuOpen}
                     textareaRef={textareaRef}
-                    isLoading={isLoading || isStreaming}
+                    isLoading={isLoading}
                     onCopycatMode={() => setCopycatMode(true)}
                     copycatActive={copycatMode}
                     selectedTools={selectedTools}
@@ -525,6 +548,7 @@ function ChatDashboard() {
                   className="pointer-events-auto flex-1 min-h-0 flex flex-col overflow-hidden"
                 >
                   <AiResponseCard
+                    key={activeHistoryId ?? "active-chat"}
                     prompt={lastUserMessage?.content || ""}
                     response={lastAssistantMessage?.content || ""}
                     isStreaming={isStreaming}

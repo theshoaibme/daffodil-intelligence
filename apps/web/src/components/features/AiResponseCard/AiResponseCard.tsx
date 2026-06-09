@@ -35,6 +35,11 @@ export function AiResponseCard({
   const isThinking = (externalIsThinking || isStreaming) && !hasContent;
 
   useEffect(() => {
+    setThinkingExpanded(false);
+    setInternalSteps([]);
+  }, [prompt, response]);
+
+  useEffect(() => {
     if (!isStreaming) {
       setThinkingExpanded(false);
       setInternalSteps([]);
@@ -150,9 +155,9 @@ export function AiResponseCard({
 
       {/* Main Dynamic Response Content Area (Scrollable to respect size limits) */}
       {error ? (
-        <div className="flex-1 flex items-center justify-center p-4">
+        <div className="flex-1 min-h-0 flex items-start p-1">
           <div className="flex items-center gap-2 text-error">
-            <AlertCircle size={20} />
+            <AlertCircle size={18} />
             <span className="text-sm">{error}</span>
           </div>
         </div>

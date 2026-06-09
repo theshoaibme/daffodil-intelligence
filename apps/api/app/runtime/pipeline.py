@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator, List, Optional
 
+from ..core.model_router import resolve_model_for_turn
 from ..memory import memory_service
 from ..skills.resolver import resolve_runtime_config
 from . import orchestrator
@@ -30,8 +31,14 @@ async def run_turn(
     context_prefix: Optional[str] = None,
     attachments: Optional[List[Any]] = None,
     lang: Optional[str] = None,
+    model_id: Optional[str] = None,
 ) -> dict:
     """Run one non-streaming turn through the main agent runtime."""
+    resolved_model, was_auto, routing = resolve_model_for_turn(
+        model_id=model_id,
+        message=message,
+        has_attachments=bool(attachments),
+    )
     cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
     recall_block = await memory_service.build_recall_context(
         int(user_id or 0),
@@ -52,10 +59,14 @@ async def run_turn(
         lang=lang,
         agent_id=cfg.agent_id,
         extra_system=extra_system or None,
+        model=resolved_model,
     )
     result["agent_id"] = cfg.agent_id
     result["skill_ids"] = cfg.skill_ids
     result["ruleset_ids"] = cfg.ruleset_ids
+    result["model_id"] = resolved_model
+    result["model_mode"] = "auto" if was_auto else "manual"
+    result["model_routing"] = routing
     return result
 
 
@@ -68,8 +79,20 @@ async def run_turn_stream(
     context_prefix: Optional[str] = None,
     attachments: Optional[List[Any]] = None,
     lang: Optional[str] = None,
+    model_id: Optional[str] = None,
 ) -> AsyncIterator[dict]:
     """Stream one turn through the main agent runtime."""
+    resolved_model, was_auto, routing = resolve_model_for_turn(
+        model_id=model_id,
+        message=message,
+        has_attachments=bool(attachments),
+    )
+    yield {
+        "type": "model",
+        "model_id": resolved_model,
+        "model_mode": "auto" if was_auto else "manual",
+        "model_routing": routing,
+    }
     cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
     recall_block = await memory_service.build_recall_context(
         int(user_id or 0),
@@ -90,5 +113,6 @@ async def run_turn_stream(
         lang=lang,
         agent_id=cfg.agent_id,
         extra_system=extra_system or None,
+        model=resolved_model,
     ):
         yield event

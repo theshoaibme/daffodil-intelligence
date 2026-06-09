@@ -84,23 +84,38 @@ async def add_message(
     )
     turn_index = len(turn_count_result.scalars().all())
 
+    has_attachments = bool(
+        message.metadata and message.metadata.get("attachments")
+    )
+
     async def generate():
         full_response = ""
         tool_calls = []
         engine = "antigravity"
         resolved_agent = agent_id
+        resolved_model = message.model_id
+        model_mode = "manual" if message.model_id and message.model_id != "auto" else "auto"
+        model_routing = None
         try:
             async for event in run_turn_stream(
                 message.content,
                 user_id=user_id,
                 chat_id=chat_id,
                 agent_id=agent_id,
+                model_id=message.model_id,
+                attachments=message.metadata.get("attachments") if has_attachments else None,
             ):
                 if not event:
                     continue
                 if isinstance(event, str):
                     event = {"type": "content", "content": event}
                 event_type = event.get("type", "content")
+                if event_type == "model":
+                    resolved_model = event.get("model_id", resolved_model)
+                    model_mode = event.get("model_mode", model_mode)
+                    model_routing = event.get("model_routing")
+                    yield f'data: {json.dumps({"type": "model", "model_id": resolved_model, "model_mode": model_mode, "model_routing": model_routing})}\n\n'
+                    continue
                 if event_type == "content":
                     chunk = event.get("content") or ""
                     if not chunk:
@@ -125,11 +140,16 @@ async def add_message(
                     user_id=user_id,
                     chat_id=chat_id,
                     agent_id=agent_id,
+                    model_id=message.model_id,
+                    attachments=message.metadata.get("attachments") if has_attachments else None,
                 )
                 full_response = result.get("content", "")
                 tool_calls = result.get("tool_calls", [])
                 engine = result.get("engine", engine)
                 resolved_agent = result.get("agent_id", agent_id)
+                resolved_model = result.get("model_id", resolved_model)
+                model_mode = result.get("model_mode", model_mode)
+                model_routing = result.get("model_routing", model_routing)
                 if full_response:
                     yield f'data: {json.dumps({"content": full_response})}\n\n'
         except Exception as e:
@@ -143,6 +163,9 @@ async def add_message(
             "agent_id": resolved_agent,
             "tools_used": tool_calls,
             "sources": [],
+            "model_id": resolved_model,
+            "model_mode": model_mode,
+            "model_routing": model_routing,
         }
         
         try:

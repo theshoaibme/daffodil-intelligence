@@ -72,6 +72,7 @@ class ChatResponse(BaseModel):
 
 class MessageCreate(BaseModel):
     content: str
+    model_id: Optional[str] = None
     metadata: Optional[dict] = None
 
 

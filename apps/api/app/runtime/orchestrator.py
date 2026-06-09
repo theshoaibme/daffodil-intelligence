@@ -37,6 +37,7 @@ async def run(
     lang: Optional[str] = None,
     agent_id: Optional[str] = None,
     extra_system: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> dict:
     """Run one turn and return {content, tool_calls/agents, engine}."""
     if extra_system is None and agent_id:
@@ -50,7 +51,7 @@ async def run(
             res = await session_manager.chat(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
-                extra_system=extra_system,
+                extra_system=extra_system, model=model,
             )
             res["engine"] = "antigravity"
             return res
@@ -68,6 +69,7 @@ async def run_stream(
     lang: Optional[str] = None,
     agent_id: Optional[str] = None,
     extra_system: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> AsyncIterator[dict]:
     """Yield structured stream events for one turn (Antigravity, else legacy)."""
     if extra_system is None and agent_id:
@@ -81,7 +83,7 @@ async def run_stream(
             async for event in session_manager.stream(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
-                extra_system=extra_system,
+                extra_system=extra_system, model=model,
             ):
                 yield event
             return

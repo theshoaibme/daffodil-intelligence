@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+AUTO_MODEL_ID = "auto"
+
 
 class ModelEntry(TypedDict):
     id: str

@@ -3,7 +3,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@lib";
 import { motion, AnimatePresence } from "framer-motion";
-import { DEFAULT_MODELS, getModels, type ModelInfo } from "@lib";
+import { AUTO_MODEL_ID, DEFAULT_MODELS, getModels, resolveModelName, type ModelInfo } from "@lib";
 import { DropdownItem } from "../../ui";
 
 export type { ModelInfo };
@@ -38,7 +38,7 @@ export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps)
   }, []);
 
   const models = getModels();
-  const currentModel = models.find((m) => m.id === selectedModelId) || models[0];
+  const displayName = resolveModelName(selectedModelId);
 
   const grouped = models.reduce(
     (acc, model) => {
@@ -58,7 +58,7 @@ export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps)
         aria-expanded={isOpen}
         className="flex items-center gap-1.5 bg-surface-container-highest/60 hover:bg-surface-container-highest px-2.5 py-1 text-on-surface-variant hover:text-on-surface transition-colors rounded-full cursor-pointer outline-none border-0"
       >
-        <span className="text-xs font-medium">{currentModel.name}</span>
+        <span className="text-xs font-medium">{displayName}</span>
         <ChevronDown size={14} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
@@ -72,6 +72,16 @@ export function ModelSelector({ selectedModelId, onChange }: ModelSelectorProps)
             className="absolute bottom-full right-0 mb-2 w-56 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
           >
             <div className="max-h-72 overflow-y-auto custom-scrollbar px-1 pb-0.5">
+              <SectionLabel>Routing</SectionLabel>
+              <DropdownItem
+                text="Auto"
+                active={selectedModelId === AUTO_MODEL_ID}
+                onClick={() => {
+                  onChange(AUTO_MODEL_ID);
+                  setIsOpen(false);
+                }}
+              />
+              <div className="mx-1.5 my-1 border-t border-outline-variant/30" />
               {Object.entries(grouped).map(([provider, providerModels], index) => (
                 <div key={provider}>
                   {index > 0 && <div className="mx-1.5 my-1 border-t border-outline-variant/30" />}

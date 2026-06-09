@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { 
   createChat, 
   sendMessage 
@@ -36,8 +36,15 @@ export function useChat(options?: UseChatOptions) {
   const [currentStreamingContent, setCurrentStreamingContent] = useState("");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const sendGenerationRef = useRef(0);
+
+  const isSendStale = useCallback(
+    (generation: number) => generation !== sendGenerationRef.current,
+    []
+  );
 
   const loadSession = useCallback((nextChatId: number | null, nextMessages: ChatMessage[]) => {
+    sendGenerationRef.current += 1;
     setChatId(nextChatId);
     setMessages(nextMessages);
     setThinkingSteps([]);
@@ -62,7 +69,9 @@ export function useChat(options?: UseChatOptions) {
     }
   }, []);
 
-  const send = useCallback(async (content: string) => {
+  const send = useCallback(async (content: string, modelId?: string) => {
+    const generation = sendGenerationRef.current;
+
     try {
       setError(null);
       setIsLoading(true);
@@ -72,6 +81,7 @@ export function useChat(options?: UseChatOptions) {
       
       if (!currentChatId) {
         const chat = await createChat("supervisor");
+        if (isSendStale(generation)) return;
         currentChatId = chat.id;
         setChatId(chat.id);
       }
@@ -101,18 +111,24 @@ export function useChat(options?: UseChatOptions) {
 
       let fullContent = "";
 
-      const response = await sendMessage(currentChatId, content, (chunk) => {
-        fullContent += chunk;
-        setCurrentStreamingContent(fullContent);
-        
-        setMessages(prev => 
-          prev.map(m => 
-            m.id === assistantMessageId 
-              ? { ...m, content: fullContent } 
-              : m
-          )
-        );
-      });
+      const response = await sendMessage(
+        currentChatId,
+        content,
+        (chunk) => {
+          if (isSendStale(generation)) return;
+          fullContent += chunk;
+          setCurrentStreamingContent(fullContent);
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId ? { ...m, content: fullContent } : m
+            )
+          );
+        },
+        modelId
+      );
+
+      if (isSendStale(generation)) return;
 
       setThinkingSteps(prev => 
         prev.map(s => ({ ...s, status: "success" }))
@@ -136,13 +152,16 @@ export function useChat(options?: UseChatOptions) {
       
       return response;
     } catch (err) {
+      if (isSendStale(generation)) return;
       setError(err instanceof Error ? err.message : "Failed to send message");
       setIsStreaming(false);
       throw err;
     } finally {
-      setIsLoading(false);
+      if (!isSendStale(generation)) {
+        setIsLoading(false);
+      }
     }
-  }, [chatId]);
+  }, [chatId, isSendStale]);
 
   const clearChat = useCallback(() => {
     loadSession(null, []);

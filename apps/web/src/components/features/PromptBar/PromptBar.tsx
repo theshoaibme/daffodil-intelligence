@@ -4,7 +4,7 @@ import { PlusMenuDropdown } from "./PlusMenuDropdown";
 import { McpConfigureDialog } from "./McpConfigureDialog";
 import { ModelSelector } from "./ModelSelector";
 import { FileAttachmentButton, SendButton, LiveVoiceButton } from "./ActionButtons";
-import { BOTTOM_BAR_LAYOUT_ID, enterOrSkip, modeSpring } from "@lib";
+import { AUTO_MODEL_ID, BOTTOM_BAR_LAYOUT_ID, enterOrSkip, modeSpring } from "@lib";
 import { useLocalStorageState } from "@hooks";
 import { useMcpStatus } from "@hooks";
 
@@ -12,7 +12,7 @@ interface PromptBarProps {
   prompt: string;
   setPrompt: (val: string) => void;
   isSent: boolean;
-  handleSend: () => void;
+  handleSend: (modelId: string) => void;
   plusMenuOpen: boolean;
   setPlusMenuOpen: (open: boolean) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
@@ -43,8 +43,10 @@ export function PromptBar({
 }: PromptBarProps) {
   const [selectedModelId, setSelectedModelId] = useLocalStorageState(
     "di-dashboard-selected-model",
-    "gemini-2.0-flash"
+    AUTO_MODEL_ID
   );
+
+  const submit = () => handleSend(selectedModelId);
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
   const {
     status: mcpStatus,
@@ -65,7 +67,7 @@ export function PromptBar({
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            handleSend();
+            submit();
           }
         }}
         placeholder="What would you like to change or create?"
@@ -90,7 +92,7 @@ export function PromptBar({
         <div className="flex items-center gap-2">
           <ModelSelector selectedModelId={selectedModelId} onChange={setSelectedModelId} />
           <LiveVoiceButton />
-          <SendButton onClick={handleSend} disabled={!prompt.trim() || isLoading} loading={isLoading} />
+          <SendButton onClick={submit} disabled={!prompt.trim() || isLoading} loading={isLoading} />
         </div>
       </div>
     </>

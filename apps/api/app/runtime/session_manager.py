@@ -110,6 +110,7 @@ class SessionManager:
         attachments: Optional[List[Any]] = None,
         lang: Optional[str] = None,
         extra_system: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> dict:
         """Run one turn and return the full response.
 
@@ -119,7 +120,13 @@ class SessionManager:
         conv = self._index.get(key)
         prompt = _build_prompt(message, attachments)
 
-        agent = build_agent(persona=persona, conversation_id=conv, lang=lang, extra_system=extra_system)
+        agent = build_agent(
+            persona=persona,
+            conversation_id=conv,
+            lang=lang,
+            extra_system=extra_system,
+            model=model,
+        )
         async with agent:
             response = await agent.chat(prompt)
             content = await response.text()
@@ -136,6 +143,7 @@ class SessionManager:
             "thoughts": [str(t) for t in thoughts],
             "persona": persona.value if isinstance(persona, AgentPersona) else str(persona),
             "conversation_id": new_conv,
+            "model_id": model,
         }
 
     async def stream(
@@ -147,13 +155,20 @@ class SessionManager:
         attachments: Optional[List[Any]] = None,
         lang: Optional[str] = None,
         extra_system: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> AsyncIterator[StreamEvent]:
         """Run one turn and yield structured stream events as they arrive."""
         key = _key(user_id, chat_id)
         conv = self._index.get(key)
         prompt = _build_prompt(message, attachments)
 
-        agent = build_agent(persona=persona, conversation_id=conv, lang=lang, extra_system=extra_system)
+        agent = build_agent(
+            persona=persona,
+            conversation_id=conv,
+            lang=lang,
+            extra_system=extra_system,
+            model=model,
+        )
         async with agent:
             response = await agent.chat(prompt)
             active_tools: List[str] = []
