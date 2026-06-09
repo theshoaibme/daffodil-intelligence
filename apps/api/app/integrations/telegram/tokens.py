@@ -63,18 +63,6 @@ def google_oauth_uses_inline_url() -> bool:
     return is_telegram_inline_url(sample)
 
 
-def google_oauth_menu_hint(telegram_id: int) -> str:
-    """Extra instructions when inline URL buttons are unavailable (localhost dev)."""
-    if google_oauth_uses_inline_url():
-        return ""
-    url = google_login_url(telegram_id)
-    return (
-        "\n\n*Google sign-in* — tap this link in your browser:\n"
-        f"{url}\n\n"
-        "_Or tap **Get Google link** below to resend the link._"
-    )
-
-
 def sign_state(telegram_id: int, purpose: str = "google") -> str:
     secret = settings.JWT_SECRET or getattr(settings, "APP_SECRET_KEY", "") or "di-dev-secret"
     ts = int(time.time())

@@ -22,6 +22,7 @@ from typing import Any, List, Optional
 
 from ..core.config import get_settings
 from ..prompts.manager import get_system_instructions
+from .antigravity_capabilities import build_capabilities
 from .tool_adapter import get_antigravity_tools
 from .policies import build_policies
 
@@ -44,6 +45,7 @@ class AgentPersona(str, Enum):
     MAIN = "main"
     COMPUTER_USE = "computer_use"
     PLANNING = "planning"
+    RESEARCH = "research"
 
 
 # Tool categories available to each persona.
@@ -51,6 +53,7 @@ _PERSONA_TOOL_CATEGORIES = {
     AgentPersona.MAIN: None,  # all tools
     AgentPersona.COMPUTER_USE: ["computer"],
     AgentPersona.PLANNING: None,
+    AgentPersona.RESEARCH: ["browser", "research", "memory", "file"],
 }
 
 
@@ -111,9 +114,15 @@ def build_agent(
 
     mcp_servers = _get_mcp_servers() if enable_mcp else []
 
-    capabilities = CapabilitiesConfig(
-        enable_subagents=settings.ANTIGRAVITY_ENABLE_SUBAGENTS and persona != AgentPersona.COMPUTER_USE,
+    enable_subagents = (
+        settings.ANTIGRAVITY_ENABLE_SUBAGENTS and persona != AgentPersona.COMPUTER_USE
     )
+    capabilities = build_capabilities(
+        enable_subagents=enable_subagents,
+        persona=persona.value,
+    )
+    if capabilities is None and _ANTIGRAVITY_AVAILABLE:
+        capabilities = CapabilitiesConfig(enable_subagents=enable_subagents)
 
     config_kwargs: dict[str, Any] = {
         "system_instructions": system_instructions,

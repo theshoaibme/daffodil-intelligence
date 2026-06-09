@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, JSON, ForeignKey
+from sqlalchemy import BigInteger, Column, Integer, String, Float, Boolean, DateTime, Text, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..core.database import Base
@@ -9,7 +9,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
     full_name = Column(String(255))
     student_id = Column(String(50), unique=True, index=True)
     department = Column(String(100))
@@ -17,6 +17,14 @@ class User(Base):
     role = Column(String(20), default="student")
     cgpa = Column(Float, nullable=True)
     avatar_url = Column(String(512), nullable=True)
+    telegram_id = Column(BigInteger, unique=True, index=True, nullable=True)
+    phone = Column(String(32), nullable=True)
+    auth_provider = Column(String(16), nullable=False, default="email")
+    email_verified = Column(Boolean, nullable=False, default=False)
+    first_name = Column(String(128), nullable=True)
+    last_name = Column(String(128), nullable=True)
+    telegram_username = Column(String(128), nullable=True)
+    last_login = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

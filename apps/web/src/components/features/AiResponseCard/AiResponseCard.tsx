@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { AlertCircle } from "lucide-react";
 import { ThinkingProcess, ThinkingStep } from "./ThinkingProcess";
-import { ResponseContent, ResponseContentData } from "./ResponseContent";
+import { ResponseContent } from "./ResponseContent";
 import { ActionButtons } from "./ActionButtons";
 import { UserMessageBadge } from "./UserMessageBadge";
+import { parseResponseText } from "./responseParse";
 
 interface AiResponseCardProps {
   prompt?: string;
@@ -16,6 +17,7 @@ interface AiResponseCardProps {
   onEdit?: () => void;
   error?: string | null;
   fillHeight?: boolean;
+  onFullView?: () => void;
 }
 
 export function AiResponseCard({ 
@@ -29,6 +31,7 @@ export function AiResponseCard({
   onEdit,
   error,
   fillHeight = false,
+  onFullView,
 }: AiResponseCardProps) {
   const [thinkingExpanded, setThinkingExpanded] = useState(true);
 

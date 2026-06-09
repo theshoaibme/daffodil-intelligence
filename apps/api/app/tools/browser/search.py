@@ -1,13 +1,18 @@
 """Browser tools — web search and URL fetching."""
 import logging
+
 from ..base import BaseTool, ToolParameter, ToolResult
+from .search_backends import web_search
 
 logger = logging.getLogger(__name__)
 
 
 class WebSearchTool(BaseTool):
     name = "web_search"
-    description = "Search the web using DuckDuckGo and return results"
+    description = (
+        "Search the web and return ranked results. Uses Google APIs when configured, "
+        "otherwise DuckDuckGo."
+    )
     category = "browser"
     parameters = [
         ToolParameter(name="query", type="string", description="Search query"),
@@ -15,45 +20,9 @@ class WebSearchTool(BaseTool):
     ]
 
     async def execute(self, query: str, max_results: int = 5) -> ToolResult:
-        import httpx
         try:
-            # DuckDuckGo instant answer API (no key required)
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.get(
-                    "https://api.duckduckgo.com/",
-                    params={"q": query, "format": "json", "no_redirect": "1", "no_html": "1"},
-                    headers={"User-Agent": "DaffodilIntelligence/1.0"},
-                )
-                if response.status_code != 200:
-                    return self.fail(f"DuckDuckGo API error: {response.status_code}")
-
-                data = response.json()
-                results = []
-
-                # Abstract
-                if data.get("Abstract"):
-                    results.append({
-                        "title": data.get("Heading", query),
-                        "snippet": data["Abstract"],
-                        "url": data.get("AbstractURL", ""),
-                        "source": data.get("AbstractSource", ""),
-                    })
-
-                # Related topics
-                for topic in data.get("RelatedTopics", [])[:max_results]:
-                    if isinstance(topic, dict) and topic.get("Text"):
-                        results.append({
-                            "title": topic.get("Text", "")[:80],
-                            "snippet": topic.get("Text", ""),
-                            "url": topic.get("FirstURL", ""),
-                            "source": "DuckDuckGo",
-                        })
-
-                return self.ok({
-                    "query": query,
-                    "results": results[:max_results],
-                    "count": len(results[:max_results]),
-                })
+            payload = await web_search(query, max_results=max_results)
+            return self.ok(payload)
         except Exception as e:
             return self.fail(f"Web search failed: {e}")
 

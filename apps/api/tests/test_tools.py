@@ -10,7 +10,18 @@ def test_registry_discovers_all_categories():
     r = get_registry()
     assert r.count >= 27
     cats = set(r.categories())
-    for expected in {"academic", "library", "transport", "career", "computer", "file", "shell", "memory", "browser"}:
+    for expected in {
+        "academic",
+        "library",
+        "transport",
+        "career",
+        "computer",
+        "file",
+        "shell",
+        "memory",
+        "browser",
+        "research",
+    }:
         assert expected in cats
 
 

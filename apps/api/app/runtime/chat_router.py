@@ -32,6 +32,10 @@ _TOOL_KEYWORDS = (
     "job",
     "invoke_agent",
     "get_class_routine",
+    "deep_research",
+    "google_web_search",
+    "search_papers",
+    "research",
 )
 
 _MAIN_AGENTS = frozenset({"main", "supervisor", "default", ""})

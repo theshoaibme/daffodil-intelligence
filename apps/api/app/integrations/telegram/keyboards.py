@@ -19,22 +19,34 @@ except Exception:  # pragma: no cover
     ReplyKeyboardMarkup = ReplyKeyboardRemove = object  # type: ignore
 
 
-def google_auth_button(telegram_id: int, *, label: str) -> "InlineKeyboardButton":
+GOOGLE_LOGIN_BUTTON_LABEL = "Login with Google"
+GOOGLE_REGISTER_BUTTON_LABEL = "Register with Google"
+
+
+def google_auth_button(
+    telegram_id: int,
+    *,
+    label: str = GOOGLE_LOGIN_BUTTON_LABEL,
+) -> "InlineKeyboardButton":
     url = google_login_url(telegram_id)
     if is_telegram_inline_url(url):
         return InlineKeyboardButton(label, url=url)
-    # Telegram rejects localhost/private URLs on inline URL buttons — use callback + link in message.
-    return InlineKeyboardButton("Get Google link", callback_data="auth:google")
+    # Telegram rejects localhost/private URLs on inline URL buttons — callback posts link in chat.
+    return InlineKeyboardButton(label, callback_data="auth:google")
 
 
-def google_auth_row(telegram_id: int, *, label: str) -> List["InlineKeyboardButton"]:
+def google_auth_row(
+    telegram_id: int,
+    *,
+    label: str = GOOGLE_LOGIN_BUTTON_LABEL,
+) -> List["InlineKeyboardButton"]:
     return [google_auth_button(telegram_id, label=label)]
 
 
 def login_keyboard(telegram_id: int) -> "InlineKeyboardMarkup":
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Email & password", callback_data="auth:login_email")],
-        google_auth_row(telegram_id, label="Login with Google"),
+        google_auth_row(telegram_id, label=GOOGLE_LOGIN_BUTTON_LABEL),
         [InlineKeyboardButton("Back", callback_data="auth:menu")],
     ])
 
@@ -42,7 +54,7 @@ def login_keyboard(telegram_id: int) -> "InlineKeyboardMarkup":
 def register_keyboard(telegram_id: int) -> "InlineKeyboardMarkup":
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Email & password", callback_data="auth:register_email")],
-        google_auth_row(telegram_id, label="Register with Google"),
+        google_auth_row(telegram_id, label=GOOGLE_REGISTER_BUTTON_LABEL),
         [InlineKeyboardButton("Back", callback_data="auth:menu")],
     ])
 

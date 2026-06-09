@@ -122,39 +122,15 @@ class ConversationMemory:
         self.forgetting_rate = 0.01
         
         self._memory_index: Dict[int, Dict[str, List[str]]] = {}
-        self.load_from_disk()
 
     def save_to_disk(self):
-        try:
-            file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "agent_memory.json")
-            data = {
-                "short_term": {
-                    str(uid): [serialize_entry(e) for e in list(dq)]
-                    for uid, dq in self.short_term.items()
-                },
-                "long_term": {
-                    str(uid): [serialize_entry(e) for e in lst]
-                    for uid, lst in self.long_term.items()
-                },
-                "episodic": {
-                    str(uid): lst
-                    for uid, lst in self.episodic.items()
-                },
-                "semantic": {
-                    str(uid): {k: serialize_entry(e) for k, e in dct.items()}
-                    for uid, dct in self.semantic.items()
-                },
-                "working": {
-                    str(uid): [serialize_entry(e) for e in lst]
-                    for uid, lst in self.working.items()
-                }
-            }
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"Error saving agent memory to disk: {e}")
+        """Voice memory is in-process only; durable storage uses agent_memories (PostgreSQL)."""
+        return
 
     def load_from_disk(self):
+        return
+
+    def _load_from_disk_legacy(self):
         try:
             file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "agent_memory.json")
             if not os.path.exists(file_path):

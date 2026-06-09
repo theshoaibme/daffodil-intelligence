@@ -1,21 +1,24 @@
 """
 Telegram session profiles
 =========================
-In-progress registration/login state per Telegram user.
-Completed accounts live in ``auth_store`` (telegram_users.json).
+In-progress registration/login state per Telegram user (PostgreSQL).
+Completed accounts live in ``auth_store`` (users table).
 """
 
 from __future__ import annotations
 
-import json
 import threading
-from dataclasses import dataclass, asdict
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Dict, Optional
+
+from sqlalchemy import select
+
+from ...core.database import is_mock_database
+from ...models.telegram import TelegramProfileSession
+from .pg_sync import sync_session
 
 ROLES = ("student", "teacher", "staff", "manager")
 
-# Auth / registration steps
 STEP_AUTH_MENU = "auth_menu"
 STEP_REGISTER_ROLE = "register_role"
 STEP_REGISTER_PHONE = "register_phone"
@@ -32,7 +35,6 @@ STEP_LOGIN_LAST_NAME = "login_last_name"
 STEP_LOGIN_PASSWORD = "login_password"
 STEP_COMPLETE = "complete"
 
-# Legacy aliases kept for tests
 STEP_ROLE = STEP_REGISTER_ROLE
 STEP_STUDENT_ID = STEP_REGISTER_STUDENT_ID
 STEP_DEPARTMENT = STEP_REGISTER_DEPARTMENT
@@ -52,8 +54,8 @@ class TelegramProfile:
     student_id: str = ""
     department: str = ""
     step: str = STEP_AUTH_MENU
-    mode: str = ""  # register | login
-    selected_agent_id: str = ""  # empty = workspace default
+    mode: str = ""
+    selected_agent_id: str = ""
 
     @property
     def is_complete(self) -> bool:
@@ -65,12 +67,10 @@ class TelegramProfile:
         self.username = user.username or ""
         preserve_names = (
             self.mode == "register"
-            and self.step
-            not in ("", STEP_AUTH_MENU, STEP_REGISTER_EMAIL, STEP_REGISTER_OTP)
+            and self.step not in ("", STEP_AUTH_MENU, STEP_REGISTER_EMAIL, STEP_REGISTER_OTP)
         ) or (
             self.mode == "login"
-            and self.step
-            in (STEP_LOGIN_FIRST_NAME, STEP_LOGIN_LAST_NAME, STEP_LOGIN_PASSWORD)
+            and self.step in (STEP_LOGIN_FIRST_NAME, STEP_LOGIN_LAST_NAME, STEP_LOGIN_PASSWORD)
         )
         if preserve_names:
             return self
@@ -95,42 +95,73 @@ class TelegramProfile:
         return "User profile: " + ", ".join(parts) if parts else ""
 
 
+def _row_to_profile(row: TelegramProfileSession) -> TelegramProfile:
+    return TelegramProfile(
+        telegram_id=int(row.telegram_id),
+        username=row.username or "",
+        first_name=row.first_name or "",
+        last_name=row.last_name or "",
+        full_name=row.full_name or "",
+        role=row.role or "",
+        phone=row.phone or "",
+        email=row.email or "",
+        pending_password=row.pending_password or "",
+        student_id=row.student_id or "",
+        department=row.department or "",
+        step=row.step or STEP_AUTH_MENU,
+        mode=row.mode or "",
+        selected_agent_id=row.selected_agent_id or "",
+    )
+
+
+def _apply_profile_to_row(row: TelegramProfileSession, profile: TelegramProfile) -> None:
+    row.username = profile.username
+    row.first_name = profile.first_name
+    row.last_name = profile.last_name
+    row.full_name = profile.full_name
+    row.role = profile.role
+    row.phone = profile.phone
+    row.email = profile.email
+    row.pending_password = profile.pending_password
+    row.student_id = profile.student_id
+    row.department = profile.department
+    row.step = profile.step
+    row.mode = profile.mode
+    row.selected_agent_id = profile.selected_agent_id
+
+
 class TelegramProfileStore:
-    def __init__(self, path: str = "telegram_profiles.json"):
-        self._path = Path(path)
+    def __init__(self, path: str = ""):
         self._lock = threading.Lock()
-        self._cache: Dict[str, TelegramProfile] = {}
-        self._loaded = False
-
-    def _load(self):
-        if self._loaded:
-            return
-        if self._path.exists():
-            try:
-                raw = json.loads(self._path.read_text("utf-8"))
-                for tid, data in raw.items():
-                    self._cache[tid] = TelegramProfile(**data)
-            except Exception:
-                self._cache = {}
-        self._loaded = True
-
-    def _save(self):
-        data = {tid: asdict(p) for tid, p in self._cache.items()}
-        self._path.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
+        self._memory: Dict[str, TelegramProfile] = {}
+        self._use_memory = is_mock_database() or bool(path)
 
     def get(self, telegram_id: int) -> TelegramProfile:
         with self._lock:
-            self._load()
-            key = str(telegram_id)
-            if key not in self._cache:
-                self._cache[key] = TelegramProfile(telegram_id=telegram_id)
-            return self._cache[key]
+            if self._use_memory:
+                key = str(telegram_id)
+                if key not in self._memory:
+                    self._memory[key] = TelegramProfile(telegram_id=telegram_id)
+                return self._memory[key]
+            with sync_session() as db:
+                row = db.get(TelegramProfileSession, telegram_id)
+                if row is None:
+                    row = TelegramProfileSession(telegram_id=telegram_id)
+                    db.add(row)
+                    db.flush()
+                return _row_to_profile(row)
 
     def save(self, profile: TelegramProfile):
         with self._lock:
-            self._load()
-            self._cache[str(profile.telegram_id)] = profile
-            self._save()
+            if self._use_memory:
+                self._memory[str(profile.telegram_id)] = profile
+                return
+            with sync_session() as db:
+                row = db.get(TelegramProfileSession, profile.telegram_id)
+                if row is None:
+                    row = TelegramProfileSession(telegram_id=profile.telegram_id)
+                    db.add(row)
+                _apply_profile_to_row(row, profile)
 
     def reset_session(self, telegram_id: int) -> TelegramProfile:
         p = TelegramProfile(telegram_id=telegram_id, step=STEP_AUTH_MENU)

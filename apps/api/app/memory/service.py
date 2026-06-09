@@ -129,9 +129,11 @@ class MemoryService:
                     )
                     return row
         except Exception as e:
-            logger.warning("remember PG failed, falling back to JSON: %s", e)
+            logger.warning("remember PG failed: %s", e)
 
-        return self.semantic.add(text, user_id=uid, metadata=metadata or {})
+        if pg_uid is None:
+            return self.semantic.add(text, user_id=uid, metadata=metadata or {})
+        return {"id": "", "text": text, "user_id": uid, "metadata": metadata or {}}
 
     async def recall(
         self,
@@ -157,9 +159,11 @@ class MemoryService:
                         k=k,
                     )
         except Exception as e:
-            logger.warning("recall PG failed, falling back to JSON: %s", e)
+            logger.warning("recall PG failed: %s", e)
 
-        return self.semantic.search(query, user_id=uid, k=k)
+        if pg_uid is None:
+            return self.semantic.search(query, user_id=uid, k=k)
+        return []
 
     async def list_memories(
         self,

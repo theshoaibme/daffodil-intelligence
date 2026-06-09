@@ -1,14 +1,18 @@
-"""Persistent Telegram message queue for downtime and sequential drain."""
+"""Persistent Telegram message queue in PostgreSQL."""
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+from sqlalchemy import select
+
+from ...core.database import is_mock_database
+from ...models.telegram import TelegramOutboundMessage
+from .pg_sync import sync_session
 
 logger = logging.getLogger(__name__)
 
@@ -40,40 +44,26 @@ class QueuedOutbound:
 
 
 class TelegramOutboundQueue:
-    """File-backed FIFO queue for bot sends while offline or starting."""
+    """PostgreSQL-backed FIFO queue for bot sends while offline or starting."""
 
-    def __init__(self, path: str = "telegram_outbound_queue.json"):
-        self._path = Path(path)
+    def __init__(self, path: str = ""):
         self._lock = threading.Lock()
-        self._items: List[QueuedOutbound] = []
-        self._loaded = False
-
-    def _load(self) -> None:
-        if self._loaded:
-            return
-        if self._path.exists():
-            try:
-                raw = json.loads(self._path.read_text("utf-8"))
-                self._items = [
-                    QueuedOutbound.from_dict(item)
-                    for item in (raw if isinstance(raw, list) else [])
-                ]
-            except Exception as e:
-                logger.warning("Could not load Telegram outbound queue: %s", e)
-                self._items = []
-        self._loaded = True
-
-    def _save(self) -> None:
-        self._path.write_text(
-            json.dumps([item.to_dict() for item in self._items], ensure_ascii=False, indent=2),
-            "utf-8",
-        )
+        self._memory: List[QueuedOutbound] = []
+        self._use_memory = is_mock_database() or bool(path)
 
     def enqueue(self, item: QueuedOutbound) -> None:
         with self._lock:
-            self._load()
-            self._items.append(item)
-            self._save()
+            if self._use_memory:
+                self._memory.append(item)
+            else:
+                with sync_session() as db:
+                    db.add(
+                        TelegramOutboundMessage(
+                            kind=item.kind,
+                            telegram_id=item.telegram_id,
+                            payload=item.payload,
+                        )
+                    )
         logger.info(
             "Queued Telegram %s for user %s (bot offline or starting)",
             item.kind,
@@ -82,17 +72,33 @@ class TelegramOutboundQueue:
 
     def pop_all(self) -> List[QueuedOutbound]:
         with self._lock:
-            self._load()
-            items = list(self._items)
-            self._items = []
-            if items:
-                self._save()
-            return items
+            if self._use_memory:
+                items = list(self._memory)
+                self._memory = []
+                return items
+            with sync_session() as db:
+                rows = db.execute(
+                    select(TelegramOutboundMessage).order_by(TelegramOutboundMessage.id)
+                ).scalars().all()
+                items = [
+                    QueuedOutbound(
+                        kind=row.kind,
+                        telegram_id=int(row.telegram_id),
+                        payload=dict(row.payload or {}),
+                        created_at=row.created_at.isoformat() if row.created_at else _utc_now(),
+                    )
+                    for row in rows
+                ]
+                for row in rows:
+                    db.delete(row)
+                return items
 
     def size(self) -> int:
         with self._lock:
-            self._load()
-            return len(self._items)
+            if self._use_memory:
+                return len(self._memory)
+            with sync_session() as db:
+                return len(db.execute(select(TelegramOutboundMessage)).scalars().all())
 
 
 outbound_queue = TelegramOutboundQueue()

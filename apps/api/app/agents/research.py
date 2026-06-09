@@ -31,13 +31,24 @@ You help students with:
         return await self.generate_response(self.SYSTEM_PROMPT, message)
 
     async def handle_papers(self, message: str) -> str:
-        papers = await search_papers(message)
-        paper_list = "\n".join([f"- **{p['title']}** ({p['year']}) - {p['citations']} citations" for p in papers])
+        from ..tools.registry import get_registry
+
+        result = await get_registry().execute("search_papers", query=message, limit=8)
+        if not result.success:
+            return f"Could not search papers: {result.error}"
+        papers = result.data.get("papers") or []
+        if not papers:
+            return "No papers found for that query. Try different keywords."
+        paper_list = "\n".join(
+            [
+                f"- **{p.get('title', 'Untitled')}** ({p.get('year', 'n/a')}) — "
+                f"{p.get('citations', 0)} citations"
+                for p in papers
+            ]
+        )
         return f"""📄 **Research Papers**
 
-{paper_list}
-
-Use Google Scholar or IEEE Xplore for full access."""
+{paper_list}"""
 
     async def handle_thesis(self, message: str) -> str:
         result = await help_thesis(message)
@@ -63,7 +74,12 @@ Share your paper and I'll format citations."""
 
 
 async def search_papers(query: str) -> list[dict]:
-    """Returns empty list — real paper search is handled by the ResearchAgent LLM via generate_response."""
+    """Search papers via the search_papers tool (Semantic Scholar)."""
+    from ..tools.registry import get_registry
+
+    result = await get_registry().execute("search_papers", query=query, limit=8)
+    if result.success:
+        return result.data.get("papers") or []
     return []
 
 

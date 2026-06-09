@@ -68,11 +68,20 @@ class Settings(BaseSettings):
     ANTIGRAVITY_ENABLE_SUBAGENTS: bool = True
     CONTEXT_WINDOW_TOKENS: int = 128_000
 
+    # === Web search / research ===
+    GOOGLE_SEARCH_API_KEY: str = ""
+    GOOGLE_CSE_ID: str = ""
+    SERPER_API_KEY: str = ""
+    WORKSPACE_ROOT: str = ""
+
     # === MCP ===
     MCP_SERVER_PORT: int = 8001
     MCP_TRANSPORT: str = "stdio"  # 'stdio' or 'http'
     MCP_ENABLED: bool = True
     MCP_EXTERNAL_SERVERS: str = ""  # comma-separated name=command pairs for stdio servers
+
+    # Disable Antigravity builtins that overlap Daffodil registry tools
+    ANTIGRAVITY_DISABLE_BUILTIN_OVERLAPS: bool = True
 
     # === Telegram ===
     TELEGRAM_ENABLED: bool = False
