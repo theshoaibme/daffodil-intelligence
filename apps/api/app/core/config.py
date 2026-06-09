@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_FAST_MODEL: str = "llama-3.1-8b-instant"
     GROQ_FAST_CHAT: bool = True
+    HUGGINGFACE_API_KEY: str = ""
+    HUGGINGFACE_BASE_URL: str = "https://router.huggingface.co/v1"
+    HUGGINGFACE_MODEL: str = "zai-org/GLM-5.1"
+    HUGGINGFACE_ENABLED: bool = True
+    HUGGINGFACE_MAX_TOKENS: int = 4096
+    HUGGINGFACE_TIMEOUT_SEC: float = 180.0
     GEMINI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
 

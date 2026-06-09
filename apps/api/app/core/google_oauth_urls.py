@@ -17,15 +17,12 @@ def _is_local_host(url: str) -> bool:
 
 
 def web_google_oauth_redirect_uri() -> str:
-    """Redirect URI for browser sign-in from the web app (Vite /api proxy in dev)."""
+    """Redirect URI for browser sign-in (must match Google Cloud authorized redirect URIs)."""
     override = (getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", "") or "").strip()
     if override:
         return override.rstrip("/")
-    frontend = frontend_base().rstrip("/")
-    if frontend and _is_local_host(frontend):
-        return f"{frontend}/api/auth/oauth/google/callback"
-    if frontend:
-        return f"{frontend}/api/auth/oauth/google/callback"
+    # Default to API host — matches typical dev Google Console setup (port 8000).
+    # After OAuth, the API redirects the browser back to FRONTEND_PUBLIC_URL.
     return f"{public_base().rstrip('/')}/api/auth/oauth/google/callback"
 
 

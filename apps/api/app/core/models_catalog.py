@@ -45,11 +45,15 @@ MODEL_CATALOG: list[ModelEntry] = [
     {"id": "llama-3.1-8b", "name": "Llama 3.1 8B", "provider": "Meta"},
     {"id": "mistral-large", "name": "Mistral Large", "provider": "Mistral"},
     {"id": "qwen-2.5-72b", "name": "Qwen 2.5 72B", "provider": "Qwen"},
+    # Hugging Face
+    {"id": "glm-5.1", "name": "GLM 5.1", "provider": "Hugging Face"},
+    {"id": "zai-org/GLM-5.1", "name": "GLM 5.1 (HF)", "provider": "Hugging Face"},
 ]
 
 DASHBOARD_MODEL_IDS = [
     "gemini-2.0-flash",
     "gemini-2.5-flash",
+    "glm-5.1",
     "gpt-4o",
     "claude-3.5-sonnet",
     "deepseek-chat",

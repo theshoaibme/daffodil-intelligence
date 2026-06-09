@@ -147,6 +147,10 @@ def _check_ai_providers() -> Dict[str, Any]:
         providers.append("anthropic")
     if settings.GEMINI_API_KEY:
         providers.append("gemini")
+    if settings.GROQ_API_KEY:
+        providers.append("groq")
+    if settings.HUGGINGFACE_API_KEY and settings.HUGGINGFACE_ENABLED:
+        providers.append("huggingface")
     return {
         "status": "up" if providers else "degraded",
         "configured": providers,

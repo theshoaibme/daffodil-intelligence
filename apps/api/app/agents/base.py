@@ -35,6 +35,13 @@ class BaseAgent(ABC):
                     "api_key": settings.GROQ_API_KEY,
                     "base_url": settings.GROQ_BASE_URL,
                 }
+            elif settings.HUGGINGFACE_API_KEY and settings.HUGGINGFACE_ENABLED:
+                kwargs = {
+                    "model": settings.HUGGINGFACE_MODEL,
+                    "temperature": 0.7,
+                    "api_key": settings.HUGGINGFACE_API_KEY,
+                    "base_url": settings.HUGGINGFACE_BASE_URL,
+                }
             elif settings.OPENAI_API_KEY:
                 kwargs = {
                     "model": settings.OPENAI_MODEL_NAME or "gpt-4-turbo-preview",
@@ -50,7 +57,7 @@ class BaseAgent(ABC):
                     }
             else:
                 raise ValueError(
-                    "No LLM API key configured. Set GROQ_API_KEY or OPENAI_API_KEY in .env"
+                    "No LLM API key configured. Set GROQ_API_KEY, HUGGINGFACE_API_KEY, or OPENAI_API_KEY in .env"
                 )
 
             self._llm = ChatOpenAI(**kwargs)

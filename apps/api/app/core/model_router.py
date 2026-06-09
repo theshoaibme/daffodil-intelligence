@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Optional, Tuple
 
 from .config import get_settings
+from .hf_models import GLM_5_1_CATALOG_ID
 from .models_catalog import AUTO_MODEL_ID
+
+
+def _hf_available() -> bool:
+    settings = get_settings()
+    return settings.HUGGINGFACE_ENABLED and bool(settings.HUGGINGFACE_API_KEY)
 
 _REASONING_KEYWORDS = (
     "prove",
@@ -82,6 +88,10 @@ def resolve_model_for_turn(
     default = default_model or (groq_fast if use_groq else settings.ANTIGRAVITY_MODEL)
 
     if model_id and model_id != AUTO_MODEL_ID:
+        from .hf_models import is_hf_model
+
+        if is_hf_model(model_id):
+            return model_id, False, "manual_hf"
         return model_id, False, "manual"
 
     text = (message or "").strip()
@@ -92,6 +102,8 @@ def resolve_model_for_turn(
         return "gemini-2.5-flash", True, "attachments"
 
     if "```" in text or any(k in lower for k in _CODE_KEYWORDS):
+        if _hf_available():
+            return GLM_5_1_CATALOG_ID, True, "code_hf"
         if word_count > 80 or "architect" in lower or "refactor" in lower:
             return "gemini-2.5-pro", True, "code_complex"
         return "gemini-2.5-flash", True, "code"
