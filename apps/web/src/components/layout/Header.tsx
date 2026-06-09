@@ -3,9 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { FileText, MessageSquare, Gift, Sun, Moon, LogOut, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeaderIcon } from "../ui";
-import { useThemeMode } from "../ThemeProvider";
+import { useThemeMode } from "@providers";
 import { useAuth } from "../../context/AuthContext";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@lib";
 import { dropdownPanelVariants, modeSpringSoft } from "../../lib/motion";
 
 function userInitials(name: string): string {
