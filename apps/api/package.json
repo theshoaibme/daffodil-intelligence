@@ -3,9 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "run-script-os",
-    "dev:win32": ".venv\\Scripts\\python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
-    "dev:default": "./.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level critical --no-access-log",
+    "dev": "bash scripts/dev.sh",
+    "dev:win": ".venv\\Scripts\\python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
     "mcp": "./.venv/bin/python -m app.mcp.server http",
     "test": "./.venv/bin/python -m pytest -q",
     "db:migrate": "../../.venv/bin/alembic upgrade head"

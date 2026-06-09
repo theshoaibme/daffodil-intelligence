@@ -21,9 +21,8 @@ def web_google_oauth_redirect_uri() -> str:
     override = (getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", "") or "").strip()
     if override:
         return override.rstrip("/")
-    # Default to API host — matches typical dev Google Console setup (port 8000).
-    # After OAuth, the API redirects the browser back to FRONTEND_PUBLIC_URL.
-    return f"{public_base().rstrip('/')}/api/auth/oauth/google/callback"
+    # Same callback route as Telegram Google sign-in; handler branches on OAuth state.
+    return telegram_google_oauth_redirect_uri()
 
 
 def telegram_google_oauth_redirect_uri() -> str:
