@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { GoogleAuthButton, RegisterForm } from "../auth";
+import { GoogleAuthButton, RegisterForm } from "@auth";
 import { useAuth } from "@context";
-import { AuthDivider, AuthLayout } from "./AuthLayout";
+import { AuthDivider, AuthLayout } from "@layout";
 import { ROUTES } from "@lib";
 
 export function RegisterPage() {

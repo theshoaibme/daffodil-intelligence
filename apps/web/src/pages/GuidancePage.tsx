@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { GraduationCap, LogOut, MessageSquare } from "lucide-react";
 import { useAuth } from "@context";
 import { ROUTES } from "@lib";
-import { Button } from "../ui";
+import { Button } from "@ui";
 
 export function GuidancePage() {
   const { user, logout } = useAuth();

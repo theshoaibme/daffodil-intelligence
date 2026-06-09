@@ -2,11 +2,16 @@ import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { Panel, useReactFlow } from "@xyflow/react";
 import { FLOW_FIT_OPTIONS } from "./flowLayout";
 
-export function FlowZoomControls() {
+export function FlowZoomControls({ belowHeader = false }: { belowHeader?: boolean }) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   return (
-    <Panel position="top-left" className="!m-4 !z-20 flex items-center gap-1 rounded-xl bg-surface-container-lowest/95 border border-outline-variant/40 shadow-md p-1">
+    <Panel
+      position={belowHeader ? "bottom-left" : "top-left"}
+      className={`!z-20 flex items-center gap-1 rounded-xl bg-surface-container-lowest/95 border border-outline-variant/40 shadow-md p-1 ${
+        belowHeader ? "!m-4 sm:!m-6" : "!m-4"
+      }`}
+    >
       <button
         type="button"
         onClick={() => zoomIn()}

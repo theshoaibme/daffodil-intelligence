@@ -51,7 +51,8 @@ export function PromptBar({
     loading: mcpLoading,
     localServers,
     isConfigured: mcpConfigured,
-    refreshLocal,
+    updateLocalServers,
+    refetch: refetchMcpStatus,
   } = useMcpStatus();
 
   const promptBarInner = (
@@ -102,7 +103,8 @@ export function PromptBar({
       onClose={() => setMcpDialogOpen(false)}
       status={mcpStatus}
       localServers={localServers}
-      onLocalServersChange={() => refreshLocal()}
+      onLocalServersChange={updateLocalServers}
+      onRefreshStatus={refetchMcpStatus}
       loading={mcpLoading}
     />
     {embedded ? (

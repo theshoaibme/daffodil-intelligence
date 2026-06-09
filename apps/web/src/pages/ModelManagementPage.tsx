@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ArrowLeft, Plus, Trash2, Key, Database, Cpu, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ModelInfo, DEFAULT_MODELS, getModels } from "./PromptBar/ModelSelector";
+import { ModelInfo, DEFAULT_MODELS, getModels } from "@features/PromptBar/ModelSelector";
 
 export function ModelManagementPage() {
   const navigate = useNavigate();

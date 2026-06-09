@@ -131,7 +131,7 @@ export function Sidebar({
           <RailButton label="Expand sidebar" onClick={toggleSidebar}>
             <Menu size={22} />
           </RailButton>
-          <RailButton label="New chat" onClick={() => onNewChat?.()}>
+          <RailButton label="New agent" onClick={() => onNewChat?.()}>
             <Plus size={22} />
           </RailButton>
           <div className="flex-1" />
@@ -206,7 +206,7 @@ export function Sidebar({
                 className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer bg-transparent"
               >
                 <Plus size={16} />
-                New chat
+                New agent
               </button>
               <h3 className="text-[11px] uppercase tracking-widest text-on-surface-variant font-bold mb-4 px-2">
                 Chat history
@@ -222,7 +222,10 @@ export function Sidebar({
                       active={activeHistoryId === entry.id}
                       onSelect={() => {
                         onSelectHistory?.(entry.id);
-                        navigate(ROUTES.home);
+                        navigate({
+                          pathname: ROUTES.home,
+                          search: `?chat=${encodeURIComponent(entry.id)}`,
+                        });
                       }}
                       onDelete={() => onDeleteHistory?.(entry.id)}
                       onShare={() => onShareHistory?.(entry.id)}

@@ -70,7 +70,7 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startNewChat = useCallback((): ChatSessionState => {
-    const entry = createHistorySession("New chat");
+    const entry = createHistorySession("New agent");
     setHistories(loadChatHistory());
     setActiveId(entry.id);
     return toSessionState(entry);

@@ -38,6 +38,8 @@ interface AgentFlowCanvasProps {
   saveSignal: number;
   /** When false, defer fit-to-view until the graph has finished loading. */
   graphReady?: boolean;
+  /** Offset controls below a page header (agent hub flow view). */
+  belowHeader?: boolean;
 }
 
 export function AgentFlowCanvas({
@@ -46,6 +48,7 @@ export function AgentFlowCanvas({
   onSave,
   saveSignal,
   graphReady = true,
+  belowHeader = false,
 }: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(agents), [agents]);
   const { runtime } = useRuntimeStatus();
@@ -224,7 +227,7 @@ export function AgentFlowCanvas({
         className={editing ? "cursor-default" : "cursor-grab active:cursor-grabbing"}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#c5c5d9" />
-        <FlowZoomControls />
+        <FlowZoomControls belowHeader={belowHeader} />
         {!editing && <FitViewOnUpdate trigger={fitTrigger} />}
       </ReactFlow>
 

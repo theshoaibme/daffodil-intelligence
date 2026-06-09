@@ -17,7 +17,7 @@ import { changePassword, DELETE_ACCOUNT_PHRASE } from "@lib";
 import { ROUTES } from "@lib";
 import { FIELD_CLASS } from "@lib";
 import { dropdownPanelVariants } from "@lib";
-import { MemorySettingsSection } from "./MemorySettingsSection";
+import { MemorySettingsSection } from "@features/MemorySettingsSection";
 
 interface ProfileForm {
   fullName: string;

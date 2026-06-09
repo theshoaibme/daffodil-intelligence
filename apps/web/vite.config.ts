@@ -15,6 +15,11 @@ export default defineConfig({
       '@context': resolve(__dirname, './src/context/index.ts'),
       '@styles': resolve(__dirname, './src/styles/index.ts'),
       '@ui': resolve(__dirname, './src/components/ui/index.ts'),
+      '@auth': resolve(__dirname, './src/components/auth'),
+      '@layout': resolve(__dirname, './src/components/layout'),
+      '@features': resolve(__dirname, './src/components/features'),
+      '@pages': resolve(__dirname, './src/pages'),
+      '@providers': resolve(__dirname, './src/providers'),
       '@components': resolve(__dirname, './src/components')
     }
   },

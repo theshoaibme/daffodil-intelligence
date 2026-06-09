@@ -13,6 +13,7 @@ interface AiResponseCardProps {
   isThinking?: boolean;
   onEdit?: () => void;
   error?: string | null;
+  fillHeight?: boolean;
 }
 
 export function AiResponseCard({ 
@@ -22,7 +23,8 @@ export function AiResponseCard({
   thinkingSteps: externalSteps = [],
   isThinking: externalIsThinking = false,
   onEdit,
-  error 
+  error,
+  fillHeight = false,
 }: AiResponseCardProps) {
   const [thinkingExpanded, setThinkingExpanded] = useState(true);
   
@@ -124,7 +126,11 @@ export function AiResponseCard({
 
   return (
     <div
-      className="w-full max-w-md h-[360px] glass-gradient-panel border border-outline-variant/40 rounded-[28px] p-6 shadow-md text-left select-none relative overflow-hidden flex flex-col gap-4"
+      className={`w-full glass-gradient-panel border border-outline-variant/40 rounded-[28px] p-4 sm:p-6 shadow-md text-left select-none relative overflow-hidden flex flex-col gap-3 sm:gap-4 min-w-0 ${
+        fillHeight
+          ? "h-full min-h-[200px] max-h-full"
+          : "max-w-md h-[min(360px,50dvh)] sm:h-[360px]"
+      }`}
       id="ai-response-card"
     >
       {/* Top Header Row with User Prompt Badge - Full Width */}
@@ -133,12 +139,14 @@ export function AiResponseCard({
       </div>
 
       {/* Accordion Thinking Process List Drawer (Auto expands on send) */}
-      <ThinkingProcess
-        isThinking={isThinking}
-        steps={steps}
-        isExpanded={thinkingExpanded}
-        onToggleExpand={() => setThinkingExpanded(!thinkingExpanded)}
-      />
+      <div className="flex-shrink-0 min-w-0">
+        <ThinkingProcess
+          isThinking={isThinking}
+          steps={steps}
+          isExpanded={thinkingExpanded}
+          onToggleExpand={() => setThinkingExpanded(!thinkingExpanded)}
+        />
+      </div>
 
       {/* Main Dynamic Response Content Area (Scrollable to respect size limits) */}
       {error ? (
@@ -154,7 +162,9 @@ export function AiResponseCard({
 
       {/* Action Buttons Panel (Copy, Share, Full View) */}
       {!isThinking && !error && response && (
-        <ActionButtons textToCopy={textToCopy} />
+        <div className="flex-shrink-0">
+          <ActionButtons textToCopy={textToCopy} />
+        </div>
       )}
     </div>
   );

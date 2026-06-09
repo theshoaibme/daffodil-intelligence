@@ -63,7 +63,9 @@ export default function AgentDashboard({
 
   return (
     <Shell className={shellClass} {...shellProps}>
-      <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+      <div
+        className={`absolute right-3 z-30 flex items-center gap-2 ${fillParent ? "top-14" : "top-3"}`}
+      >
         {!embedded && !fillParent ? (
           <Link
             to={ROUTES.home}
@@ -143,6 +145,7 @@ export default function AgentDashboard({
           onSave={handleSave}
           saveSignal={saveSignal}
           graphReady={!loading}
+          belowHeader={fillParent}
         />
       </div>
 

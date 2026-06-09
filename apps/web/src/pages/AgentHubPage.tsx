@@ -26,9 +26,9 @@ import {
   type SkillRecord,
 } from "@lib";
 import { useLocalStorageState } from "@hooks";
-import AgentDashboard from "./AgentDashboard";
-import { getAgentIconStyle } from "./AgentDashboard/agentIcons";
-import { CATEGORY_LABELS } from "./AgentDashboard/agentConstants";
+import AgentDashboard from "@features/AgentDashboard";
+import { getAgentIconStyle } from "@features/AgentDashboard/agentIcons";
+import { CATEGORY_LABELS } from "@features/AgentDashboard/agentConstants";
 
 type Tab = "all" | "custom";
 type CreateMode = "manual" | "n8n";
@@ -348,57 +348,15 @@ export function AgentHubPage() {
   const isFlowView = viewMode === "flow";
 
   return (
-    <div className="flex flex-col h-screen text-on-surface font-sans overflow-hidden">
-      <header className="shrink-0 z-10 w-full bg-transparent">
-        <div className="w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Link
-              to={ROUTES.home}
-              className="p-2 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
-              aria-label="Back to chat"
-            >
-              <ArrowLeft size={20} />
-            </Link>
-            <span className="font-medium text-lg">Agents</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleViewMode}
-              aria-pressed={isFlowView}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                isFlowView
-                  ? "bg-primary/10 text-primary border border-primary/30"
-                  : "border border-outline-variant/50 hover:bg-surface-container-high"
-              }`}
-            >
-              {isFlowView ? (
-                <>
-                  <LayoutList size={14} /> Hub view
-                </>
-              ) : (
-                <>
-                  <LayoutGrid size={14} /> Flow view
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={openCreateDialog}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary text-on-primary"
-            >
-              <Plus size={14} /> New agent
-            </button>
-          </div>
-        </div>
-      </header>
-
+    <div className="relative h-screen text-on-surface font-sans overflow-hidden">
       {isFlowView ? (
-        <div className="flex-1 min-h-0">
+        <div className="absolute inset-0 z-10">
           <AgentDashboard fillParent />
         </div>
       ) : (
-      <main className="flex-1 min-h-0 overflow-y-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <main className="absolute inset-0 z-10 overflow-y-auto w-full px-4 sm:px-6 lg:px-8 pb-8 sm:pb-10">
+        <div className="h-14 shrink-0" aria-hidden="true" />
+        <div className="pt-8 sm:pt-10">
         <div className="flex items-start gap-4 mb-6">
           <div className="p-3 rounded-2xl bg-primary/10 text-primary">
             <Bot size={24} />
@@ -470,8 +428,53 @@ export function AgentHubPage() {
             />
           ))}
         </ul>
+        </div>
       </main>
       )}
+
+      <header className="absolute top-0 inset-x-0 z-20 w-full bg-transparent pointer-events-none">
+        <div className="w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3 pointer-events-auto">
+          <div className="flex items-center gap-3">
+            <Link
+              to={ROUTES.home}
+              className="p-2 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+              aria-label="Back to chat"
+            >
+              <ArrowLeft size={20} />
+            </Link>
+            <span className="font-medium text-lg">Agents</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleViewMode}
+              aria-pressed={isFlowView}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                isFlowView
+                  ? "bg-primary/10 text-primary border border-primary/30"
+                  : "border border-outline-variant/50 hover:bg-surface-container-high"
+              }`}
+            >
+              {isFlowView ? (
+                <>
+                  <LayoutList size={14} /> Hub view
+                </>
+              ) : (
+                <>
+                  <LayoutGrid size={14} /> Flow view
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={openCreateDialog}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary text-on-primary"
+            >
+              <Plus size={14} /> New agent
+            </button>
+          </div>
+        </div>
+      </header>
 
       {dialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

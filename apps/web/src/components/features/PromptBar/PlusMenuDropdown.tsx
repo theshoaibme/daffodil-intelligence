@@ -1,4 +1,4 @@
-import { useRef, useEffect, type ReactNode } from "react";
+import { useRef, useEffect } from "react";
 import { Plus, Compass, Monitor, CheckCircle2, Settings2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DropdownItem } from "../../ui";
@@ -14,14 +14,6 @@ interface PlusMenuDropdownProps {
   onConfigureMcp?: () => void;
 }
 
-function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <p className="px-2.5 pt-1 pb-1.5 text-[11px] font-medium text-on-surface-variant/70 tracking-wide">
-      {children}
-    </p>
-  );
-}
-
 export function PlusMenuDropdown({
   isOpen,
   setIsOpen,
@@ -34,7 +26,6 @@ export function PlusMenuDropdown({
 }: PlusMenuDropdownProps) {
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const mcpSelected = selectedTools.includes("MCP");
-  const showMcpConfigure = mcpSelected && !mcpConfigured;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -59,7 +50,6 @@ export function PlusMenuDropdown({
 
   const handleMcpClick = () => {
     if (!mcpConfigured) {
-      if (!mcpSelected) onToggleTool("MCP");
       setIsOpen(false);
       onConfigureMcp?.();
       return;
@@ -88,29 +78,32 @@ export function PlusMenuDropdown({
             transition={{ duration: 0.14, ease: "easeOut" }}
             className="absolute bottom-full left-0 mb-2 w-56 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
           >
-            <div className="px-1 pb-0.5">
-              <SectionLabel>Tools</SectionLabel>
+            <div className="px-1 py-1">
               {tools.map((item) =>
                 item.isMcp ? (
-                  <div key={item.text} className="relative">
-                    <DropdownItem
-                      icon={item.icon}
-                      text={item.text}
-                      active={mcpSelected && mcpConfigured}
-                      onClick={handleMcpClick}
-                    />
-                    {showMcpConfigure && (
+                  <div key={item.text} className="relative flex items-center pr-1">
+                    <div className="flex-1 min-w-0">
+                      <DropdownItem
+                        icon={item.icon}
+                        text={item.text}
+                        active={mcpSelected && mcpConfigured}
+                        onClick={handleMcpClick}
+                      />
+                    </div>
+                    {mcpConfigured && (
                       <button
                         type="button"
+                        aria-label="Manage MCP servers"
                         onClick={(e) => {
                           e.stopPropagation();
                           setIsOpen(false);
                           onConfigureMcp?.();
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold border-0 cursor-pointer hover:bg-primary/25"
+                        className={`absolute top-1/2 -translate-y-1/2 p-1 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high border-0 cursor-pointer ${
+                          mcpSelected ? "right-9" : "right-2"
+                        }`}
                       >
-                        <Settings2 size={10} />
-                        Configure
+                        <Settings2 size={14} />
                       </button>
                     )}
                   </div>
@@ -128,8 +121,7 @@ export function PlusMenuDropdown({
 
             <div className="mx-2.5 my-1 border-t border-outline-variant/30" />
 
-            <div className="px-1 pt-0.5 pb-1">
-              <SectionLabel>Modes</SectionLabel>
+            <div className="px-1 py-1">
               {modes.map((mode) => (
                 <DropdownItem
                   key={mode.text}

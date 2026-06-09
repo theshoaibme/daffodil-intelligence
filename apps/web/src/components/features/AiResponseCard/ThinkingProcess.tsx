@@ -69,7 +69,7 @@ export function ThinkingProcess({
             animate={{ opacity: 1, height: "auto", marginTop: 8 }}
             exit={{ opacity: 0, height: 0, marginTop: 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="w-full bg-surface-container-highest/65 rounded-2xl shadow-md overflow-hidden p-3 flex flex-col gap-2"
+            className="w-full max-h-[min(160px,22dvh)] overflow-y-auto custom-scrollbar bg-surface-container-highest/65 rounded-2xl shadow-md p-3 flex flex-col gap-2"
           >
             <div className="text-[10px] font-bold text-on-surface-variant/60 tracking-wider px-1 flex items-center h-4">
               <span>Thinking</span>

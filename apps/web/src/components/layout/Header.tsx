@@ -3,15 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { FileText, MessageSquare, Gift, Sun, Moon, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeaderIcon } from "../ui";
-import { useThemeMode } from "../ThemeProvider";
+import { useThemeMode } from "@providers";
 import { useAuth } from "@context";
 import { ROUTES } from "@lib";
 import { dropdownPanelVariants, modeSpringSoft, sidebarWidthTransition } from "@lib";
-import {
-  SIDEBAR_WIDTH_COLLAPSED,
-  SIDEBAR_WIDTH_EXPANDED,
-} from "./Sidebar/Sidebar";
-
 function userInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
@@ -57,11 +52,7 @@ function UserAvatar({
   );
 }
 
-export interface HeaderProps {
-  sidebarOpen?: boolean;
-}
-
-export function Header({ sidebarOpen = false }: HeaderProps) {
+export function Header() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
@@ -97,9 +88,7 @@ export function Header({ sidebarOpen = false }: HeaderProps) {
       <motion.div
         className="flex items-center gap-2.5 min-w-0"
         initial={false}
-        animate={{
-          paddingLeft: (sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED) + 16,
-        }}
+        animate={{ paddingLeft: 16 }}
         transition={sidebarWidthTransition}
       >
         <Link

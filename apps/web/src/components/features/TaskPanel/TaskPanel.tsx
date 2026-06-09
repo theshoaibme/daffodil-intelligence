@@ -89,9 +89,9 @@ export function TaskPanel({
       {/* Smooth Spring Panel Body */}
       <motion.div
         initial={false}
-        animate={{ height: tasksCollapsed ? 56 : 200 }}
+        animate={{ height: tasksCollapsed ? 56 : "auto" }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="overflow-hidden flex flex-col justify-end"
+        className="overflow-hidden flex flex-col justify-end max-h-[min(200px,28dvh)]"
       >
         <AnimatePresence mode="wait">
           {tasksCollapsed ? (
@@ -122,7 +122,7 @@ export function TaskPanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 5 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 p-3 custom-scrollbar overflow-y-auto max-h-[196px] space-y-1.5 h-[196px] flex flex-col items-center justify-center"
+              className="flex-1 p-3 custom-scrollbar overflow-y-auto max-h-[min(196px,26dvh)] min-h-[120px] space-y-1.5 flex flex-col items-center justify-center"
             >
               {tasks.length > 0 ? (
                 tasks.map(task => (
