@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from .stream_engine import AdaptiveStreamEngine
@@ -69,8 +69,8 @@ async def _handle_method(method: str, params: Dict[str, Any]) -> Any:
         return {"pong": True, "time": time.time()}
 
     if method == "status":
-        from .rust_backend import is_rust_available
         from .permissions import get_permission_status
+        from .rust_backend import is_rust_available
         from .vault import vault_status
         perms = get_permission_status()
         return {
@@ -152,7 +152,7 @@ async def _handle_method(method: str, params: Dict[str, Any]) -> Any:
         return {"entries": read_audit_tail(params.get("limit", 50))}
 
     if method == "audit.system_log":
-        from .audit import read_system_log_tail, read_kit_log_tail
+        from .audit import read_kit_log_tail, read_system_log_tail
         return {
             "system": read_system_log_tail(params.get("lines", 30)),
             "kit_log": read_kit_log_tail(params.get("lines", 40)),

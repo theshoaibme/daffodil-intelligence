@@ -5,7 +5,7 @@ from __future__ import annotations
 import mimetypes
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .security import get_allowed_roots
 

@@ -9,17 +9,16 @@ Uses pynput listeners which run in background threads.
 
 import json
 import logging
-import os
-import time
 import threading
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Optional
+import time
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 try:
-    from pynput import mouse, keyboard
+    from pynput import keyboard, mouse
     PYNPUT_AVAILABLE = True
 except ImportError:
     PYNPUT_AVAILABLE = False

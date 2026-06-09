@@ -19,6 +19,7 @@ fi
 
 echo "$NEW" > "$ROOT/VERSION"
 bash "$ROOT/scripts/sync-version.sh"
+bash "$ROOT/scripts/check-version.sh"
 
 echo ""
 echo "Version bumped to $NEW"

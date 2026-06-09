@@ -5,10 +5,9 @@ Cross-platform mouse control for agent computer use.
 Supports move, click, double-click, right-click, scroll, and drag.
 """
 
-import asyncio
+import importlib.util
 import logging
-import time
-from typing import Optional, Tuple
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +20,7 @@ except ImportError:
     PYAUTOGUI_AVAILABLE = False
     logger.warning("pyautogui not installed. Mouse control disabled. Run: pip install pyautogui")
 
-try:
-    from pynput.mouse import Button, Controller as PynputMouseController
-    PYNPUT_AVAILABLE = True
-except ImportError:
-    PYNPUT_AVAILABLE = False
+PYNPUT_AVAILABLE = importlib.util.find_spec("pynput.mouse") is not None
 
 
 class MouseController:

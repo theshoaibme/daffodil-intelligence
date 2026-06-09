@@ -18,8 +18,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Optional version bump (e.g. 0.1.1) — opens PR artifacts only, no auto-push"
+        description: "Optional version bump (e.g. 0.1.1) — artifact preview only, no auto-push"
         required: false
+
+concurrency:
+  group: copycat-kit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -37,15 +41,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Verify VERSION matches all manifests
-        run: |
-          V=$(tr -d '[:space:]' < packages/daffodil-kit/VERSION)
-          P=$(grep -E '^version = ' packages/daffodil-kit/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          I=$(grep -E '^__version__ = ' packages/daffodil-kit/daffodil_kit/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
-          C=$(grep -E '^version = ' packages/daffodil-kit/native/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "VERSION=$V pyproject=$P __init__=$I cargo=$C"
-          test "$V" = "$P"
-          test "$V" = "$I"
-          test "$V" = "$C"
+        run: bash packages/daffodil-kit/scripts/check-version.sh
 
   lint:
     name: Lint
@@ -58,15 +54,13 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: pip install ruff
-      - name: Lint security modules + tests
+      - name: Lint package + tests
         run: |
           ruff check \
+            packages/daffodil-kit/daffodil_kit \
             packages/daffodil-kit/tests \
-            packages/daffodil-kit/daffodil_kit/security.py \
-            packages/daffodil-kit/daffodil_kit/audit.py \
-            packages/daffodil-kit/daffodil_kit/copycat_guard.py \
-            packages/daffodil-kit/daffodil_kit/vault.py \
-            packages/daffodil-kit/daffodil_kit/input_lock.py
+            --select E,F,I,W \
+            --ignore E501
           ruff format --check packages/daffodil-kit/tests
 
   test:
@@ -109,6 +103,40 @@ jobs:
         run: |
           daffodil-kit version
           daffodil-kit status
+
+  build-preview:
+    name: Build preview (wheel)
+    needs: [lint, test]
+    if: >-
+      ${{ github.event_name == 'push'
+          && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+          && needs.test.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build sdist and wheel
+        run: |
+          pip install build
+          python -m build "${{ env.PACKAGE_DIR }}" --outdir dist/copycat-kit/
+
+      - name: SHA256 checksums
+        run: |
+          cd dist/copycat-kit
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: copycat-kit-wheel-${{ github.sha }}
+          path: |
+            dist/copycat-kit/*
+            install
+            install.ps1
+            packages/daffodil-kit/VERSION
 
   install-linux:
     name: install e2e (Linux)
@@ -204,6 +232,9 @@ jobs:
           echo "$TAG" > packages/daffodil-kit/VERSION
           bash packages/daffodil-kit/scripts/sync-version.sh
 
+      - name: Verify synced version
+        run: bash packages/daffodil-kit/scripts/check-version.sh
+
       - name: Final test gate
         run: |
           pip install -e packages/daffodil-kit[dev] pytest-cov
@@ -231,6 +262,8 @@ jobs:
             packages/daffodil-kit/install.ps1
             packages/daffodil-kit/install.cmd
             packages/daffodil-kit/scripts/verify-install.sh
+            packages/daffodil-kit/scripts/check-version.sh
+            packages/daffodil-kit/scripts/sync-version.sh
             packages/daffodil-kit/VERSION
             packages/daffodil-kit/install.html
             packages/daffodil-kit/INSTALL.md
@@ -246,6 +279,7 @@ jobs:
         run: |
           echo "${{ github.event.inputs.version }}" > packages/daffodil-kit/VERSION
           bash packages/daffodil-kit/scripts/sync-version.sh
+          bash packages/daffodil-kit/scripts/check-version.sh
           git diff
       - uses: actions/upload-artifact@v4
         with:

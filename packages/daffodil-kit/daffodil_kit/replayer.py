@@ -8,7 +8,6 @@ Supports speed multiplier and selective action filtering.
 import asyncio
 import logging
 import time
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 

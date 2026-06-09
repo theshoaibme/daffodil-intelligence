@@ -6,9 +6,10 @@ Supports typing text, pressing hotkeys, and single key presses.
 """
 
 import asyncio
+import importlib.util
 import logging
 import time
-from typing import List, Optional
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +20,7 @@ except ImportError:
     PYAUTOGUI_AVAILABLE = False
     logger.warning("pyautogui not installed. Keyboard control disabled.")
 
-try:
-    from pynput.keyboard import Key, Controller as PynputKeyController
-    PYNPUT_AVAILABLE = True
-except ImportError:
-    PYNPUT_AVAILABLE = False
+PYNPUT_AVAILABLE = importlib.util.find_spec("pynput.keyboard") is not None
 
 
 # Map common key names to pyautogui key strings

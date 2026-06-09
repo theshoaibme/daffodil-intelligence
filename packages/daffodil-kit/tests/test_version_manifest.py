@@ -28,6 +28,15 @@ def test_pyproject_version_matches():
     assert m.group(1) == (ROOT / "VERSION").read_text().strip()
 
 
+def test_cargo_version_matches():
+    import re
+
+    text = (ROOT / "native" / "Cargo.toml").read_text()
+    m = re.search(r'^version = "(.+)"$', text, re.M)
+    assert m
+    assert m.group(1) == (ROOT / "VERSION").read_text().strip()
+
+
 def test_install_scripts_exist():
     repo_root = ROOT.parents[1]
     assert (repo_root / "install").exists()

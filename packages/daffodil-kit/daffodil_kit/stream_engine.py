@@ -5,12 +5,12 @@ from __future__ import annotations
 import asyncio
 import base64
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple
 
 from .permissions import request_focus_region as get_focus_region
-from .rust_backend import capture_frame, is_rust_available
 from .runtime import run_blocking
+from .rust_backend import capture_frame, is_rust_available
 
 
 @dataclass

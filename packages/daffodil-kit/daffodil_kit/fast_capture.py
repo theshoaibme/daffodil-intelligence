@@ -48,7 +48,8 @@ class FastScreenCapture:
     def capture_jpeg(self, region: Optional[Tuple[int, int, int, int]] = None) -> Optional[bytes]:
         # Prefer Rust when compiled (sub-10ms on most hardware)
         try:
-            from .rust_backend import is_rust_available, capture_jpeg as rust_cap
+            from .rust_backend import capture_jpeg as rust_cap
+            from .rust_backend import is_rust_available
             if is_rust_available():
                 data = rust_cap(self.quality, self.scale, region)
                 if data:

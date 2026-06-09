@@ -5,23 +5,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+VENV="${ROOT}/.venv-ci"
+if [[ ! -x "${VENV}/bin/python" ]]; then
+  python3 -m venv "$VENV"
+fi
+# shellcheck disable=SC1091
+source "${VENV}/bin/activate"
+pip install -q -U pip wheel setuptools
+pip install -q -e ".[dev]" pytest-cov ruff
+
 echo "=== Version sync check ==="
-V=$(tr -d '[:space:]' < VERSION)
-P=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-I=$(grep -E '^__version__ = ' daffodil_kit/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
-test "$V" = "$P" && test "$V" = "$I"
-echo "OK: $V"
+bash scripts/check-version.sh
 
 echo "=== Lint (ruff) ==="
-if command -v ruff >/dev/null 2>&1; then
-  ruff check daffodil_kit tests
-else
-  pip install ruff -q
-  ruff check daffodil_kit tests
-fi
+ruff check daffodil_kit tests --select E,F,I,W --ignore E501
+ruff format --check tests
 
 echo "=== Tests + coverage ==="
-pip install -e ".[dev]" pytest-cov ruff -q
 pytest tests/ -v --tb=short --cov=daffodil_kit --cov-report=term-missing
 
 echo "=== Install smoke (local) ==="
