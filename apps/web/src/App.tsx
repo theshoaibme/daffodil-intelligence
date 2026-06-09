@@ -333,9 +333,6 @@ function ChatDashboard() {
 
   const hasMessages = messages.length > 0;
   const showAgentDashboard = agentModeActive && (hasMessages || agentViewOpen);
-  const lastUserMessage = messages.filter((m) => m.role === "user").pop();
-  const lastAssistantMessage = messages.filter((m) => m.role === "assistant").pop();
-
   useEffect(() => {
     if (!showAgentDashboard) {
       setAgentLiveTasks(null);
@@ -386,15 +383,6 @@ function ChatDashboard() {
 
   const handleSend = (modelId: string) => {
     sendPrompt(prompt, modelId);
-  };
-
-  const handleEdit = () => {
-    if (lastUserMessage) {
-      setPrompt(lastUserMessage.content);
-      setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 50);
-    }
   };
 
   const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
@@ -521,13 +509,11 @@ function ChatDashboard() {
               <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
                 <AiResponseCard
                   key={activeHistoryId ?? "active-chat"}
-                  prompt={lastUserMessage?.content || ""}
-                  response={lastAssistantMessage?.content || ""}
+                  messages={messages}
                   isStreaming={isStreaming}
                   thinkingSteps={thinkingSteps}
                   thinkingText={thinkingText}
                   thinkingMs={thinkingMs}
-                  onEdit={handleEdit}
                   error={error}
                   onFullView={() => setPreferSidePanel(false)}
                 />
@@ -608,13 +594,11 @@ function ChatDashboard() {
                 >
                   <AiResponseCard
                     key={activeHistoryId ?? "active-chat"}
-                    prompt={lastUserMessage?.content || ""}
-                    response={lastAssistantMessage?.content || ""}
+                    messages={messages}
                     isStreaming={isStreaming}
                     thinkingSteps={thinkingSteps}
                     thinkingText={thinkingText}
                     thinkingMs={thinkingMs}
-                    onEdit={handleEdit}
                     error={error}
                     fillHeight
                     onFullView={() => setPreferSidePanel(false)}

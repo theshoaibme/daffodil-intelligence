@@ -7,7 +7,9 @@ interface ActionButtonsProps {
   onSidePanel?: () => void;
   showFullView?: boolean;
   showSidePanel?: boolean;
+  showCopyActions?: boolean;
   embedded?: boolean;
+  footer?: boolean;
 }
 
 export function ActionButtons({
@@ -16,7 +18,9 @@ export function ActionButtons({
   onSidePanel,
   showFullView = true,
   showSidePanel = false,
+  showCopyActions = true,
   embedded = false,
+  footer = false,
 }: ActionButtonsProps) {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
@@ -38,32 +42,41 @@ export function ActionButtons({
   };
 
   return (
-    <div className="flex items-center justify-between pt-4 mt-auto flex-shrink-0 select-none">
-      {/* Dynamic Action Buttons Group on the Left */}
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={handleCopy}
-          title="Copy response"
-          className="p-2 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-on-surface-variant flex items-center justify-center border border-transparent hover:border-outline-variant/30 outline-none"
-        >
-          {copied ? (
-            <Check size={14} className="text-primary stroke-[3.5]" />
-          ) : (
-            <Copy size={14} />
-          )}
-        </button>
-        <button
-          onClick={handleShare}
-          title="Share action link"
-          className="p-2 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-on-surface-variant flex items-center justify-center border border-transparent hover:border-outline-variant/30 outline-none relative"
-        >
-          {shared ? (
-            <Check size={14} className="text-primary stroke-[3.5]" />
-          ) : (
-            <Share2 size={14} />
-          )}
-        </button>
-      </div>
+    <div
+      className={`flex items-center flex-shrink-0 select-none ${
+        footer
+          ? "justify-end w-full"
+          : embedded
+            ? "justify-start gap-1 pt-2"
+            : "justify-between pt-4 mt-auto"
+      }`}
+    >
+      {showCopyActions && (
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleCopy}
+            title="Copy response"
+            className="p-2 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-on-surface-variant flex items-center justify-center border border-transparent hover:border-outline-variant/30 outline-none"
+          >
+            {copied ? (
+              <Check size={14} className="text-primary stroke-[3.5]" />
+            ) : (
+              <Copy size={14} />
+            )}
+          </button>
+          <button
+            onClick={handleShare}
+            title="Share action link"
+            className="p-2 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-on-surface-variant flex items-center justify-center border border-transparent hover:border-outline-variant/30 outline-none relative"
+          >
+            {shared ? (
+              <Check size={14} className="text-primary stroke-[3.5]" />
+            ) : (
+              <Share2 size={14} />
+            )}
+          </button>
+        </div>
+      )}
 
       {showSidePanel && onSidePanel && (
         <button
