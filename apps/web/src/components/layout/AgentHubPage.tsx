@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Bot,
   FileJson,
   LayoutGrid,
+  LayoutList,
   Plus,
   Search,
   Trash2,
@@ -12,6 +13,8 @@ import {
   X,
 } from "lucide-react";
 import { ROUTES } from "../../lib/routes";
+import { useLocalStorageState } from "../../hooks/useLocalStorageState";
+import AgentDashboard from "./AgentDashboard";
 import { hubApi, type AgentHubRecord, type SkillRecord } from "../../lib/hubApi";
 import { parseN8nWorkflow, type AgentCapabilityInput } from "../../lib/n8nWorkflowParser";
 import {
@@ -26,6 +29,9 @@ import { CATEGORY_LABELS } from "./AgentDashboard/agentConstants";
 
 type Tab = "all" | "custom";
 type CreateMode = "manual" | "n8n";
+type HubViewMode = "hub" | "flow";
+
+const HUB_VIEW_STORAGE_KEY = "di-agent-hub-view";
 
 const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
   value,
@@ -132,6 +138,12 @@ function AgentHubCard({
 
 export function AgentHubPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const handledViewParam = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [viewMode, setViewMode] = useLocalStorageState<HubViewMode>(
+    HUB_VIEW_STORAGE_KEY,
+    "hub"
+  );
   const [tab, setTab] = useState<Tab>("all");
   const [agents, setAgents] = useState<AgentHubRecord[]>([]);
   const [skills, setSkills] = useState<SkillRecord[]>([]);
@@ -173,6 +185,20 @@ export function AgentHubPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (handledViewParam.current) return;
+    const viewParam = searchParams.get("view");
+    if (viewParam !== "flow" && viewParam !== "hub") return;
+
+    handledViewParam.current = true;
+    setViewMode(viewParam);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams, setViewMode]);
+
+  const toggleViewMode = () => {
+    setViewMode((current) => (current === "hub" ? "flow" : "hub"));
+  };
 
   const stats = useMemo(() => {
     const custom = agents.filter((a) => a.kind === "custom").length;
@@ -316,10 +342,12 @@ export function AgentHubPage() {
   const canCreate =
     form.name.trim() && form.description.trim() && form.system_prompt.trim();
 
+  const isFlowView = viewMode === "flow";
+
   return (
-    <div className="min-h-screen bg-background text-on-surface font-sans">
-      <header className="border-b border-outline-variant/40 bg-surface-container-lowest/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+    <div className="flex flex-col h-screen text-on-surface font-sans overflow-hidden">
+      <header className="shrink-0 z-10 w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
               to={ROUTES.home}
@@ -331,12 +359,26 @@ export function AgentHubPage() {
             <span className="font-medium text-lg">Agents</span>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              to={`${ROUTES.home}?agents=1`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-outline-variant/50 hover:bg-surface-container-high transition-colors"
+            <button
+              type="button"
+              onClick={toggleViewMode}
+              aria-pressed={isFlowView}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                isFlowView
+                  ? "bg-primary/10 text-primary border border-primary/30"
+                  : "border border-outline-variant/50 hover:bg-surface-container-high"
+              }`}
             >
-              <LayoutGrid size={14} /> Flow view
-            </Link>
+              {isFlowView ? (
+                <>
+                  <LayoutList size={14} /> Hub view
+                </>
+              ) : (
+                <>
+                  <LayoutGrid size={14} /> Flow view
+                </>
+              )}
+            </button>
             <button
               type="button"
               onClick={openCreateDialog}
@@ -348,7 +390,12 @@ export function AgentHubPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+      {isFlowView ? (
+        <div className="flex-1 min-h-0">
+          <AgentDashboard fillParent />
+        </div>
+      ) : (
+      <main className="flex-1 min-h-0 overflow-y-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         <div className="flex items-start gap-4 mb-6">
           <div className="p-3 rounded-2xl bg-primary/10 text-primary">
             <Bot size={24} />
@@ -386,7 +433,7 @@ export function AgentHubPage() {
           </button>
         </div>
 
-        <div className="relative mb-6 max-w-md">
+        <div className="relative mb-6 w-full">
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 pointer-events-none"
@@ -406,7 +453,7 @@ export function AgentHubPage() {
           <p className="text-sm text-on-surface-variant">No agents match your filters.</p>
         )}
 
-        <ul className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {agents.map((agent) => (
             <AgentHubCard
               key={agent.id}
@@ -421,6 +468,7 @@ export function AgentHubPage() {
           ))}
         </ul>
       </main>
+      )}
 
       {dialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

@@ -9,10 +9,16 @@ import { AgentFlowCanvas } from "./AgentFlowCanvas";
 import { clearLayout } from "./layoutStorage";
 export interface AgentDashboardProps {
   embedded?: boolean;
+  /** Fill parent container (e.g. agent hub flow tab below page header). */
+  fillParent?: boolean;
   onClose?: () => void;
 }
 
-export default function AgentDashboard({ embedded = false, onClose }: AgentDashboardProps) {
+export default function AgentDashboard({
+  embedded = false,
+  fillParent = false,
+  onClose,
+}: AgentDashboardProps) {
   const { agents, loading, error, refetch } = useAgents();
   const [editing, setEditing] = useState(false);
   const [saveSignal, setSaveSignal] = useState(0);
@@ -41,7 +47,9 @@ export default function AgentDashboard({ embedded = false, onClose }: AgentDashb
 
   const shellClass = embedded
     ? "relative w-full h-full min-h-0 flex flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-[#f4f2ff] shadow-md"
-    : "flex flex-col h-screen bg-[#f4f2ff] overflow-hidden relative";
+    : fillParent
+      ? "flex flex-col h-full min-h-0 bg-transparent overflow-hidden relative"
+      : "flex flex-col h-screen bg-[#f4f2ff] overflow-hidden relative";
 
   const Shell = embedded ? motion.div : "div";
   const shellProps = embedded
@@ -56,7 +64,7 @@ export default function AgentDashboard({ embedded = false, onClose }: AgentDashb
   return (
     <Shell className={shellClass} {...shellProps}>
       <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
-        {!embedded ? (
+        {!embedded && !fillParent ? (
           <Link
             to={ROUTES.home}
             className="hidden sm:inline-flex text-xs font-medium text-on-surface-variant hover:text-on-surface px-3 py-2 rounded-lg"
