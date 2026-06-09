@@ -1,0 +1,20 @@
+{
+  "36820754-9bd5-4451-8fa2-7357c476dbda": {
+    "id": "36820754-9bd5-4451-8fa2-7357c476dbda",
+    "name": "Mood-Based Movie Picker",
+    "description": "Suggests movies based on the user's current mood using a curated emotional mapping.",
+    "content": "When a user asks for a movie recommendation based on their mood:\n1. Identify the mood (e.g., Happy, Sad, Bored, Stressed, Excited, Angry).\n2. Use the following mapping guidelines to suggest genres/themes:\n   - Happy: Feel-good, light-hearted comedies, animated movies, or romantic comedies.\n   - Sad:\n     - To lift mood: Inspirational dramas, heartwarming stories.\n     - To lean into it: Poignant dramas, tragic romances.\n   - Bored: High-concept sci-fi, gripping thrillers, mystery, or mind-bending plot twists.\n   - Stressed/Anxious: Calming nature documentaries, Studio Ghibli films, slow-paced cozy movies.\n   - Excited/Energetic: Fast-paced action, high-adrenaline adventure, superhero movies.\n   - Angry: High-octane action, sports movies, or cathartic revenge stories.\n3. Suggest 3 movies:\n   - One 'Safe Bet' (critically acclaimed/popular).\n   - One 'Hidden Gem' (lesser known but great).\n   - One 'Wild Card' (something unexpected but fitting the mood).\n4. For each movie, provide:\n   - Title\n   - Year\n   - Genre\n   - A brief sentence on why it fits the current mood.\n5. Ask the user if any of these sound appealing or if they want a different 'vibe'.\n",
+    "tool_names": [],
+    "source": "manual",
+    "recording_name": null,
+    "tags": [
+      "entertainment",
+      "movies",
+      "mood"
+    ],
+    "created_by": 0,
+    "is_public": true,
+    "usage_count": 3,
+    "created_at": 1780955875.9842875
+  }
+}

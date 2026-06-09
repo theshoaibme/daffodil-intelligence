@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Roboto+Flex:opsz,wght@8..144,400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Stitch Light System CSS variables with Google Sans & Hind Siliguri */
+  --color-primary: #213be7;
+  --color-on-primary: #ffffff;
+  --color-surface: #eeecfa;
+  --color-on-surface: #1a1b24;
+  --color-background: #fbf8ff;
+  --color-brand-outline: transparent;
+  --color-secondary: #4e58a2;
+  --color-error: #ba1a1a;
+  
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f4f2ff;
+  --color-surface-container: #eeecfa;
+  --color-surface-container-high: #e8e7f5;
+  --color-surface-container-highest: #e2e1ef;
+  --color-on-surface-variant: #444656;
+  --color-outline-variant: #c5c5d9;
+  --color-panel-bg: #e8e7f5;
+
+  /* Premium Google Sans & Bangla Hind Siliguri font stack */
+  --font-sans: 'Google Sans', 'Product Sans', 'Roboto Flex', 'Hind Siliguri', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  color-scheme: light;
+}
+
+.dark {
+  /* Professional Dark Design System CSS variables */
+  --color-primary: #4259ff;
+  --color-on-primary: #ffffff;
+  --color-surface: #161618;
+  --color-on-surface: #e5e2e1;
+  --color-background: #0E0E10;
+  --color-brand-outline: transparent;
+  --color-secondary: #3C4043;
+  --color-error: #ffb4ab;
+  
+  --color-surface-container-lowest: #0e0e0e;
+  --color-surface-container-low: #1c1b1b;
+  --color-surface-container: #201f1f;
+  --color-surface-container-high: #2a2a2a;
+  --color-surface-container-highest: #353434;
+  --color-on-surface-variant: #c4c7c8;
+  --color-outline-variant: #444746;
+  --color-panel-bg: #18191b;
+
+  /* Dark theme with Google Sans & Hind Siliguri stack */
+  --font-sans: 'Google Sans', 'Product Sans', 'Hanken Grotesk', 'Hind Siliguri', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  color-scheme: dark;
+}
+
+body, input, button, select, textarea {
+  font-family: var(--font-sans);
+}
+
+body {
+  @apply bg-background text-on-surface antialiased;
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Apple UI Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Dark mode Apple UI scrollbar overrides */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+@layer utilities {
+  .dot-pattern {
+    background-image: radial-gradient(var(--color-surface-container-highest) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  
+  .glass-panel {
+    background-color: color-mix(in srgb, var(--color-background) 70%, transparent);
+    @apply backdrop-blur-2xl;
+  }
+
+  .glass-gradient-panel {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-panel-bg) 85%, transparent), color-mix(in srgb, var(--color-background) 70%, transparent));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-surface-container-highest) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-surface-container-highest rounded-full;
+  }
+}
+

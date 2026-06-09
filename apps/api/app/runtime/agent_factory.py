@@ -1,0 +1,137 @@
+"""
+Agent Factory
+=============
+Builds configured Google Antigravity ``Agent`` instances for each persona used
+by Daffodil Intelligence (main orchestrator, computer-use, planning).
+
+The factory wires together:
+  - system instructions (``prompts.manager``)
+  - tools (``runtime.tool_adapter`` over the BaseTool registry)
+  - policies (``runtime.policies``)
+  - MCP servers (``mcp.servers`` when available)
+  - Gemini config (from settings.GEMINI_API_KEY)
+  - per-conversation persistence (conversation_id + save_dir)
+"""
+
+from __future__ import annotations
+
+import logging
+from enum import Enum
+from pathlib import Path
+from typing import Any, List, Optional
+
+from ..core.config import get_settings
+from ..prompts.manager import get_system_instructions
+from .tool_adapter import get_antigravity_tools
+from .policies import build_policies
+
+logger = logging.getLogger(__name__)
+settings = get_settings()
+
+try:
+    from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig, GeminiConfig
+    _ANTIGRAVITY_AVAILABLE = True
+except Exception as e:  # pragma: no cover - import guard
+    Agent = None  # type: ignore
+    LocalAgentConfig = None  # type: ignore
+    CapabilitiesConfig = None  # type: ignore
+    GeminiConfig = None  # type: ignore
+    _ANTIGRAVITY_AVAILABLE = False
+    logger.error(f"google-antigravity SDK unavailable: {e}")
+
+
+class AgentPersona(str, Enum):
+    MAIN = "main"
+    COMPUTER_USE = "computer_use"
+    PLANNING = "planning"
+
+
+# Tool categories available to each persona.
+_PERSONA_TOOL_CATEGORIES = {
+    AgentPersona.MAIN: None,  # all tools
+    AgentPersona.COMPUTER_USE: ["computer"],
+    AgentPersona.PLANNING: None,
+}
+
+
+def is_available() -> bool:
+    """Whether the Antigravity SDK and a Gemini key are both present."""
+    return _ANTIGRAVITY_AVAILABLE and bool(settings.GEMINI_API_KEY)
+
+
+def _get_mcp_servers() -> List[Any]:
+    """Best-effort load of MCP server configs for the agent to consume."""
+    try:
+        from ..mcp.servers import get_mcp_server_configs
+        return get_mcp_server_configs()
+    except Exception as e:
+        logger.debug(f"No MCP servers wired: {e}")
+        return []
+
+
+def get_save_dir() -> str:
+    """Return (creating if needed) the directory where conversations persist."""
+    base = Path(settings.ANTIGRAVITY_SAVE_DIR)
+    base.mkdir(parents=True, exist_ok=True)
+    return str(base)
+
+
+def build_agent(
+    persona: AgentPersona | str = AgentPersona.MAIN,
+    conversation_id: Optional[str] = None,
+    mode: Optional[str] = None,
+    lang: Optional[str] = None,
+    extra_system: Optional[str] = None,
+    enable_mcp: bool = True,
+):
+    """Construct (but do not start) an Antigravity ``Agent`` for a persona.
+
+    The returned object is an async context manager: use ``async with``.
+
+    Raises:
+        RuntimeError: if the SDK or GEMINI_API_KEY is unavailable.
+    """
+    if not _ANTIGRAVITY_AVAILABLE:
+        raise RuntimeError("google-antigravity SDK is not installed.")
+    if not settings.GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+    persona = AgentPersona(persona) if not isinstance(persona, AgentPersona) else persona
+
+    system_instructions = get_system_instructions(persona.value, mode=mode, lang=lang)
+    if extra_system:
+        system_instructions = f"{system_instructions}\n\n{extra_system}"
+
+    categories = _PERSONA_TOOL_CATEGORIES.get(persona)
+    tools = get_antigravity_tools(categories=categories)
+
+    policies = build_policies(persona.value)
+
+    mcp_servers = _get_mcp_servers() if enable_mcp else []
+
+    capabilities = CapabilitiesConfig(
+        enable_subagents=settings.ANTIGRAVITY_ENABLE_SUBAGENTS and persona != AgentPersona.COMPUTER_USE,
+    )
+
+    config_kwargs: dict[str, Any] = {
+        "system_instructions": system_instructions,
+        "capabilities": capabilities,
+        "tools": tools,
+        "policies": policies,
+        "gemini_config": GeminiConfig(api_key=settings.GEMINI_API_KEY),
+        "model": settings.ANTIGRAVITY_MODEL,
+        "save_dir": get_save_dir(),
+    }
+    if mcp_servers:
+        config_kwargs["mcp_servers"] = mcp_servers
+    # Only resume an EXISTING conversation; a fresh agent gets a new id assigned
+    # by the SDK (read back via agent.conversation_id afterwards).
+    if conversation_id:
+        config_kwargs["conversation_id"] = conversation_id
+
+    config = LocalAgentConfig(**config_kwargs)
+    logger.info(
+        f"Built Antigravity agent persona={persona.value} tools={len(tools)} "
+        f"policies={len(policies)} mcp={len(mcp_servers)} conv={conversation_id}"
+    )
+    return Agent(config)

@@ -1,0 +1,10 @@
+{
+  "name": "daffodil-messaging",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "run-script-os",
+    "dev:win32": "..\\..\\apps\\api\\.venv\\Scripts\\python app/main.py",
+    "dev:default": "../../apps/api/.venv/bin/python app/main.py"
+  }
+}

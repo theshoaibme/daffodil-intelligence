@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Install daffodil-kit</title>
+  <style>
+    :root { --primary: #4259ff; --surface: #f4f2ff; --text: #1a1b24; --muted: #444656; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: var(--text); line-height: 1.5; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    p.lead { color: var(--muted); margin-top: 0; }
+    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; }
+    .row { display: flex; gap: 0.5rem; align-items: stretch; margin: 0.5rem 0 1rem; }
+    pre {
+      flex: 1; margin: 0; padding: 0.75rem 1rem; background: var(--surface);
+      border-radius: 0.75rem; overflow-x: auto; font-size: 0.8125rem; white-space: pre-wrap; word-break: break-all;
+    }
+    button {
+      flex-shrink: 0; padding: 0 1rem; border: none; border-radius: 0.75rem;
+      background: var(--primary); color: #fff; font-weight: 500; cursor: pointer;
+    }
+    button:hover { filter: brightness(1.05); }
+    button.copied { background: #4e58a2; }
+    a { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <h1>Install daffodil-kit</h1>
+  <p class="lead">Latest from GitHub · auto-updates on <code>daffodil-kit start</code></p>
+
+  <h2>Unix · macOS · WSL · Git Bash</h2>
+  <div class="row">
+    <pre id="cmd-unix">curl -fsSL https://cdn.jsdelivr.net/gh/the-shoaib2/daffodil-intelligence/install | sh</pre>
+    <button type="button" data-copy="cmd-unix">Copy</button>
+  </div>
+
+  <h2>Windows PowerShell</h2>
+  <div class="row">
+    <pre id="cmd-win">irm https://cdn.jsdelivr.net/gh/the-shoaib2/daffodil-intelligence/install.ps1 | iex</pre>
+    <button type="button" data-copy="cmd-win">Copy</button>
+  </div>
+
+  <p><a href="INSTALL.md">Full install docs</a> · <a href="README.md">README</a></p>
+
+  <script>
+    document.querySelectorAll("[data-copy]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-copy");
+        const text = document.getElementById(id).textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+          const prev = btn.textContent;
+          btn.textContent = "Copied";
+          btn.classList.add("copied");
+          setTimeout(() => { btn.textContent = prev; btn.classList.remove("copied"); }, 2000);
+        } catch {
+          btn.textContent = "Select & ⌘C";
+        }
+      });
+    });
+  </script>
+</body>
+</html>

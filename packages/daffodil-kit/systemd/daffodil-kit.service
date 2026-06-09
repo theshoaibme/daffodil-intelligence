@@ -1,0 +1,14 @@
+[Unit]
+Description=Daffodil Kit Desktop Daemon
+After=network.target graphical.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/daffodil-kit start --host 127.0.0.1 --port 9477
+Restart=on-failure
+RestartSec=5
+User=%i
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=default.target

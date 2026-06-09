@@ -1,0 +1,10 @@
+{
+  "name": "daffodil-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "run-script-os",
+    "dev:win32": "..\\..\\apps\\api\\.venv\\Scripts\\python app/server.py --port 8002",
+    "dev:default": "../../apps/api/.venv/bin/python app/server.py --port 8002"
+  }
+}
