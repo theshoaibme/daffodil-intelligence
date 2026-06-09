@@ -1,5 +1,5 @@
 celery==5.3.6
 redis==5.0.1
 sqlalchemy==2.0.25
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 httpx==0.26.0
