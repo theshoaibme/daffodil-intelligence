@@ -50,6 +50,14 @@ services:
       timeout: 5s
       retries: 5
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: daffodil-mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
   adminer:
     image: adminer:latest
     container_name: daffodil-adminer
@@ -89,6 +97,10 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-daffodil123}
       MINIO_BUCKET: ${MINIO_BUCKET:-daffodil}
       MINIO_USE_SSL: "false"
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-noreply@daffodil.local}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

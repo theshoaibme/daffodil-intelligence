@@ -34,7 +34,7 @@ except Exception:  # pragma: no cover - import guard
 
 
 class StreamEvent(TypedDict, total=False):
-    type: Literal["content", "thinking", "tool"]
+    type: Literal["content", "thinking", "tool", "agent", "subagent", "context"]
     content: str
     name: str
     status: Literal["active", "success"]
@@ -110,6 +110,8 @@ class SessionManager:
         attachments: Optional[List[Any]] = None,
         lang: Optional[str] = None,
         extra_system: Optional[str] = None,
+        model: Optional[str] = None,
+        include_tools: Optional[List[str]] = None,
     ) -> dict:
         """Run one turn and return the full response.
 
@@ -119,7 +121,14 @@ class SessionManager:
         conv = self._index.get(key)
         prompt = _build_prompt(message, attachments)
 
-        agent = build_agent(persona=persona, conversation_id=conv, lang=lang, extra_system=extra_system)
+        agent = build_agent(
+            persona=persona,
+            conversation_id=conv,
+            lang=lang,
+            extra_system=extra_system,
+            model=model,
+            include_tools=include_tools,
+        )
         async with agent:
             response = await agent.chat(prompt)
             content = await response.text()
@@ -136,6 +145,7 @@ class SessionManager:
             "thoughts": [str(t) for t in thoughts],
             "persona": persona.value if isinstance(persona, AgentPersona) else str(persona),
             "conversation_id": new_conv,
+            "model_id": model,
         }
 
     async def stream(
@@ -147,13 +157,22 @@ class SessionManager:
         attachments: Optional[List[Any]] = None,
         lang: Optional[str] = None,
         extra_system: Optional[str] = None,
+        model: Optional[str] = None,
+        include_tools: Optional[List[str]] = None,
     ) -> AsyncIterator[StreamEvent]:
         """Run one turn and yield structured stream events as they arrive."""
         key = _key(user_id, chat_id)
         conv = self._index.get(key)
         prompt = _build_prompt(message, attachments)
 
-        agent = build_agent(persona=persona, conversation_id=conv, lang=lang, extra_system=extra_system)
+        agent = build_agent(
+            persona=persona,
+            conversation_id=conv,
+            lang=lang,
+            extra_system=extra_system,
+            model=model,
+            include_tools=include_tools,
+        )
         async with agent:
             response = await agent.chat(prompt)
             active_tools: List[str] = []
@@ -174,6 +193,13 @@ class SessionManager:
                 elif Thought is not None and isinstance(chunk, Thought):
                     if chunk.text:
                         yield {"type": "thinking", "content": chunk.text}
+                        if _is_subagent_thought(chunk.text):
+                            yield {
+                                "type": "subagent",
+                                "name": "delegated",
+                                "status": "active",
+                                "content": chunk.text[:200],
+                            }
                         await _maybe_store_subagent_thought(
                             chunk.text,
                             user_id=user_id,
@@ -211,6 +237,14 @@ async def _collect(response: Any, attr: str) -> List[Any]:
     return items
 
 
+_SUBAGENT_MARKERS = ("sub-agent", "subagent", "delegat", "spawn agent")
+
+
+def _is_subagent_thought(text: str) -> bool:
+    lower = (text or "").lower()
+    return any(m in lower for m in _SUBAGENT_MARKERS)
+
+
 async def _maybe_store_subagent_thought(
     text: str,
     *,
@@ -218,9 +252,7 @@ async def _maybe_store_subagent_thought(
     chat_id: Any,
 ) -> None:
     """Heuristic: capture sub-agent delegation thoughts as memories."""
-    lower = (text or "").lower()
-    markers = ("sub-agent", "subagent", "delegat", "spawn agent")
-    if not any(m in lower for m in markers):
+    if not _is_subagent_thought(text):
         return
     try:
         from ..memory import memory_service

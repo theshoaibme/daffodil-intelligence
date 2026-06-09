@@ -3,6 +3,7 @@ import {
   persistAuthSession,
   readStoredToken,
 } from "./authSession";
+import type { ChatContextUsage } from "./chatContext";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -124,10 +125,7 @@ export async function register(data: {
 }
 
 export async function sendRegisterOtp(data: {
-  first_name: string;
-  last_name: string;
   email: string;
-  password: string;
   accept_terms: boolean;
 }): Promise<{ message: string; email: string; dev_otp?: string }> {
   const res = await fetch(apiUrl("/api/auth/register/send-otp"), {
@@ -144,6 +142,22 @@ export async function verifyRegisterOtp(data: {
   code: string;
 }): Promise<{ message: string; email: string }> {
   const res = await fetch(apiUrl("/api/auth/register/verify-otp"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function completeRegister(data: {
+  email: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  role: "student" | "teacher" | "staff" | "manager";
+}): Promise<UserResponse> {
+  const res = await fetch(apiUrl("/api/auth/register/complete"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -241,6 +255,22 @@ export interface ChatResponse {
   agent_type: string;
 }
 
+export async function fetchChatContextUsage(
+  chatId: number,
+  draft = "",
+  modelId?: string
+): Promise<ChatContextUsage> {
+  const params = new URLSearchParams();
+  if (draft.trim()) params.set("draft", draft.trim());
+  if (modelId) params.set("model_id", modelId);
+  const qs = params.toString();
+  const res = await authFetch(
+    apiUrl(`/api/chats/${chatId}/context${qs ? `?${qs}` : ""}`)
+  );
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
 export async function createChat(agentType: string): Promise<ChatResponse> {
   const res = await authFetch(apiUrl("/api/chats/"), {
     method: "POST",
@@ -255,9 +285,19 @@ interface StreamResult {
   metadata?: Record<string, unknown>;
 }
 
+export interface StreamEvent {
+  type: "thinking" | "tool" | "agent" | "subagent" | "status" | "model";
+  content?: string;
+  name?: string;
+  status?: string;
+  agent_id?: string;
+}
+
 async function consumeSSEStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  onChunk?: (text: string) => void
+  onChunk?: (text: string) => void,
+  onContext?: (context: ChatContextUsage) => void,
+  onEvent?: (event: StreamEvent) => void
 ): Promise<StreamResult> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -281,11 +321,85 @@ async function consumeSSEStream(
 
       try {
         const parsed = JSON.parse(payload) as {
+          type?: string;
           content?: string;
           id?: number;
           role?: string;
           metadata?: Record<string, unknown>;
+          model_id?: string;
+          model_mode?: string;
+          model_routing?: string;
+          usage_ratio?: number;
+          used_tokens?: number;
+          max_tokens?: number;
+          usage_percent?: number;
+          breakdown?: ChatContextUsage["breakdown"];
+          message_count?: number;
+          name?: string;
+          status?: string;
+          agent_id?: string;
         };
+
+        if (parsed.type === "context" && parsed.usage_ratio != null) {
+          const ctx: ChatContextUsage = {
+            usage_ratio: parsed.usage_ratio,
+            used_tokens: parsed.used_tokens ?? 0,
+            max_tokens: parsed.max_tokens ?? 128_000,
+            usage_percent: parsed.usage_percent ?? 0,
+            breakdown: parsed.breakdown ?? {
+              messages: 0,
+              draft: 0,
+              memory_recall: 0,
+              system_overhead: 0,
+            },
+            message_count: parsed.message_count ?? 0,
+            model_id: parsed.model_id,
+          };
+          metadata = { ...metadata, context_usage: ctx };
+          onContext?.(ctx);
+          continue;
+        }
+
+        if (parsed.type === "model") {
+          metadata = {
+            ...metadata,
+            model_id: parsed.model_id,
+            model_mode: parsed.model_mode,
+            model_routing: parsed.model_routing,
+          };
+          onEvent?.({
+            type: "model",
+            content: parsed.model_id,
+            name: parsed.model_routing,
+          });
+          continue;
+        }
+
+        if (parsed.type === "status") {
+          if (parsed.content) onEvent?.({ type: "status", content: parsed.content });
+          continue;
+        }
+
+        if (parsed.type === "thinking") {
+          if (parsed.content) onEvent?.({ type: "thinking", content: parsed.content });
+          continue;
+        }
+
+        if (parsed.type === "tool") {
+          onEvent?.({ type: "tool", name: parsed.name, status: parsed.status });
+          continue;
+        }
+
+        if (parsed.type === "agent" || parsed.type === "subagent") {
+          onEvent?.({
+            type: parsed.type,
+            name: parsed.name,
+            status: parsed.status,
+            agent_id: parsed.agent_id,
+            content: parsed.content,
+          });
+          continue;
+        }
 
         if (typeof parsed.content !== "string") continue;
 
@@ -309,11 +423,19 @@ async function consumeSSEStream(
 export async function sendMessage(
   chatId: number,
   content: string,
-  onChunk?: (chunk: string) => void
+  onChunk?: (chunk: string) => void,
+  modelId?: string,
+  onContext?: (context: ChatContextUsage) => void,
+  metadata?: Record<string, unknown>,
+  onEvent?: (event: StreamEvent) => void
 ): Promise<{ content: string; metadata?: Record<string, unknown> }> {
   const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`), {
     method: "POST",
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({
+      content,
+      model_id: modelId,
+      metadata: metadata ?? {},
+    }),
   });
   if (!res.ok) throw new ApiError(await parseError(res), res.status);
 
@@ -321,7 +443,7 @@ export async function sendMessage(
   if (contentType.includes("text/event-stream") || contentType.includes("application/x-ndjson")) {
     const reader = res.body?.getReader();
     if (!reader) throw new Error("No response body");
-    return consumeSSEStream(reader, onChunk);
+    return consumeSSEStream(reader, onChunk, onContext, onEvent);
   }
 
   const data = await res.json();

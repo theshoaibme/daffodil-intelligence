@@ -126,6 +126,11 @@ class UniversityDataConnector:
             return result["internships"]
         return self._mock_internships(query)
     
+    async def get_class_routine(self, section: str = "64_I", day: str = None) -> Dict:
+        from ..automation.routines_data import get_section_routine
+
+        return get_section_routine(section, day)
+
     async def get_exam_schedule(self, student_id: str, semester: str = None) -> List[Dict]:
         params = {"semester": semester} if semester else None
         result = await self._call_api(

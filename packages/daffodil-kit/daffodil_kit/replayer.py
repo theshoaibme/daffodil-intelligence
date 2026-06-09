@@ -15,7 +15,7 @@ try:
     import pyautogui
     pyautogui.PAUSE = 0
     PYAUTOGUI_AVAILABLE = True
-except ImportError:
+except Exception:
     PYAUTOGUI_AVAILABLE = False
 
 

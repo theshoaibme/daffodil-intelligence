@@ -28,23 +28,31 @@ class BaseAgent(ABC):
     @property
     def llm(self):
         if self._llm is None:
-            if not settings.OPENAI_API_KEY:
-                raise ValueError("OPENAI_API_KEY is not set. Please configure it in .env")
-            
-            kwargs = {
-                "model": settings.OPENAI_MODEL_NAME or "gpt-4-turbo-preview",
-                "temperature": 0.7,
-                "api_key": settings.OPENAI_API_KEY
-            }
-            if settings.OPENAI_BASE_URL:
-                kwargs["base_url"] = settings.OPENAI_BASE_URL
-                
-            if "openrouter.ai" in (settings.OPENAI_BASE_URL or ""):
-                kwargs["default_headers"] = {
-                    "HTTP-Referer": "https://daffodil.edu",
-                    "X-Title": "Daffodil Intelligence",
+            if settings.GROQ_API_KEY:
+                kwargs = {
+                    "model": settings.GROQ_MODEL,
+                    "temperature": 0.7,
+                    "api_key": settings.GROQ_API_KEY,
+                    "base_url": settings.GROQ_BASE_URL,
                 }
-                
+            elif settings.OPENAI_API_KEY:
+                kwargs = {
+                    "model": settings.OPENAI_MODEL_NAME or "gpt-4-turbo-preview",
+                    "temperature": 0.7,
+                    "api_key": settings.OPENAI_API_KEY,
+                }
+                if settings.OPENAI_BASE_URL:
+                    kwargs["base_url"] = settings.OPENAI_BASE_URL
+                if "openrouter.ai" in (settings.OPENAI_BASE_URL or ""):
+                    kwargs["default_headers"] = {
+                        "HTTP-Referer": "https://daffodil.edu",
+                        "X-Title": "Daffodil Intelligence",
+                    }
+            else:
+                raise ValueError(
+                    "No LLM API key configured. Set GROQ_API_KEY or OPENAI_API_KEY in .env"
+                )
+
             self._llm = ChatOpenAI(**kwargs)
         return self._llm
 

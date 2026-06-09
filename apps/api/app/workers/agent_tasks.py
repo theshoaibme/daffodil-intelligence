@@ -1,27 +1,54 @@
-"""Agent background tasks — long-running agent work via Celery."""
+from .celery_app import celery_app
 import asyncio
 import logging
-from .celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
 
+@celery_app.task(bind=True, name="agent_tasks.send_university_reminders")
+def send_university_reminders(self):
+    """Hourly tick: due reminders + class routine Telegram notifications."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        from app.automation.scheduler_logic import run_automation_tick
+
+        result = loop.run_until_complete(run_automation_tick())
+        logger.info("Automation tick: %s", result)
+        return result
+    finally:
+        loop.close()
+
+
+@celery_app.task(bind=True, name="agent_tasks.run_automation_tick")
+def run_automation_tick_task(self):
+    """Minute tick: due reminders, recurring loops, and scheduled hooks."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        from app.automation.scheduler_logic import run_automation_tick
+
+        result = loop.run_until_complete(run_automation_tick())
+        logger.info("Automation minute tick: %s", result)
+        return result
+    finally:
+        loop.close()
+
+
 @celery_app.task(bind=True, name="agent_tasks.run_agent")
 def run_agent_task(self, agent_type: str, message: str, user_id: int, session_id: str):
-    """
-    Execute an agent task in the background.
-    Results are stored in Celery result backend and can be polled.
-    """
+    """Execute an agent task in the background."""
     self.update_state(state="RUNNING", meta={"agent": agent_type, "status": "processing"})
 
     try:
         from app.agents.supervisor import AGENT_MAP
+
         agent = AGENT_MAP.get(agent_type) or AGENT_MAP.get("general")
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(agent.process(message))
+            result = loop.run_until_complete(agent.process(message, {"user_id": user_id}))
         finally:
             loop.close()
 
@@ -45,6 +72,7 @@ def run_plan_task(self, goal: str, user_id: int):
 
     try:
         from app.agents.planning import PlanningAgent
+
         agent = PlanningAgent()
 
         loop = asyncio.new_event_loop()

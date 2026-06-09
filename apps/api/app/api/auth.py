@@ -1,3 +1,4 @@
+import logging
 import secrets
 from urllib.parse import urlencode
 
@@ -8,7 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import get_settings
-from ..core.google_oauth_urls import google_oauth_redirect_uri, new_web_oauth_state
+from ..core.google_oauth_urls import (
+    is_web_oauth_state,
+    new_web_oauth_state,
+    web_google_oauth_redirect_uri,
+)
 from ..core.web_registration import pending_registration_store
 from ..integrations.telegram.otp import otp_service
 from ..integrations.telegram.tokens import frontend_base
@@ -28,6 +33,7 @@ from ..schemas.user import (
     LoginRequest,
     OAuthRequest,
     RegisterOtpResponse,
+    RegisterCompleteRequest,
     RegisterSendOtpRequest,
     RegisterVerifyOtpRequest,
     Token,
@@ -37,6 +43,7 @@ from ..schemas.user import (
 )
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -86,7 +93,7 @@ def _oauth_token_response(user: User) -> dict:
 
 async def finish_web_google_oauth(code: str, db: AsyncSession) -> RedirectResponse:
     login_url = f"{frontend_base()}/login"
-    redirect_uri = google_oauth_redirect_uri()
+    redirect_uri = web_google_oauth_redirect_uri()
 
     try:
         user_info = await _fetch_google_user_info(code, redirect_uri)
@@ -124,14 +131,25 @@ async def _fetch_google_user_info(code: str, redirect_uri: str) -> dict:
             },
         )
         if token_resp.status_code != 200:
+            logger.error(
+                "Google token exchange failed (%s) redirect_uri=%s: %s",
+                token_resp.status_code,
+                redirect_uri,
+                token_resp.text[:500],
+            )
             raise HTTPException(status_code=400, detail="Invalid OAuth code")
 
         access_token = token_resp.json().get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Invalid OAuth code")
 
         user_resp = await client.get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
             headers={"Authorization": f"Bearer {access_token}"},
         )
+        if user_resp.status_code != 200:
+            logger.error("Google userinfo failed (%s): %s", user_resp.status_code, user_resp.text[:300])
+            raise HTTPException(status_code=400, detail="Invalid OAuth code")
         return user_resp.json()
 
 
@@ -143,7 +161,7 @@ async def google_oauth_config():
     return {
         "enabled": True,
         "client_id": client_id,
-        "redirect_uri": google_oauth_redirect_uri(),
+        "redirect_uri": web_google_oauth_redirect_uri(),
     }
 
 
@@ -153,7 +171,7 @@ async def google_oauth_start():
     if not client_id:
         raise HTTPException(status_code=503, detail="Google OAuth is not configured on the server")
 
-    redirect_uri = google_oauth_redirect_uri()
+    redirect_uri = web_google_oauth_redirect_uri()
     params = urlencode({
         "client_id": client_id,
         "redirect_uri": redirect_uri,
@@ -168,11 +186,17 @@ async def google_oauth_start():
 
 @router.get("/oauth/google/callback")
 async def google_oauth_callback(
+    state: str | None = Query(None),
     code: str | None = Query(None),
     error: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Legacy callback path — web sign-in uses /api/auth/telegram/google/callback."""
+    """OAuth callback for web (and Telegram when proxied through the same host)."""
+    if state and not is_web_oauth_state(state):
+        from .telegram_auth import google_callback
+
+        return await google_callback(state=state, code=code, error=error, db=db)
+
     login_url = f"{frontend_base()}/login"
 
     if error:
@@ -200,24 +224,21 @@ async def register_send_otp(data: RegisterSendOtpRequest, db: AsyncSession = Dep
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    pending_registration_store.set(
-        email,
-        first_name=data.first_name,
-        last_name=data.last_name,
-        password_hash=get_password_hash(data.password),
-    )
+    pending_registration_store.start_email(email, accept_terms=data.accept_terms)
 
     code = otp_service.generate(email)
-    sent, dev_hint = otp_service.send(email, code)
+    delivery = otp_service.deliver(email, code)
 
     response = RegisterOtpResponse(
         message="Verification code sent to your email",
         email=email,
     )
-    if not sent:
-        if settings.NODE_ENV == "development":
-            response.dev_otp = dev_hint or code
-            response.message = "Verification code generated (SMTP not configured — use dev_otp in development)"
+    if not delivery.sent:
+        if delivery.dev_code:
+            response.dev_otp = delivery.dev_code
+            response.message = (
+                "Verification code generated (email not configured — use dev_otp in development)"
+            )
         else:
             raise HTTPException(status_code=503, detail="Unable to send verification email. Try again later.")
 
@@ -233,30 +254,52 @@ async def register_verify_otp(data: RegisterVerifyOtpRequest, db: AsyncSession =
     if not otp_service.verify(email, data.code.strip()):
         raise HTTPException(status_code=400, detail="Invalid or expired verification code")
 
-    pending = pending_registration_store.pop(email)
-    if not pending:
+    if not pending_registration_store.mark_verified(email):
         raise HTTPException(status_code=400, detail="Registration session expired. Please start again.")
 
     result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    full_name = f"{pending.first_name} {pending.last_name}".strip()
+    return {
+        "message": "Email verified",
+        "email": email,
+    }
+
+
+@router.post("/register/complete", response_model=UserResponse)
+async def register_complete(data: RegisterCompleteRequest, db: AsyncSession = Depends(get_db)):
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    email = data.email.strip().lower()
+    pending = pending_registration_store.pop_verified(email)
+    if not pending:
+        raise HTTPException(
+            status_code=400,
+            detail="Email not verified or session expired. Start registration again.",
+        )
+    if not pending.accept_terms:
+        raise HTTPException(status_code=400, detail="You must accept the Terms of Service and Privacy Policy")
+
+    result = await db.execute(select(User).where(User.email == email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    first_name = data.first_name.strip()
+    last_name = data.last_name.strip()
+    full_name = f"{first_name} {last_name}".strip()
     user_obj = User(
         email=email,
-        password_hash=pending.password_hash,
+        password_hash=get_password_hash(data.password),
         full_name=full_name,
-        role="student",
+        role=data.role,
     )
     db.add(user_obj)
     await db.commit()
     await db.refresh(user_obj)
 
-    return {
-        "message": "Registration successful",
-        "email": email,
-        "user": UserResponse.model_validate(user_obj),
-    }
+    return UserResponse.model_validate(user_obj)
 
 
 @router.post("/register", response_model=UserResponse)

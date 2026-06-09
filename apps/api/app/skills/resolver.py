@@ -81,6 +81,14 @@ async def _resolve(repo: HubRepository, agent_id: Optional[str], user_id: Any) -
     ruleset_ids = _dedupe(ruleset_ids)
     skill_ids = _dedupe(skill_ids)
 
+    tool_names_acc: List[str] = []
+    if custom and custom.get("tool_names"):
+        tool_names_acc.extend(custom["tool_names"])
+    if effective_id == "routine":
+        from ..agents.routine import ROUTINE_TOOLS
+
+        tool_names_acc.extend(ROUTINE_TOOLS)
+
     uid = int(user_id or 0)
     for rs_id in ruleset_ids:
         rs = await repo.get_ruleset(rs_id)
@@ -102,13 +110,14 @@ async def _resolve(repo: HubRepository, agent_id: Optional[str], user_id: Any) -
         block = f"## Skill: {sk.name}\n{sk.content.strip()}"
         if sk.tool_names:
             block += "\n\nSuggested tools: " + ", ".join(f"`{t}`" for t in sk.tool_names)
+            tool_names_acc.extend(sk.tool_names)
         extra_parts.append(block)
 
     return RuntimeConfig(
         agent_id=effective_id,
         persona=persona,
         extra_system="\n\n".join(extra_parts).strip(),
-        tool_names=None,
+        tool_names=_dedupe(tool_names_acc) or None,
         skill_ids=skill_ids,
         ruleset_ids=ruleset_ids,
     )
@@ -148,6 +157,14 @@ def _resolve_sync(agent_id, user_id, skill_store, ruleset_store, global_config_s
     ruleset_ids = _dedupe(ruleset_ids)
     skill_ids = _dedupe(skill_ids)
 
+    tool_names_acc: List[str] = []
+    if custom and custom.get("tool_names"):
+        tool_names_acc.extend(custom["tool_names"])
+    if effective_id == "routine":
+        from ..agents.routine import ROUTINE_TOOLS
+
+        tool_names_acc.extend(ROUTINE_TOOLS)
+
     for rs_id in ruleset_ids:
         rs = ruleset_store.get(rs_id)
         if not rs:
@@ -168,13 +185,14 @@ def _resolve_sync(agent_id, user_id, skill_store, ruleset_store, global_config_s
         block = f"## Skill: {sk.name}\n{sk.content.strip()}"
         if sk.tool_names:
             block += "\n\nSuggested tools: " + ", ".join(f"`{t}`" for t in sk.tool_names)
+            tool_names_acc.extend(sk.tool_names)
         extra_parts.append(block)
 
     return RuntimeConfig(
         agent_id=effective_id,
         persona=persona,
         extra_system="\n\n".join(extra_parts).strip(),
-        tool_names=None,
+        tool_names=_dedupe(tool_names_acc) or None,
         skill_ids=skill_ids,
         ruleset_ids=ruleset_ids,
     )
@@ -214,6 +232,17 @@ def _resolve_agent_prompt(agent_id: str) -> str:
     return ""
 
 
+def _capability_tools(capabilities: Any) -> List[str]:
+    """Collect tool names declared on a custom agent's capabilities."""
+    tools: List[str] = []
+    for cap in capabilities or []:
+        cap_tools = cap.get("tools") if isinstance(cap, dict) else getattr(cap, "tools", None)
+        for t in cap_tools or []:
+            if t:
+                tools.append(str(t))
+    return tools
+
+
 async def _resolve_custom_agent(repo: HubRepository, agent_id: str) -> Optional[dict]:
     row = await repo.get_custom_agent(agent_id)
     if not row:
@@ -223,6 +252,7 @@ async def _resolve_custom_agent(repo: HubRepository, agent_id: str) -> Optional[
         "system_prompt": row.system_prompt,
         "ruleset_ids": ruleset_ids,
         "skill_ids": skill_ids,
+        "tool_names": _capability_tools(getattr(row, "capabilities", None)),
     }
 
 
@@ -237,6 +267,7 @@ def _resolve_custom_agent_sync(agent_id: str) -> Optional[dict]:
             "system_prompt": agent.system_prompt,
             "ruleset_ids": getattr(agent, "ruleset_ids", None) or [],
             "skill_ids": getattr(agent, "skill_ids", None) or [],
+            "tool_names": _capability_tools(getattr(agent, "capabilities", None)),
         }
     except Exception:
         return None

@@ -1,31 +1,31 @@
-import { useMemo, useState, useEffect, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ROUTES } from "../../../lib/routes";
+import { ROUTES } from "@lib";
 import type { SidebarProps } from "./types";
-import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "../../../lib/motion";
-import { useChatHistory } from "../../../context/ChatHistoryContext";
+import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "@lib";
+import { useChatHistory } from "@context";
 import { ChatHistoryItem } from "./ChatHistoryItem";
- 
+
 export type { SidebarProps } from "./types";
 export const SIDEBAR_WIDTH_EXPANDED = 280;
 export const SIDEBAR_WIDTH_COLLAPSED = 56;
- 
+
 const iconBtn =
   "shrink-0 p-2 rounded-full transition-colors cursor-pointer flex items-center justify-center border-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
- 
+
 const SIDEBAR_NAV = [
   { to: ROUTES.agentHub, label: "Agents", icon: LayoutGrid },
   { to: ROUTES.skills, label: "Skills", icon: Sparkles },
 ] as const;
- 
+
 function matchesSearch(item: { title: string }, query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
   return item.title.toLowerCase().includes(normalized);
 }
- 
+
 function SidebarNavLink({
   label,
   icon: Icon,
@@ -52,7 +52,7 @@ function SidebarNavLink({
     </button>
   );
 }
- 
+
 function RailButton({
   label,
   onClick,
@@ -80,7 +80,7 @@ function RailButton({
     </button>
   );
 }
- 
+
 export function Sidebar({
   sidebarOpen,
   setSidebarOpen,
@@ -96,65 +96,54 @@ export function Sidebar({
   const { histories } = useChatHistory();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
-  useEffect(() => {
-    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
- 
   const visibleHistories = useMemo(
     () => histories.filter((entry) => matchesSearch(entry, searchQuery)),
     [histories, searchQuery]
   );
- 
+
   const toggleSidebar = () => setSidebarOpen?.(!sidebarOpen);
-  
-  const widthClosed = isDesktop ? SIDEBAR_WIDTH_COLLAPSED : 0;
- 
+
   return (
     <motion.aside
-      initial={enterOrSkip(uiReady, { width: widthClosed })}
-      animate={{ width: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : widthClosed }}
+      initial={enterOrSkip(uiReady, { width: SIDEBAR_WIDTH_COLLAPSED })}
+      animate={{ width: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED }}
       transition={sidebarWidthTransition}
-      className="fixed lg:relative inset-y-0 lg:inset-auto left-0 z-50 lg:z-20 h-screen lg:h-full overflow-hidden bg-surface-container-low shadow-sm will-change-[width]"
+      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width]"
     >
       <div
         className="relative h-full"
         style={{ width: SIDEBAR_WIDTH_EXPANDED }}
       >
-        {/* Collapsed icon rail - Desktop only */}
-        {isDesktop && (
-          <motion.div
-            aria-hidden={sidebarOpen}
-            initial={false}
-            animate={{ opacity: sidebarOpen ? 0 : 1 }}
-            transition={{
-              ...sidebarPanelTransition,
-              delay: sidebarOpen ? 0 : 0.06,
-            }}
-            className={`absolute inset-y-0 left-0 flex w-[56px] flex-col items-center gap-2 py-4 ${
-              sidebarOpen ? "pointer-events-none" : "pointer-events-auto"
-            }`}
+        {/* Collapsed icon rail */}
+        <motion.div
+          aria-hidden={sidebarOpen}
+          initial={false}
+          animate={{ opacity: sidebarOpen ? 0 : 1 }}
+          transition={{
+            ...sidebarPanelTransition,
+            delay: sidebarOpen ? 0 : 0.06,
+          }}
+          className={`absolute inset-y-0 left-0 flex w-[56px] flex-col items-center gap-2 py-4 ${
+            sidebarOpen ? "pointer-events-none" : "pointer-events-auto"
+          }`}
+        >
+          <RailButton label="Expand sidebar" onClick={toggleSidebar}>
+            <Menu size={22} />
+          </RailButton>
+          <RailButton label="New agent" onClick={() => onNewChat?.()}>
+            <Plus size={22} />
+          </RailButton>
+          <div className="flex-1" />
+          <RailButton
+            label="Account settings"
+            active={location.pathname === ROUTES.account}
+            onClick={() => navigate(ROUTES.account)}
           >
-            <RailButton label="Expand sidebar" onClick={toggleSidebar}>
-              <Menu size={22} />
-            </RailButton>
-            <RailButton label="New chat" onClick={() => onNewChat?.()}>
-              <Plus size={22} />
-            </RailButton>
-            <div className="flex-1" />
-            <RailButton
-              label="Account settings"
-              active={location.pathname === ROUTES.account}
-              onClick={() => navigate(ROUTES.account)}
-            >
-              <Settings size={22} />
-            </RailButton>
-          </motion.div>
-        )}
- 
+            <Settings size={22} />
+          </RailButton>
+        </motion.div>
+
         {/* Expanded panel */}
         <motion.div
           aria-hidden={!sidebarOpen}
@@ -210,20 +199,20 @@ export function Sidebar({
           </nav>
 
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 pr-4">
-            <div className="mb-8">
+            <div className="mb-4">
               <button
                 type="button"
                 onClick={() => onNewChat?.()}
-                className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer bg-transparent"
+                className="w-full mb-2 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium text-on-surface-variant bg-surface-container-high/60 hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer border-0"
               >
-                <Plus size={16} />
-                New chat
+                <Plus size={15} />
+                New agent
               </button>
-              <h3 className="text-[11px] uppercase tracking-widest text-on-surface-variant font-bold mb-4 px-2">
+              <h3 className="text-xs text-on-surface-variant font-medium mb-2 px-2">
                 Chat history
               </h3>
               {visibleHistories.length > 0 ? (
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {visibleHistories.map((entry) => (
                     <ChatHistoryItem
                       key={entry.id}
@@ -231,10 +220,7 @@ export function Sidebar({
                       title={entry.title}
                       updatedAt={entry.updatedAt}
                       active={activeHistoryId === entry.id}
-                      onSelect={() => {
-                        onSelectHistory?.(entry.id);
-                        navigate(ROUTES.home);
-                      }}
+                      onSelect={() => onSelectHistory?.(entry.id)}
                       onDelete={() => onDeleteHistory?.(entry.id)}
                       onShare={() => onShareHistory?.(entry.id)}
                     />

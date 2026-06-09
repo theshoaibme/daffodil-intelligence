@@ -83,6 +83,8 @@ def build_agent(
     lang: Optional[str] = None,
     extra_system: Optional[str] = None,
     enable_mcp: bool = True,
+    model: Optional[str] = None,
+    include_tools: Optional[List[str]] = None,
 ):
     """Construct (but do not start) an Antigravity ``Agent`` for a persona.
 
@@ -103,7 +105,7 @@ def build_agent(
         system_instructions = f"{system_instructions}\n\n{extra_system}"
 
     categories = _PERSONA_TOOL_CATEGORIES.get(persona)
-    tools = get_antigravity_tools(categories=categories)
+    tools = get_antigravity_tools(categories=categories, include=include_tools)
 
     policies = build_policies(persona.value)
 
@@ -119,7 +121,7 @@ def build_agent(
         "tools": tools,
         "policies": policies,
         "gemini_config": GeminiConfig(api_key=settings.GEMINI_API_KEY),
-        "model": settings.ANTIGRAVITY_MODEL,
+        "model": model or settings.ANTIGRAVITY_MODEL,
         "save_dir": get_save_dir(),
     }
     if mcp_servers:
@@ -131,7 +133,8 @@ def build_agent(
 
     config = LocalAgentConfig(**config_kwargs)
     logger.info(
-        f"Built Antigravity agent persona={persona.value} tools={len(tools)} "
-        f"policies={len(policies)} mcp={len(mcp_servers)} conv={conversation_id}"
+        f"Built Antigravity agent persona={persona.value} model={config_kwargs['model']} "
+        f"tools={len(tools)}{'(filtered)' if include_tools else ''} policies={len(policies)} "
+        f"mcp={len(mcp_servers)} conv={conversation_id}"
     )
     return Agent(config)

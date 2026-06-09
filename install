@@ -1,5 +1,5 @@
 #!/bin/sh
-# CopyCat — curl -fsSL https://cdn.jsdelivr.net/gh/the-shoaib2/daffodil-intelligence/install | sh
+# CopyCat — curl -fsSL https://raw.githubusercontent.com/the-shoaib2/daffodil-intelligence/main/install | sh
 set -e
 R=${DAFFODIL_KIT_REPO:-the-shoaib2/daffodil-intelligence}
 V=${DAFFODIL_KIT_VERSION:-main}

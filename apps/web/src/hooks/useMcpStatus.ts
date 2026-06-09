@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { readLocalMcpServers } from "../lib/mcpConfig";
+import { readLocalMcpServers, saveLocalMcpServers, type LocalMcpServer } from "../lib/mcpConfig";
 
 export interface McpStatus {
   status: string;
@@ -38,6 +38,11 @@ export function useMcpStatus(pollMs = 8000) {
     setLocalServers(readLocalMcpServers());
   }, []);
 
+  const updateLocalServers = useCallback((servers: LocalMcpServer[]) => {
+    saveLocalMcpServers(servers);
+    setLocalServers(servers);
+  }, []);
+
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch(apiUrl("/api/system/mcp"));
@@ -68,5 +73,6 @@ export function useMcpStatus(pollMs = 8000) {
     isConfigured,
     refetch: fetchStatus,
     refreshLocal,
+    updateLocalServers,
   };
 }

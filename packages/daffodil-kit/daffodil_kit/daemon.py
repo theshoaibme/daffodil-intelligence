@@ -60,6 +60,7 @@ def _verify_signed(params: Dict[str, Any]) -> bool:
 
 
 async def _handle_method(method: str, params: Dict[str, Any]) -> Any:
+    global _stream_engine
     from .copycat_guard import check_method_allowed
     blocked = check_method_allowed(method, source=params.pop("_source", "user"))
     if blocked:
@@ -102,7 +103,6 @@ async def _handle_method(method: str, params: Dict[str, Any]) -> Any:
         return set_system_password(pw, params.get("label", "sudo"))
 
     if method == "stream.configure":
-        global _stream_engine
         from .stream_engine import AdaptiveStreamEngine, StreamConfig
         if _stream_engine is None:
             _stream_engine = AdaptiveStreamEngine(StreamConfig.from_dict(params.get("config")))
