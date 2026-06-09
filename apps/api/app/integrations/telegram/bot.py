@@ -322,6 +322,12 @@ class TelegramBot:
             return True
         return str(user_id) in {x.strip() for x in allow.split(",") if x.strip()}
 
+    def _is_admin(self, user_id: int) -> bool:
+        admins = (settings.TELEGRAM_ADMIN_USER_IDS or "").strip()
+        if not admins:
+            return False
+        return str(user_id) in {x.strip() for x in admins.split(",") if x.strip()}
+
     def _ready_for_sends(self) -> bool:
         return bool(self._started and self._app and self._app.bot)
 
@@ -930,6 +936,36 @@ class TelegramBot:
             from .handlers.automation import AutomationHandlers
 
             await AutomationHandlers(self).cmd_automation(update, ctx)
+            return
+        if quick == "agents" and self._is_authenticated(uid):
+            from .handlers.agents import AgentHandlers
+
+            await AgentHandlers(self).cmd_agents(update, ctx)
+            return
+        if quick == "skills" and self._is_authenticated(uid):
+            from .handlers.skills import SkillHandlers
+
+            await SkillHandlers(self).cmd_skills(update, ctx)
+            return
+        if quick == "automate" and self._is_authenticated(uid):
+            from .handlers.automation import AutomationHandlers
+
+            await AutomationHandlers(self).cmd_automate(update, ctx)
+            return
+        if quick == "tools" and self._is_authenticated(uid):
+            from .handlers.runtime import RuntimeHandlers
+
+            await RuntimeHandlers(self).cmd_tools(update, ctx)
+            return
+        if quick == "flow" and self._is_authenticated(uid):
+            from .handlers.runtime import RuntimeHandlers
+
+            await RuntimeHandlers(self).cmd_flow(update, ctx)
+            return
+        if quick == "logs" and self._is_authenticated(uid):
+            from .handlers.runtime import RuntimeHandlers
+
+            await RuntimeHandlers(self).cmd_logs(update, ctx)
             return
 
         if profile.step == STEP_AUTH_MENU:

@@ -10,18 +10,30 @@ class ListAgentsTool(BaseTool):
     name = "list_agents"
     description = (
         "List all specialized agents available to invoke (academic, routine, exam, "
-        "planning, library, etc.) with short descriptions."
+        "planning, library, etc.) plus any custom Agent Hub agents, with short descriptions."
     )
     category = "automation"
     parameters: list[ToolParameter] = []
 
     async def execute(self, **kwargs) -> ToolResult:
         from ...agents.registry import AGENT_MAP
+        from ...agents.builder import list_agents
 
         agents = [
-            {"id": key, "name": agent.name, "description": agent.description}
+            {"id": key, "name": agent.name, "description": agent.description, "kind": "builtin"}
             for key, agent in AGENT_MAP.items()
         ]
+        for custom in list_agents():
+            if custom.id in AGENT_MAP:
+                continue
+            agents.append(
+                {
+                    "id": custom.id,
+                    "name": custom.name,
+                    "description": custom.description,
+                    "kind": "custom",
+                }
+            )
         return self.ok({"agents": agents, "count": len(agents)})
 
 
@@ -57,22 +69,45 @@ class InvokeAgentTool(BaseTool):
         self, agent_type: str, message: str, user_id: str = None, **kwargs
     ) -> ToolResult:
         from ...agents.registry import AGENT_MAP
+        from ...agents.builder import get_agent
 
         key = (agent_type or "").strip().lower()
-        agent = AGENT_MAP.get(key)
-        if not agent:
-            available = ", ".join(sorted(AGENT_MAP.keys()))
-            return self.fail(f"Unknown agent '{agent_type}'. Available: {available}")
-
         uid = int(user_id) if user_id else get_user_id()
-        try:
-            response = await agent.process(message, {"user_id": uid})
-            return self.ok(
-                {
-                    "agent_type": key,
-                    "agent_name": agent.name,
-                    "response": response,
-                }
-            )
-        except Exception as e:
-            return self.fail(f"Agent '{key}' failed: {e}")
+
+        agent = AGENT_MAP.get(key)
+        if agent:
+            try:
+                response = await agent.process(message, {"user_id": uid})
+                return self.ok(
+                    {
+                        "agent_type": key,
+                        "agent_name": agent.name,
+                        "response": response,
+                    }
+                )
+            except Exception as e:
+                return self.fail(f"Agent '{key}' failed: {e}")
+
+        custom = get_agent(key)
+        if custom:
+            try:
+                from ...runtime.pipeline import run_turn
+
+                result = await run_turn(
+                    message,
+                    user_id=uid,
+                    chat_id=f"invoke-{uid}-{key}",
+                    agent_id=key,
+                )
+                return self.ok(
+                    {
+                        "agent_type": key,
+                        "agent_name": custom.name,
+                        "response": result.get("content", ""),
+                    }
+                )
+            except Exception as e:
+                return self.fail(f"Custom agent '{key}' failed: {e}")
+
+        available = ", ".join(sorted(AGENT_MAP.keys()))
+        return self.fail(f"Unknown agent '{agent_type}'. Available: {available}")

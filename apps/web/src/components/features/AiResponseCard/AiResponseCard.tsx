@@ -10,6 +10,8 @@ interface AiResponseCardProps {
   response?: string;
   isStreaming?: boolean;
   thinkingSteps?: ThinkingStep[];
+  thinkingText?: string;
+  thinkingMs?: number | null;
   isThinking?: boolean;
   onEdit?: () => void;
   error?: string | null;
@@ -21,76 +23,26 @@ export function AiResponseCard({
   response = "",
   isStreaming = false,
   thinkingSteps: externalSteps = [],
+  thinkingText = "",
+  thinkingMs = null,
   isThinking: externalIsThinking = false,
   onEdit,
   error,
   fillHeight = false,
 }: AiResponseCardProps) {
   const [thinkingExpanded, setThinkingExpanded] = useState(true);
-  
-  const [internalSteps, setInternalSteps] = useState<ThinkingStep[]>([]);
 
-  const steps = externalSteps.length > 0 ? externalSteps : internalSteps;
+  const steps = externalSteps;
   const hasContent = response.trim().length > 0;
   const isThinking = (externalIsThinking || isStreaming) && !hasContent;
 
   useEffect(() => {
-    setThinkingExpanded(false);
-    setInternalSteps([]);
-  }, [prompt, response]);
-
-  useEffect(() => {
-    if (!isStreaming) {
-      setThinkingExpanded(false);
-      setInternalSteps([]);
-    } else {
+    if (isStreaming) {
       setThinkingExpanded(true);
+    } else {
+      setThinkingExpanded(false);
     }
-  }, [isStreaming]);
-
-  useEffect(() => {
-    if (isStreaming && externalSteps.length === 0) {
-      setInternalSteps([
-        { id: "1", title: "Analyzing request", status: "active" },
-        { id: "2", title: "Generating response", status: "pending" },
-        { id: "3", title: "Finalizing", status: "pending" },
-      ]);
-
-      const timer1 = setTimeout(() => {
-        setInternalSteps((prev) =>
-          prev.map((s) =>
-            s.id === "1"
-              ? { ...s, status: "success" }
-              : s.id === "2"
-                ? { ...s, status: "active" }
-                : s
-          )
-        );
-      }, 1000);
-
-      const timer2 = setTimeout(() => {
-        setInternalSteps((prev) =>
-          prev.map((s) =>
-            s.id === "2"
-              ? { ...s, status: "success" }
-              : s.id === "3"
-                ? { ...s, status: "active" }
-                : s
-          )
-        );
-      }, 2000);
-
-      const timer3 = setTimeout(() => {
-        setInternalSteps((prev) => prev.map((s) => ({ ...s, status: "success" })));
-      }, 3000);
-
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-      };
-    }
-  }, [isStreaming, externalSteps.length]);
+  }, [isStreaming, prompt]);
 
   const parseResponse = (text: string): ResponseContentData => {
     if (!text) {
@@ -148,6 +100,8 @@ export function AiResponseCard({
         <ThinkingProcess
           isThinking={isThinking}
           steps={steps}
+          thinkingText={thinkingText}
+          thinkingMs={thinkingMs}
           isExpanded={thinkingExpanded}
           onToggleExpand={() => setThinkingExpanded(!thinkingExpanded)}
         />

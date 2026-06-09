@@ -195,6 +195,8 @@ function ChatDashboard() {
     messages,
     isStreaming,
     thinkingSteps,
+    thinkingText,
+    thinkingMs,
     error,
     lastContext,
     send,
@@ -487,6 +489,8 @@ function ChatDashboard() {
                   response={lastAssistantMessage?.content || ""}
                   isStreaming={isStreaming}
                   thinkingSteps={thinkingSteps}
+                  thinkingText={thinkingText}
+                  thinkingMs={thinkingMs}
                   onEdit={handleEdit}
                   error={error}
                 />
@@ -571,6 +575,8 @@ function ChatDashboard() {
                     response={lastAssistantMessage?.content || ""}
                     isStreaming={isStreaming}
                     thinkingSteps={thinkingSteps}
+                    thinkingText={thinkingText}
+                    thinkingMs={thinkingMs}
                     onEdit={handleEdit}
                     error={error}
                     fillHeight

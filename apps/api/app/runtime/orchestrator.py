@@ -38,6 +38,7 @@ async def run(
     agent_id: Optional[str] = None,
     extra_system: Optional[str] = None,
     model: Optional[str] = None,
+    include_tools: Optional[List[str]] = None,
 ) -> dict:
     """Run one turn and return {content, tool_calls/agents, engine}."""
     if extra_system is None and agent_id:
@@ -45,6 +46,8 @@ async def run(
         cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
         extra_system = cfg.extra_system or None
         persona = cfg.persona
+        if include_tools is None:
+            include_tools = cfg.tool_names
 
     if session_manager.available():
         try:
@@ -52,6 +55,7 @@ async def run(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
                 extra_system=extra_system, model=model,
+                include_tools=include_tools,
             )
             res["engine"] = "antigravity"
             return res
@@ -70,6 +74,7 @@ async def run_stream(
     agent_id: Optional[str] = None,
     extra_system: Optional[str] = None,
     model: Optional[str] = None,
+    include_tools: Optional[List[str]] = None,
 ) -> AsyncIterator[dict]:
     """Yield structured stream events for one turn (Antigravity, else legacy)."""
     if extra_system is None and agent_id:
@@ -77,6 +82,8 @@ async def run_stream(
         cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
         extra_system = cfg.extra_system or None
         persona = cfg.persona
+        if include_tools is None:
+            include_tools = cfg.tool_names
 
     if session_manager.available():
         try:
@@ -84,6 +91,7 @@ async def run_stream(
                 message, user_id=user_id, chat_id=chat_id,
                 persona=persona, attachments=attachments, lang=lang,
                 extra_system=extra_system, model=model,
+                include_tools=include_tools,
             ):
                 yield event
             return

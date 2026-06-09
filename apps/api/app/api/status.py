@@ -104,6 +104,14 @@ async def system_runtime():
     }
 
 
+@router.get("/api/system/flow")
+async def system_flow(limit: int = 20):
+    """Recent runtime turn traces across chats for the live agent-flow view."""
+    from ..runtime.trace import trace_recorder
+
+    return {"turns": trace_recorder.all_recent(limit=limit)}
+
+
 @router.get("/health", response_class=HTMLResponse)
 async def health_page(request: Request):
     now = datetime.now(timezone.utc)

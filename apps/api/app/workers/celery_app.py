@@ -48,6 +48,10 @@ def create_celery_app() -> Celery:
                 "task": "agent_tasks.send_university_reminders",
                 "schedule": crontab(minute=0),
             },
+            "automation-tick-minute": {
+                "task": "agent_tasks.run_automation_tick",
+                "schedule": 60.0,
+            },
         },
     )
 

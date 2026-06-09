@@ -20,6 +20,21 @@ def send_university_reminders(self):
         loop.close()
 
 
+@celery_app.task(bind=True, name="agent_tasks.run_automation_tick")
+def run_automation_tick_task(self):
+    """Minute tick: due reminders, recurring loops, and scheduled hooks."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        from app.automation.scheduler_logic import run_automation_tick
+
+        result = loop.run_until_complete(run_automation_tick())
+        logger.info("Automation minute tick: %s", result)
+        return result
+    finally:
+        loop.close()
+
+
 @celery_app.task(bind=True, name="agent_tasks.run_agent")
 def run_agent_task(self, agent_type: str, message: str, user_id: int, session_id: str):
     """Execute an agent task in the background."""

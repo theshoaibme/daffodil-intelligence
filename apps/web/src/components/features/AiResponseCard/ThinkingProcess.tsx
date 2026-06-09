@@ -12,6 +12,17 @@ interface ThinkingProcessProps {
   steps: ThinkingStep[];
   isExpanded: boolean;
   onToggleExpand: () => void;
+  thinkingText?: string;
+  thinkingMs?: number | null;
+}
+
+function formatDuration(ms?: number | null): string | null {
+  if (ms == null || ms <= 0) return null;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const mins = Math.floor(seconds / 60);
+  const rem = Math.round(seconds % 60);
+  return `${mins}m ${rem}s`;
 }
 
 export function ThinkingProcess({
@@ -19,9 +30,24 @@ export function ThinkingProcess({
   steps,
   isExpanded,
   onToggleExpand,
+  thinkingText = "",
+  thinkingMs = null,
 }: ThinkingProcessProps) {
-  if (!steps || steps.length === 0) {
+  const hasThinkingText = thinkingText.trim().length > 0;
+  if ((!steps || steps.length === 0) && !isThinking && !hasThinkingText) {
     return null;
+  }
+
+  const duration = formatDuration(thinkingMs);
+  const completedSteps = steps.filter((s) => s.status === "success").length;
+
+  let headerLabel: string;
+  if (isThinking) {
+    headerLabel = duration ? `Thinking ${duration}` : "Thinking...";
+  } else if (duration) {
+    headerLabel = `Thought for ${duration}`;
+  } else {
+    headerLabel = `Steps executed (${completedSteps})`;
   }
 
   return (
@@ -40,11 +66,7 @@ export function ThinkingProcess({
               <Check size={10} className="text-primary stroke-[3]" />
             </div>
           )}
-          <span>
-            {isThinking
-              ? "Thinking..."
-              : `Steps executed (${steps.filter((s) => s.status === "success").length})`}
-          </span>
+          <span>{headerLabel}</span>
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
@@ -91,29 +113,42 @@ export function ThinkingProcess({
                 />
               </span>
             </div>
-            <div className="flex flex-col gap-1.5">
-              {steps.map((step) => (
-                <div
-                  key={step.id}
-                  className={`flex items-center gap-2.5 p-2 rounded-xl transition-colors ${
-                    step.status === "active"
-                      ? "bg-primary/10 text-primary"
-                      : "text-on-surface-variant hover:bg-surface-container-high/60"
-                  }`}
-                >
-                  {step.status === "success" && (
-                    <Check size={13} className="text-primary stroke-[3.5] flex-shrink-0" />
-                  )}
-                  {step.status === "active" && (
-                    <Loader2 size={13} className="animate-spin text-primary flex-shrink-0" />
-                  )}
-                  {step.status === "pending" && (
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-outline-variant/40 flex-shrink-0" />
-                  )}
-                  <span className="text-xs font-medium leading-none">{step.title}</span>
-                </div>
-              ))}
-            </div>
+            {hasThinkingText && (
+              <p className="text-xs leading-relaxed text-on-surface-variant/70 whitespace-pre-wrap font-normal px-1 select-text">
+                {thinkingText}
+                {isThinking && (
+                  <span
+                    className="inline-block w-1.5 h-3 ml-0.5 bg-on-surface-variant/40 rounded-sm animate-pulse align-middle"
+                    aria-hidden
+                  />
+                )}
+              </p>
+            )}
+            {steps.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {steps.map((step) => (
+                  <div
+                    key={step.id}
+                    className={`flex items-center gap-2.5 p-2 rounded-xl transition-colors ${
+                      step.status === "active"
+                        ? "bg-primary/10 text-primary"
+                        : "text-on-surface-variant hover:bg-surface-container-high/60"
+                    }`}
+                  >
+                    {step.status === "success" && (
+                      <Check size={13} className="text-primary stroke-[3.5] flex-shrink-0" />
+                    )}
+                    {step.status === "active" && (
+                      <Loader2 size={13} className="animate-spin text-primary flex-shrink-0" />
+                    )}
+                    {step.status === "pending" && (
+                      <div className="w-3.5 h-3.5 rounded-full border-2 border-outline-variant/40 flex-shrink-0" />
+                    )}
+                    <span className="text-xs font-medium leading-none">{step.title}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

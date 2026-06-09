@@ -27,3 +27,11 @@ class HandlerBase:
             )
             return None
         return uid
+
+    def owner_id(self, telegram_id: int) -> int:
+        """Runtime owner id (linked web account id, else telegram id)."""
+        from ..auth_store import auth_store
+        from ..web_auth import resolve_runtime_user_id
+
+        account = auth_store.get_by_telegram_id(telegram_id)
+        return resolve_runtime_user_id(telegram_id, account)

@@ -6,6 +6,13 @@ from typing import TYPE_CHECKING, List
 
 from ....skills.store import skill_store
 from ..services.agents import format_automation_agents
+from ..services.automation_admin import (
+    create_hook_from_text,
+    create_loop_from_text,
+    delete_automation,
+    format_automations,
+    format_reminders,
+)
 from .base import HandlerBase
 
 if TYPE_CHECKING:
@@ -15,14 +22,48 @@ if TYPE_CHECKING:
 
 _AUTOMATION_HELP = (
     "*Automation*\n\n"
+    "/automate — list loops, hooks, reminders\n"
+    "/loop <minutes> | <prompt> — recurring prompt\n"
+    "/createhook <event> <action> | <text> — event trigger\n"
+    "/reminders — your reminders\n"
     "/automation skills — macros & workflow skills\n"
     "/automation agents — automation-focused agents\n"
-    "/copycat — record & replay desktop macros\n"
-    "/agent — switch chat agent"
+    "/copycat — record & replay desktop macros"
 )
 
 
 class AutomationHandlers(HandlerBase):
+    async def cmd_automate(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
+        uid = await self.require_auth(update)
+        if uid is None:
+            return
+        args = ctx.args or []
+        if args and args[0].lower() == "delete" and len(args) > 1:
+            ok, message = delete_automation(self.owner_id(uid), args[1])
+            await update.message.reply_text(message, parse_mode="Markdown")
+            return
+        await update.message.reply_text(format_automations(self.owner_id(uid)), parse_mode="Markdown")
+
+    async def cmd_loop(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
+        uid = await self.require_auth(update)
+        if uid is None:
+            return
+        raw = " ".join(ctx.args or [])
+        ok, message = create_loop_from_text(self.owner_id(uid), raw)
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    async def cmd_createhook(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
+        uid = await self.require_auth(update)
+        if uid is None:
+            return
+        ok, message = create_hook_from_text(self.owner_id(uid), list(ctx.args or []))
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    async def cmd_reminders(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
+        uid = await self.require_auth(update)
+        if uid is None:
+            return
+        await update.message.reply_text(format_reminders(self.owner_id(uid)), parse_mode="Markdown")
     async def cmd_automation(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
         uid = await self.require_auth(update)
         if uid is None:

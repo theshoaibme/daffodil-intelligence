@@ -66,6 +66,22 @@ async def get_messages(
     return result.scalars().all()
 
 
+@router.get("/{chat_id}/trace")
+async def get_chat_trace(
+    chat_id: int,
+    limit: int = 5,
+    user: dict = Depends(get_current_user),
+):
+    """Recent runtime turn traces (agent/tool/thinking flow) for this chat."""
+    from ..runtime.trace import trace_recorder
+
+    user_id = int(user.get("sub"))
+    return {
+        "chat_id": chat_id,
+        "turns": trace_recorder.recent(user_id=user_id, chat_id=chat_id, limit=limit),
+    }
+
+
 @router.get("/{chat_id}/context", response_model=ChatContextUsageResponse)
 async def get_chat_context_usage(
     chat_id: int,
@@ -168,6 +184,11 @@ async def add_message(
                     if status == "active" and tool_name not in tool_calls:
                         tool_calls.append(tool_name)
                     yield f'data: {json.dumps({"type": "tool", "name": tool_name, "status": status})}\n\n'
+                elif event_type == "agent":
+                    resolved_agent = event.get("agent_id", resolved_agent)
+                    yield f'data: {json.dumps({"type": "agent", "agent_id": event.get("agent_id"), "name": event.get("name"), "status": event.get("status", "active")})}\n\n'
+                elif event_type == "subagent":
+                    yield f'data: {json.dumps({"type": "subagent", "name": event.get("name", "delegated"), "status": event.get("status", "active"), "content": event.get("content", "")})}\n\n'
             if not full_response.strip():
                 result = await run_turn(
                     message.content,

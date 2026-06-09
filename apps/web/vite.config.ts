@@ -9,19 +9,22 @@ const __dirname = dirname(__filename)
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@lib': resolve(__dirname, './src/lib/index.ts'),
-      '@hooks': resolve(__dirname, './src/hooks/index.ts'),
-      '@context': resolve(__dirname, './src/context/index.ts'),
-      '@styles': resolve(__dirname, './src/styles/index.ts'),
-      '@ui': resolve(__dirname, './src/components/ui/index.ts'),
-      '@auth': resolve(__dirname, './src/components/auth'),
-      '@layout': resolve(__dirname, './src/components/layout'),
-      '@features': resolve(__dirname, './src/components/features'),
-      '@pages': resolve(__dirname, './src/pages'),
-      '@providers': resolve(__dirname, './src/providers'),
-      '@components': resolve(__dirname, './src/components')
-    }
+    alias: [
+      { find: /^@lib$/, replacement: resolve(__dirname, './src/lib/index.ts') },
+      { find: /^@hooks$/, replacement: resolve(__dirname, './src/hooks/index.ts') },
+      { find: /^@context$/, replacement: resolve(__dirname, './src/context/index.ts') },
+      { find: /^@styles$/, replacement: resolve(__dirname, './src/styles/index.ts') },
+      { find: /^@ui$/, replacement: resolve(__dirname, './src/components/ui/index.ts') },
+      { find: /^@pages$/, replacement: resolve(__dirname, './src/pages/index.ts') },
+      { find: /^@providers$/, replacement: resolve(__dirname, './src/providers/index.ts') },
+      { find: /^@auth$/, replacement: resolve(__dirname, './src/components/auth/index.ts') },
+      { find: /^@auth\//, replacement: resolve(__dirname, './src/components/auth') + '/' },
+      { find: /^@layout$/, replacement: resolve(__dirname, './src/components/layout/index.ts') },
+      { find: /^@layout\//, replacement: resolve(__dirname, './src/components/layout') + '/' },
+      { find: /^@features$/, replacement: resolve(__dirname, './src/components/features/index.ts') },
+      { find: /^@features\//, replacement: resolve(__dirname, './src/components/features') + '/' },
+      { find: /^@components\//, replacement: resolve(__dirname, './src/components') + '/' }
+    ]
   },
   server: {
     port: 3000,

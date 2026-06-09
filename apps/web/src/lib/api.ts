@@ -285,10 +285,19 @@ interface StreamResult {
   metadata?: Record<string, unknown>;
 }
 
+export interface StreamEvent {
+  type: "thinking" | "tool" | "agent" | "subagent";
+  content?: string;
+  name?: string;
+  status?: string;
+  agent_id?: string;
+}
+
 async function consumeSSEStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onChunk?: (text: string) => void,
-  onContext?: (context: ChatContextUsage) => void
+  onContext?: (context: ChatContextUsage) => void,
+  onEvent?: (event: StreamEvent) => void
 ): Promise<StreamResult> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -326,6 +335,9 @@ async function consumeSSEStream(
           usage_percent?: number;
           breakdown?: ChatContextUsage["breakdown"];
           message_count?: number;
+          name?: string;
+          status?: string;
+          agent_id?: string;
         };
 
         if (parsed.type === "context" && parsed.usage_ratio != null) {
@@ -358,6 +370,27 @@ async function consumeSSEStream(
           continue;
         }
 
+        if (parsed.type === "thinking") {
+          if (parsed.content) onEvent?.({ type: "thinking", content: parsed.content });
+          continue;
+        }
+
+        if (parsed.type === "tool") {
+          onEvent?.({ type: "tool", name: parsed.name, status: parsed.status });
+          continue;
+        }
+
+        if (parsed.type === "agent" || parsed.type === "subagent") {
+          onEvent?.({
+            type: parsed.type,
+            name: parsed.name,
+            status: parsed.status,
+            agent_id: parsed.agent_id,
+            content: parsed.content,
+          });
+          continue;
+        }
+
         if (typeof parsed.content !== "string") continue;
 
         if (parsed.id != null && parsed.role === "assistant") {
@@ -383,7 +416,8 @@ export async function sendMessage(
   onChunk?: (chunk: string) => void,
   modelId?: string,
   onContext?: (context: ChatContextUsage) => void,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  onEvent?: (event: StreamEvent) => void
 ): Promise<{ content: string; metadata?: Record<string, unknown> }> {
   const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`), {
     method: "POST",
@@ -399,7 +433,7 @@ export async function sendMessage(
   if (contentType.includes("text/event-stream") || contentType.includes("application/x-ndjson")) {
     const reader = res.body?.getReader();
     if (!reader) throw new Error("No response body");
-    return consumeSSEStream(reader, onChunk, onContext);
+    return consumeSSEStream(reader, onChunk, onContext, onEvent);
   }
 
   const data = await res.json();

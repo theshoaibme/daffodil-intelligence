@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from .routines_data import get_section_routine
-from .store import AutomationSubscription, ReminderRecord, automation_store
+from .store import automation_store
 from .telegram_notify import resolve_telegram_chat_id_for_user, send_telegram_message
 
 logger = logging.getLogger(__name__)
@@ -98,8 +98,126 @@ async def process_routine_subscriptions(now: Optional[datetime] = None) -> int:
     return sent
 
 
+async def _execute_action(
+    *,
+    user_id: int,
+    action: str,
+    payload: dict,
+    chat_id: str,
+    telegram_chat_id: Optional[int] = None,
+) -> Optional[str]:
+    """Resolve a hook/loop action into a message to deliver."""
+    text = (payload.get("text") or "").strip()
+    if action == "message":
+        return text or None
+    if action in ("prompt", "agent"):
+        from ..runtime.pipeline import run_turn
+
+        result = await run_turn(
+            text,
+            user_id=user_id,
+            chat_id=chat_id,
+            agent_id=payload.get("agent_id") or None,
+            metadata={"telegram_chat_id": telegram_chat_id} if telegram_chat_id else None,
+        )
+        return (result.get("content") or "").strip() or None
+    return None
+
+
+async def process_due_loops(now: Optional[datetime] = None) -> int:
+    now = now or datetime.utcnow()
+    sent = 0
+    for loop in automation_store.due_loops(now):
+        chat_id = await resolve_telegram_chat_id_for_user(loop.user_id)
+        if not chat_id:
+            continue
+        try:
+            content = await _execute_action(
+                user_id=loop.user_id,
+                action="prompt",
+                payload={"text": loop.prompt, "agent_id": loop.agent_id},
+                chat_id=f"loop-{loop.id}",
+                telegram_chat_id=chat_id,
+            )
+        except Exception as e:
+            logger.warning("Loop %s failed: %s", loop.id, e)
+            content = None
+        automation_store.mark_loop_run(loop.id, now)
+        if content and await send_telegram_message(chat_id, f"🔁 *{loop.name}*\n\n{content}"):
+            sent += 1
+    return sent
+
+
+async def process_scheduled_hooks(now: Optional[datetime] = None) -> int:
+    now = now or datetime.now()
+    sent = 0
+    for hook in automation_store.hooks_for_event("on_schedule"):
+        hour = hook.payload.get("hour")
+        if hour is None or int(hour) != now.hour or now.minute != 0:
+            continue
+        chat_id = await resolve_telegram_chat_id_for_user(hook.user_id)
+        if not chat_id:
+            continue
+        try:
+            content = await _execute_action(
+                user_id=hook.user_id,
+                action=hook.action,
+                payload=hook.payload,
+                chat_id=f"hook-{hook.id}",
+                telegram_chat_id=chat_id,
+            )
+        except Exception as e:
+            logger.warning("Scheduled hook %s failed: %s", hook.id, e)
+            content = None
+        automation_store.mark_hook_fired(hook.id)
+        if content and await send_telegram_message(chat_id, content):
+            sent += 1
+    return sent
+
+
+async def trigger_event_hooks(
+    event: str,
+    user_id: int,
+    *,
+    telegram_chat_id: Optional[int] = None,
+    keyword_text: Optional[str] = None,
+) -> int:
+    """Fire `on_login` / `on_keyword` hooks for a user (called from the bot)."""
+    fired = 0
+    for hook in automation_store.hooks_for_event(event, user_id=user_id):
+        if event == "on_keyword":
+            kw = (hook.payload.get("keyword") or "").strip().lower()
+            if not kw or kw not in (keyword_text or "").lower():
+                continue
+        chat_id = telegram_chat_id or await resolve_telegram_chat_id_for_user(user_id)
+        if not chat_id:
+            continue
+        try:
+            content = await _execute_action(
+                user_id=user_id,
+                action=hook.action,
+                payload=hook.payload,
+                chat_id=f"hook-{hook.id}",
+                telegram_chat_id=chat_id,
+            )
+        except Exception as e:
+            logger.warning("Event hook %s failed: %s", hook.id, e)
+            content = None
+        automation_store.mark_hook_fired(hook.id)
+        if content and await send_telegram_message(chat_id, content):
+            fired += 1
+    return fired
+
+
 async def run_automation_tick() -> dict:
     now = datetime.now()
     reminders = await process_due_reminders()
     routines = await process_routine_subscriptions(now)
-    return {"reminders_sent": reminders, "routine_messages_sent": routines}
+    loops = await process_due_loops(datetime.utcnow())
+    scheduled_hooks = await process_scheduled_hooks(now)
+    return {
+        "reminders_sent": reminders,
+        "routine_messages_sent": routines,
+        "loop_messages_sent": loops,
+        "scheduled_hooks_fired": scheduled_hooks,
+    }

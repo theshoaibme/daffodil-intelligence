@@ -26,13 +26,36 @@ GUEST_COMMANDS: List[tuple[str, str]] = [
     ("help", "Commands & how to use the bot"),
 ]
 
-# Signed-in users
+# Signed-in users (grouped by category for the / menu)
 AUTHENTICATED_COMMANDS: List[tuple[str, str]] = [
     ("start", "Welcome back"),
     ("help", "Commands & tips"),
-    ("agent", "List or switch chat agent"),
+    # Agents
+    ("agents", "List all agents"),
+    ("agent", "Switch chat agent"),
+    ("createagent", "Create a custom agent"),
+    ("editagent", "Edit a custom agent"),
+    ("deleteagent", "Delete a custom agent"),
+    ("createsubagent", "Create a sub-agent"),
+    ("agentinfo", "Agent details"),
+    # Skills
+    ("skills", "List skills"),
+    ("createskill", "Create a skill"),
+    ("editskill", "Edit a skill"),
+    ("deleteskill", "Delete a skill"),
+    ("agentskills", "Assign skills to an agent"),
+    # Automation
+    ("automate", "Loops, hooks & reminders"),
+    ("loop", "Recurring prompt"),
+    ("createhook", "Event trigger"),
+    ("reminders", "Your reminders"),
     ("copycat", "Desktop macro record & replay"),
-    ("automation", "Workflow skills & automation"),
+    # Runtime & observability
+    ("tools", "Available tools"),
+    ("mcp", "MCP status"),
+    ("flow", "Live agent/tool flow"),
+    ("logs", "Recent agent runs"),
+    # Account
     ("profile", "View your account"),
     ("logout", "Sign out on this device"),
 ]
@@ -53,23 +76,36 @@ def help_text(*, authenticated: bool) -> str:
         return (
             "*Daffodil Intelligence — commands*\n\n"
             "*Chat*\n"
-            "Send any message, photo, or voice note after sign-in.\n\n"
+            "Send any message, photo, or voice note. The active agent uses tools, "
+            "MCP, and memory automatically.\n\n"
             "*Agents*\n"
-            "/agent — list agents\n"
+            "/agents — list builtin + custom agents\n"
             "/agent \\<id\\> — switch (e.g. /agent coding)\n"
-            "/agent default — reset to workspace default\n\n"
-            "*CopyCat & automation*\n"
-            "/copycat — macro commands help\n"
-            "/copycat list — saved recordings\n"
-            "/copycat record \\[name\\] — start recording\n"
-            "/copycat stop — save recording\n"
-            "/copycat replay \\<name\\> \\[speed\\]\n"
-            "/automation — skills & workflow agents\n\n"
+            "/agent default — reset to workspace default\n"
+            "/agentinfo \\<id\\> — details\n"
+            "/createagent \\<name\\> | \\<desc\\> | \\<prompt\\>\n"
+            "/editagent \\<id\\> \\<name\\> | \\<desc\\> | \\<prompt\\>\n"
+            "/deleteagent \\<id\\>\n"
+            "/createsubagent \\<parent\\> \\<name\\> | \\<role\\>\n\n"
+            "*Skills*\n"
+            "/skills — list skills\n"
+            "/createskill \\<name\\> | \\<content\\> | tools\n"
+            "/editskill \\<id\\> … · /deleteskill \\<id\\>\n"
+            "/agentskills \\<agent\\> \\<skill...\\> — assign\n\n"
+            "*Automation*\n"
+            "/automate — loops, hooks, reminders\n"
+            "/loop \\<minutes\\> | \\<prompt\\> — recurring\n"
+            "/createhook \\<event\\> \\<action\\> | \\<text\\>\n"
+            "/reminders — your reminders\n"
+            "/copycat — desktop macros\n\n"
+            "*Runtime*\n"
+            "/tools — available tools\n"
+            "/mcp — MCP status\n"
+            "/flow — live agent/tool flow\n"
+            "/logs — recent agent runs\n"
+            "/shell \\<cmd\\> — admin only\n\n"
             "*Account*\n"
-            "/start — welcome back\n"
-            "/help — this message\n"
-            "/profile — your account\n"
-            "/logout — sign out on this device\n\n"
+            "/profile · /logout · /help\n\n"
             "_Tip: tap / below the message field to see these commands._"
         )
     return (
@@ -201,7 +237,13 @@ def parse_suggestion_text(text: str) -> Optional[str]:
         "start": "start",
         "recordings": "recordings",
         "agent": "agent",
+        "agents": "agents",
+        "skills": "skills",
         "copycat": "copycat",
         "automation": "automation",
+        "automate": "automate",
+        "tools": "tools",
+        "flow": "flow",
+        "logs": "logs",
     }
     return aliases.get(normalized)
