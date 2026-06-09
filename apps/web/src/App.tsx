@@ -213,6 +213,7 @@ function ChatDashboard() {
     syncActiveSession(chatId, messages);
   }, [chatId, messages, isStreaming, syncActiveSession]);
 
+  // Load session when the URL ?chat= changes (share links, browser back/forward).
   useEffect(() => {
     const chatParam = searchParams.get("chat");
     if (!chatParam || chatParam === activeHistoryId) return;
@@ -221,6 +222,7 @@ function ChatDashboard() {
     loadSession(session.chatId, session.messages);
   }, [searchParams, activeHistoryId, selectHistory, loadSession]);
 
+  // Keep ?chat= in sync with the active sidebar session (no searchParams in deps — avoids loops).
   useEffect(() => {
     const chatParam = searchParams.get("chat");
     if (activeHistoryId) {
@@ -246,7 +248,7 @@ function ChatDashboard() {
         { replace: true }
       );
     }
-  }, [activeHistoryId, searchParams, setSearchParams]);
+  }, [activeHistoryId, setSearchParams]);
 
   useEffect(() => {
     if (handledAgentsParam.current) return;
@@ -270,14 +272,6 @@ function ChatDashboard() {
   const handleSelectHistory = (id: string) => {
     const session = selectHistory(id);
     loadSession(session.chatId, session.messages);
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("chat", id);
-        return next;
-      },
-      { replace: true }
-    );
   };
 
   const handleNewChat = () => {
@@ -285,14 +279,6 @@ function ChatDashboard() {
     loadSession(session.chatId, session.messages);
     setPrompt("");
     setAgentViewOpen(false);
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("chat", session.sessionId);
-        return next;
-      },
-      { replace: true }
-    );
   };
 
   const handleDeleteHistory = (id: string) => {
@@ -301,14 +287,6 @@ function ChatDashboard() {
     if (wasActive) {
       loadSession(null, []);
       setPrompt("");
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete("chat");
-          return next;
-        },
-        { replace: true }
-      );
     }
   };
 

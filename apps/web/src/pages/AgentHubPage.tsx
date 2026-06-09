@@ -151,6 +151,7 @@ export function AgentHubPage() {
   const [agents, setAgents] = useState<AgentHubRecord[]>([]);
   const [skills, setSkills] = useState<SkillRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -167,8 +168,8 @@ export function AgentHubPage() {
     is_public: false,
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (options?: { background?: boolean }) => {
+    if (!options?.background) setLoading(true);
     try {
       const kind = tab === "custom" ? "custom" : undefined;
       const [agentData, skillData] = await Promise.all([
@@ -181,7 +182,7 @@ export function AgentHubPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load agents");
     } finally {
-      setLoading(false);
+      if (!options?.background) setLoading(false);
     }
   }, [tab, q]);
 
@@ -280,24 +281,34 @@ export function AgentHubPage() {
   const validCapabilities = form.capabilities.filter((c) => c.name.trim());
 
   async function createAgent() {
-    await hubApi.createAgent({
-      name: form.name.trim(),
-      description: form.description.trim(),
-      category: form.category,
-      system_prompt: form.system_prompt.trim(),
-      capabilities:
-        validCapabilities.length > 0
-          ? validCapabilities.map((c) => ({
-              name: c.name.trim(),
-              description: c.description.trim(),
-              tools: c.tools,
-            }))
-          : undefined,
-      is_public: form.is_public,
-    });
-    setDialogOpen(false);
-    resetForm();
-    await load();
+    setCreating(true);
+    try {
+      const created = await hubApi.createAgent({
+        name: form.name.trim(),
+        description: form.description.trim(),
+        category: form.category,
+        system_prompt: form.system_prompt.trim(),
+        capabilities:
+          validCapabilities.length > 0
+            ? validCapabilities.map((c) => ({
+                name: c.name.trim(),
+                description: c.description.trim(),
+                tools: c.tools,
+              }))
+            : undefined,
+        is_public: form.is_public,
+      });
+      setDialogOpen(false);
+      resetForm();
+      setAgents((prev) => [created, ...prev.filter((agent) => agent.id !== created.id)]);
+      if (tab === "custom") {
+        await load({ background: true });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create agent");
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function openDetail(agent: AgentHubRecord) {
@@ -649,10 +660,10 @@ export function AgentHubPage() {
                 <button
                   type="button"
                   onClick={() => createAgent().catch(console.error)}
-                  disabled={!canCreate}
+                  disabled={!canCreate || creating}
                   className="px-4 py-2 rounded-full text-sm bg-primary text-on-primary disabled:opacity-50"
                 >
-                  Create agent
+                  {creating ? "Creating…" : "Create agent"}
                 </button>
               )}
             </div>

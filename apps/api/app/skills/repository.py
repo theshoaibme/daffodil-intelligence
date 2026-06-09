@@ -38,6 +38,17 @@ def _skill_to_pydantic(row: hub_models.Skill) -> Skill:
     )
 
 
+def _is_custom_agent_uuid(agent_id: str) -> bool:
+    """Custom agents are stored with UUID primary keys; built-in slugs are not."""
+    if not agent_id:
+        return False
+    try:
+        uuid.UUID(str(agent_id))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
 def _ruleset_to_pydantic(row: hub_models.Ruleset) -> Ruleset:
     return Ruleset(
         id=str(row.id),
@@ -392,6 +403,8 @@ class HubRepository:
     # --- Custom agents ---
 
     async def get_custom_agent(self, agent_id: str):
+        if not _is_custom_agent_uuid(agent_id):
+            return None
         return await self.session.get(hub_models.CustomAgent, agent_id)
 
     async def list_custom_agents(
@@ -422,6 +435,8 @@ class HubRepository:
         return row
 
     async def update_custom_agent(self, agent_id: str, **fields):
+        if not _is_custom_agent_uuid(agent_id):
+            return None
         row = await self.session.get(hub_models.CustomAgent, agent_id)
         if not row:
             return None
@@ -433,6 +448,8 @@ class HubRepository:
         return row
 
     async def delete_custom_agent(self, agent_id: str) -> bool:
+        if not _is_custom_agent_uuid(agent_id):
+            return False
         row = await self.session.get(hub_models.CustomAgent, agent_id)
         if not row:
             return False
@@ -444,6 +461,8 @@ class HubRepository:
         return True
 
     async def increment_agent_usage(self, agent_id: str) -> Optional[int]:
+        if not _is_custom_agent_uuid(agent_id):
+            return None
         row = await self.session.get(hub_models.CustomAgent, agent_id)
         if not row:
             return None
@@ -452,6 +471,8 @@ class HubRepository:
         return row.usage_count
 
     async def rate_agent(self, agent_id: str, rating: float) -> Optional[float]:
+        if not _is_custom_agent_uuid(agent_id):
+            return None
         row = await self.session.get(hub_models.CustomAgent, agent_id)
         if not row:
             return None
