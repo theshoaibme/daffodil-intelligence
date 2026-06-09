@@ -17,6 +17,7 @@ from .security import (
     load_config,
     store_pairing,
 )
+from .updater import maybe_auto_update, reexec_cli, run_update
 
 
 def cmd_pair(args: argparse.Namespace) -> int:
@@ -44,7 +45,19 @@ def cmd_pair(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_update(args: argparse.Namespace) -> int:
+    result = run_update(force_check=True, quiet=args.quiet)
+    if not args.quiet:
+        print(result["message"])
+    msg = result["message"]
+    if msg.startswith("Could not") or "failed" in msg.lower():
+        return 1
+    return 0
+
+
 def cmd_start(args: argparse.Namespace) -> int:
+    if not args.no_update and maybe_auto_update():
+        reexec_cli()
     cfg = load_config()
     if not cfg.get("device_secret") and not args.dev:
         print("Not paired. Run: daffodil-kit pair --api URL --code CODE", file=sys.stderr)
@@ -100,7 +113,12 @@ def main() -> None:
     start_p.add_argument("--port", type=int, default=9477)
     start_p.add_argument("--dev", action="store_true", help="Allow unpaired dev mode")
     start_p.add_argument("--mode", choices=["cloud", "local"], default="cloud", help="cloud=connect to API, local=standalone WS")
+    start_p.add_argument("--no-update", action="store_true", help="Skip auto-update check")
     start_p.set_defaults(func=cmd_start)
+
+    update_p = sub.add_parser("update", help="Upgrade to latest release from GitHub")
+    update_p.add_argument("-q", "--quiet", action="store_true")
+    update_p.set_defaults(func=cmd_update)
 
     status_p = sub.add_parser("status", help="Show pairing status")
     status_p.set_defaults(func=cmd_status)

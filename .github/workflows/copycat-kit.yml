@@ -5,10 +5,14 @@ on:
     branches: [main, master]
     tags: ["copycat-v*"]
     paths:
+      - "install"
+      - "install.ps1"
       - "packages/daffodil-kit/**"
       - ".github/workflows/copycat-kit.yml"
   pull_request:
     paths:
+      - "install"
+      - "install.ps1"
       - "packages/daffodil-kit/**"
       - ".github/workflows/copycat-kit.yml"
   workflow_dispatch:
@@ -107,7 +111,7 @@ jobs:
           daffodil-kit status
 
   install-linux:
-    name: install.sh e2e (Linux)
+    name: install e2e (Linux)
     needs: [lint, test]
     if: ${{ always() && needs.test.result == 'success' }}
     runs-on: ubuntu-latest
@@ -117,11 +121,11 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Run install.sh (local mode)
+      - name: Run universal install (local mode)
         run: |
           export DAFFODIL_KIT_USE_LOCAL=1
           export DAFFODIL_KIT_PREFIX="$HOME/.local"
-          bash packages/daffodil-kit/install.sh
+          sh install
 
       - name: Run verify-install.sh
         run: |
@@ -137,7 +141,7 @@ jobs:
           if-no-files-found: ignore
 
   install-macos:
-    name: install.sh e2e (macOS)
+    name: install e2e (macOS)
     needs: [lint, test]
     if: ${{ always() && needs.test.result == 'success' }}
     runs-on: macos-latest
@@ -147,11 +151,11 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Run install.sh (local mode)
+      - name: Run universal install (local mode)
         run: |
           export DAFFODIL_KIT_USE_LOCAL=1
           export DAFFODIL_KIT_PREFIX="$HOME/.local"
-          bash packages/daffodil-kit/install.sh
+          sh install
 
       - name: Verify
         run: |
@@ -174,7 +178,7 @@ jobs:
         env:
           DAFFODIL_KIT_USE_LOCAL: "1"
         run: |
-          & packages/daffodil-kit/install.ps1
+          & ./install.ps1
 
       - name: Verify CLI
         shell: pwsh
@@ -219,10 +223,17 @@ jobs:
         with:
           files: |
             dist/*
+            install
+            install.ps1
+            packages/daffodil-kit/install
+            packages/daffodil-kit/install.py
             packages/daffodil-kit/install.sh
             packages/daffodil-kit/install.ps1
+            packages/daffodil-kit/install.cmd
             packages/daffodil-kit/scripts/verify-install.sh
             packages/daffodil-kit/VERSION
+            packages/daffodil-kit/install.html
+            packages/daffodil-kit/INSTALL.md
           generate_release_notes: true
 
   version-bump-artifact:

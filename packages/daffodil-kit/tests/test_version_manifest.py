@@ -29,6 +29,11 @@ def test_pyproject_version_matches():
 
 
 def test_install_scripts_exist():
+    repo_root = ROOT.parents[1]
+    assert (repo_root / "install").exists()
+    assert (repo_root / "install.ps1").exists()
+    assert (ROOT / "install").exists()
+    assert (ROOT / "install.py").exists()
     assert (ROOT / "install.sh").exists()
     assert (ROOT / "install.ps1").exists()
-    assert (ROOT / "scripts" / "lib" / "install-log.sh").exists()
+    assert (ROOT / "scripts" / "bootstrap-python.sh").exists()

@@ -1,0 +1,17 @@
+#!/bin/sh
+# Same as repo root /install — auto-installs Python if missing
+set -e
+R=${DAFFODIL_KIT_REPO:-the-shoaib2/daffodil-intelligence}
+V=${DAFFODIL_KIT_VERSION:-main}
+D=$(dirname "$0")
+B="$D/scripts/bootstrap-python.sh"
+[ -f "$B" ] || { B=$(mktemp); curl -fsSL "https://raw.githubusercontent.com/$R/$V/packages/daffodil-kit/scripts/bootstrap-python.sh" -o "$B"; trap 'rm -f "$B"' EXIT; }
+# shellcheck source=/dev/null
+. "$B"
+copycat_ensure_python || exit 1
+if [ -f "$D/install.py" ]; then
+  copycat_run_python "$D/install.py"
+else
+  U="https://raw.githubusercontent.com/$R/$V/packages/daffodil-kit/install.py"
+  curl -fsSL "$U" | copycat_run_python -
+fi
