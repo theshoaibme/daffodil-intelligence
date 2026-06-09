@@ -1,0 +1,333 @@
+import {
+  clearAuthSession,
+  persistAuthSession,
+  readStoredToken,
+} from "./authSession";
+
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
+function apiUrl(path: string): string {
+  const base = API_BASE.replace(/\/$/, "");
+  return `${base}${path}`;
+}
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+let unauthorizedHandler: (() => void) | null = null;
+
+export function registerUnauthorizedHandler(handler: () => void) {
+  unauthorizedHandler = handler;
+}
+
+export function getAuthHeaders(): HeadersInit {
+  const token = readStoredToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+async function parseError(res: Response): Promise<string> {
+  try {
+    const data = await res.json();
+    if (typeof data.detail === "string") return data.detail;
+    if (Array.isArray(data.detail)) {
+      const messages = data.detail.map((d: { msg?: string; loc?: (string | number)[] }) => {
+        const field = d.loc?.filter((part) => typeof part === "string" && part !== "body").pop();
+        const label = field === "semester" ? "Semester" : field;
+        const msg = d.msg ?? "";
+        if (label === "semester" && msg.includes("less than or equal")) {
+          return "Batch ID must be between 1 and 999.";
+        }
+        return label ? `${label}: ${msg}` : msg;
+      });
+      return messages.filter(Boolean).join(", ") || res.statusText;
+    }
+    return data.message || res.statusText;
+  } catch {
+    return res.statusText || "Request failed";
+  }
+}
+
+async function authFetch(
+  url: string,
+  init?: RequestInit,
+  notifyUnauthorized = true
+): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        ...getAuthHeaders(),
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new ApiError("Unable to reach the server. Check your connection.", 0);
+  }
+
+  if (notifyUnauthorized && (response.status === 401 || response.status === 403)) {
+    unauthorizedHandler?.();
+  }
+
+  return response;
+}
+
+export interface UserResponse {
+  id: number;
+  email: string;
+  full_name?: string | null;
+  role: string;
+  student_id?: string | null;
+  department?: string | null;
+  semester?: number | null;
+  avatar_url?: string | null;
+  created_at?: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+}
+
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const res = await fetch(apiUrl("/api/auth/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function register(data: {
+  email: string;
+  password: string;
+  full_name?: string;
+}): Promise<UserResponse> {
+  const res = await fetch(apiUrl("/api/auth/register"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function sendRegisterOtp(data: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+  accept_terms: boolean;
+}): Promise<{ message: string; email: string; dev_otp?: string }> {
+  const res = await fetch(apiUrl("/api/auth/register/send-otp"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function verifyRegisterOtp(data: {
+  email: string;
+  code: string;
+}): Promise<{ message: string; email: string }> {
+  const res = await fetch(apiUrl("/api/auth/register/verify-otp"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function refreshAccessToken(): Promise<LoginResponse> {
+  const res = await authFetch(apiUrl("/api/auth/refresh"), { method: "POST" }, false);
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  const data = (await res.json()) as LoginResponse;
+  persistAuthSession(data.access_token, null);
+  return data;
+}
+
+export async function fetchCurrentUser(): Promise<UserResponse> {
+  const res = await authFetch(apiUrl("/api/auth/me"), undefined, false);
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export interface UserUpdatePayload {
+  full_name?: string | null;
+  student_id?: string | null;
+  department?: string | null;
+  semester?: number | null;
+  avatar_url?: string | null;
+}
+
+export async function updateCurrentUser(data: UserUpdatePayload): Promise<UserResponse> {
+  const res = await authFetch(apiUrl("/api/auth/me"), {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function changePassword(payload: {
+  current_password: string;
+  new_password: string;
+}): Promise<{ message: string }> {
+  const res = await authFetch(apiUrl("/api/auth/account/password"), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export const DELETE_ACCOUNT_PHRASE = "Delete my account";
+
+export async function deleteAccount(payload: {
+  confirmation_phrase: string;
+}): Promise<{ message: string }> {
+  const res = await authFetch(apiUrl("/api/auth/account/delete"), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function fetchGoogleOAuthConfig(): Promise<{
+  enabled: boolean;
+  client_id: string | null;
+  redirect_uri?: string;
+}> {
+  const res = await fetch(apiUrl("/api/auth/oauth/google/config"));
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export function googleOAuthStartUrl(): string {
+  return apiUrl("/api/auth/oauth/google/start");
+}
+
+export async function exchangeGoogleCode(code: string, redirectUri: string): Promise<{
+  access_token: string;
+  user?: Record<string, unknown>;
+}> {
+  const res = await fetch(apiUrl("/api/auth/oauth/google"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, redirect_uri: redirectUri }),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export interface ChatResponse {
+  id: number;
+  title: string;
+  agent_type: string;
+}
+
+export async function createChat(agentType: string): Promise<ChatResponse> {
+  const res = await authFetch(apiUrl("/api/chats/"), {
+    method: "POST",
+    body: JSON.stringify({ title: "New Chat", agent_type: agentType }),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+interface StreamResult {
+  content: string;
+  metadata?: Record<string, unknown>;
+}
+
+async function consumeSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onChunk?: (text: string) => void
+): Promise<StreamResult> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullContent = "";
+  let metadata: Record<string, unknown> | undefined;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line.startsWith("data:")) continue;
+
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+
+      try {
+        const parsed = JSON.parse(payload) as {
+          content?: string;
+          id?: number;
+          role?: string;
+          metadata?: Record<string, unknown>;
+        };
+
+        if (typeof parsed.content !== "string") continue;
+
+        if (parsed.id != null && parsed.role === "assistant") {
+          fullContent = parsed.content;
+          metadata = parsed.metadata;
+          continue;
+        }
+
+        fullContent += parsed.content;
+        onChunk?.(parsed.content);
+      } catch {
+        // Ignore malformed SSE JSON lines.
+      }
+    }
+  }
+
+  return { content: fullContent, metadata };
+}
+
+export async function sendMessage(
+  chatId: number,
+  content: string,
+  onChunk?: (chunk: string) => void
+): Promise<{ content: string; metadata?: Record<string, unknown> }> {
+  const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`), {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("text/event-stream") || contentType.includes("application/x-ndjson")) {
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No response body");
+    return consumeSSEStream(reader, onChunk);
+  }
+
+  const data = await res.json();
+  const text = data.response ?? data.content ?? "";
+  onChunk?.(text);
+  return { content: text, metadata: data.metadata };
+}
+
+export { clearAuthSession };
