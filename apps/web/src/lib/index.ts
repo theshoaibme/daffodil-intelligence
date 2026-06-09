@@ -7,6 +7,7 @@ export * from "./chatStorage";
 export * from "./formStyles";
 export * from "./hubApi";
 export * from "./mcpConfig";
+export * from "./mcpApi";
 export * from "./memoryApi";
 export * from "./models";
 export * from "./motion";

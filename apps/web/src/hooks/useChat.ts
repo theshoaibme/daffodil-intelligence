@@ -305,6 +305,28 @@ export function useChat(options?: UseChatOptions) {
     loadSession(null, []);
   }, [loadSession]);
 
+  const truncateFromMessage = useCallback(
+    (messageId: string) => {
+      sendGenerationRef.current += 1;
+      stopThinkingTimer();
+      resetFlow();
+      thinkingStartRef.current = null;
+      setThinkingSteps([]);
+      setThinkingText("");
+      setThinkingMs(null);
+      setCurrentStreamingContent("");
+      setError(null);
+      setIsLoading(false);
+      setIsStreaming(false);
+      setMessages((prev) => {
+        const index = prev.findIndex((message) => message.id === messageId);
+        if (index < 0) return prev;
+        return prev.slice(0, index);
+      });
+    },
+    [stopThinkingTimer]
+  );
+
   return {
     chatId,
     messages,
@@ -320,5 +342,6 @@ export function useChat(options?: UseChatOptions) {
     clearChat,
     loadSession,
     initializeChat,
+    truncateFromMessage,
   };
 }

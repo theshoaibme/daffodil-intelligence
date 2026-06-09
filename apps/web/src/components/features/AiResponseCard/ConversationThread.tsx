@@ -6,6 +6,7 @@ import { ThinkingProcess } from "./ThinkingProcess";
 import { ResponseContent } from "./ResponseContent";
 import { parseResponseText } from "./responseParse";
 import { ActionButtons } from "./ActionButtons";
+import { UserMessageRow } from "./UserMessageRow";
 
 export interface ConversationThreadProps {
   messages: ChatMessage[];
@@ -19,6 +20,7 @@ export interface ConversationThreadProps {
   onSidePanel?: () => void;
   showSidePanelFooter?: boolean;
   autoScroll?: boolean;
+  onEditUserMessage?: (messageId: string, content: string) => void;
 }
 
 export function ConversationThread({
@@ -33,6 +35,7 @@ export function ConversationThread({
   onSidePanel,
   showSidePanelFooter = false,
   autoScroll = true,
+  onEditUserMessage,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isPanel = variant === "panel";
@@ -70,17 +73,17 @@ export function ConversationThread({
 
             if (isUser) {
               return (
-                <div key={message.id} className="flex justify-end w-full">
-                  <div
-                    className={`rounded-3xl chat-bubble-user px-3 py-2 sm:px-3.5 sm:py-2.5 ${
-                      isPanel ? "max-w-[92%]" : "max-w-[88%] sm:max-w-[78%]"
-                    }`}
-                  >
-                    <p className="text-sm text-on-surface whitespace-pre-wrap break-words leading-relaxed">
-                      {message.content}
-                    </p>
-                  </div>
-                </div>
+                <UserMessageRow
+                  key={message.id}
+                  content={message.content}
+                  isPanel={isPanel}
+                  disabled={isStreaming}
+                  onEdit={
+                    onEditUserMessage
+                      ? () => onEditUserMessage(message.id, message.content)
+                      : undefined
+                  }
+                />
               );
             }
 

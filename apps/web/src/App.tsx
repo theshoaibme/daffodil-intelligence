@@ -13,6 +13,7 @@ import {
   hubApi,
   modeSpring,
   overlayFade,
+  readLocalMcpServers,
   ROUTES,
   sidebarWidthTransition,
 } from "@lib";
@@ -209,6 +210,7 @@ function ChatDashboard() {
     lastContext,
     send,
     loadSession,
+    truncateFromMessage,
   } = useChat({
     initialChatId: initialSession?.chatId ?? null,
     initialMessages: initialSession?.messages ?? [],
@@ -373,6 +375,15 @@ function ChatDashboard() {
       selected_tools: selectedTools,
       section: "64_I",
     };
+    if (selectedTools.includes("MCP")) {
+      const mcpServers = readLocalMcpServers();
+      if (mcpServers.length > 0) {
+        chatMetadata.mcp_servers = mcpServers.map((server) => ({
+          name: server.name,
+          command: server.command,
+        }));
+      }
+    }
     if (user?.student_id) {
       chatMetadata.student_id = user.student_id;
     }
@@ -383,6 +394,15 @@ function ChatDashboard() {
 
   const handleSend = (modelId: string) => {
     sendPrompt(prompt, modelId);
+  };
+
+  const handleEditUserMessage = (messageId: string, content: string) => {
+    truncateFromMessage(messageId);
+    setPrompt(content);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(content.length, content.length);
+    }, 50);
   };
 
   const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
@@ -498,6 +518,7 @@ function ChatDashboard() {
                     thinkingMs={thinkingMs}
                     error={error}
                     onClose={() => setPreferSidePanel(true)}
+                    onEditUserMessage={handleEditUserMessage}
                   />
                 </div>
               </motion.div>
@@ -516,6 +537,7 @@ function ChatDashboard() {
                   thinkingMs={thinkingMs}
                   error={error}
                   onFullView={() => setPreferSidePanel(false)}
+                  onEditUserMessage={handleEditUserMessage}
                 />
               </div>
             </div>
@@ -602,6 +624,7 @@ function ChatDashboard() {
                     error={error}
                     fillHeight
                     onFullView={() => setPreferSidePanel(false)}
+                    onEditUserMessage={handleEditUserMessage}
                   />
                 </motion.div>
               )}

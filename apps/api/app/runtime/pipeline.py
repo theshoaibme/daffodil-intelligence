@@ -49,6 +49,29 @@ def _apply_mode_system(
     return mode_block
 
 
+def _resolve_turn_mcp_specs(metadata: Optional[dict]):
+    from ..mcp.builder import McpBuilder
+
+    meta = metadata or {}
+    raw_servers = meta.get("mcp_servers")
+    if not isinstance(raw_servers, list):
+        return None
+
+    specs = []
+    for entry in raw_servers:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()
+        command = str(entry.get("command") or "").strip()
+        if not name or not command:
+            continue
+        try:
+            specs.append(McpBuilder.from_name_command(name, command))
+        except ValueError:
+            continue
+    return specs or None
+
+
 def _apply_turn_context(
     *,
     user_id: Any,
@@ -62,6 +85,7 @@ def _apply_turn_context(
         section=meta.get("section") or "64_I",
         selected_tools=meta.get("selected_tools") or [],
         telegram_chat_id=int(telegram_chat_id) if telegram_chat_id else None,
+        mcp_specs=_resolve_turn_mcp_specs(meta),
     )
 
 

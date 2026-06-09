@@ -58,11 +58,16 @@ export function PromptBar({
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
   const {
     status: mcpStatus,
+    detail: mcpDetail,
     loading: mcpLoading,
+    syncing: mcpSyncing,
     localServers,
     isConfigured: mcpConfigured,
     updateLocalServers,
     refetch: refetchMcpStatus,
+    validateServer,
+    testServer,
+    testSelf,
   } = useMcpStatus();
 
   const promptBarInner = (
@@ -116,10 +121,15 @@ export function PromptBar({
         open={mcpDialogOpen}
         onClose={() => setMcpDialogOpen(false)}
         status={mcpStatus}
+        detail={mcpDetail}
         localServers={localServers}
         onLocalServersChange={updateLocalServers}
         onRefreshStatus={refetchMcpStatus}
         loading={mcpLoading}
+        syncing={mcpSyncing}
+        onValidateServer={validateServer}
+        onTestServer={testServer}
+        onTestSelf={testSelf}
       />
       {embedded ? (
         <motion.div

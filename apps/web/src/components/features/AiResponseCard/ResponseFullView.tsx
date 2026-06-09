@@ -11,6 +11,7 @@ interface ResponseFullViewProps {
   thinkingMs?: number | null;
   error?: string | null;
   onClose?: () => void;
+  onEditUserMessage?: (messageId: string, content: string) => void;
 }
 
 /** Center-column conversation (ChatGPT-style) — lives in the main stage, not a modal. */
@@ -22,6 +23,7 @@ export function ResponseFullView({
   thinkingMs = null,
   error = null,
   onClose,
+  onEditUserMessage,
 }: ResponseFullViewProps) {
   useEffect(() => {
     if (!onClose) return;
@@ -44,6 +46,7 @@ export function ResponseFullView({
         variant="center"
         showSidePanelFooter={Boolean(onClose)}
         onSidePanel={onClose}
+        onEditUserMessage={onEditUserMessage}
       />
     </div>
   );

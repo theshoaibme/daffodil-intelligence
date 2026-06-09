@@ -12,6 +12,7 @@ interface AiResponseCardProps {
   error?: string | null;
   fillHeight?: boolean;
   onFullView?: () => void;
+  onEditUserMessage?: (messageId: string, content: string) => void;
 }
 
 export function AiResponseCard({
@@ -23,6 +24,7 @@ export function AiResponseCard({
   error,
   fillHeight = false,
   onFullView,
+  onEditUserMessage,
 }: AiResponseCardProps) {
   const hasMessages = messages.length > 0;
 
@@ -50,6 +52,7 @@ export function AiResponseCard({
           error={error}
           variant="panel"
           onFullView={onFullView}
+          onEditUserMessage={onEditUserMessage}
         />
       )}
     </div>

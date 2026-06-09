@@ -66,7 +66,16 @@ def _get_mcp_servers() -> List[Any]:
     """Best-effort load of MCP server configs for the agent to consume."""
     try:
         from ..mcp.servers import get_mcp_server_configs
-        return get_mcp_server_configs()
+        from ..mcp.user_store import get_user_specs
+        from .tool_context import get_selected_tools, get_turn_mcp_specs, get_user_id
+
+        selected = get_selected_tools()
+        if selected and "MCP" not in selected:
+            return []
+
+        turn_specs = get_turn_mcp_specs()
+        extra = turn_specs or get_user_specs(get_user_id())
+        return get_mcp_server_configs(extra_specs=extra or None)
     except Exception as e:
         logger.debug(f"No MCP servers wired: {e}")
         return []

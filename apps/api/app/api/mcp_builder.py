@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
+from ..core.security import decode_token
 from ..mcp.builder import McpBuilder, McpProbe, get_local_tool_catalog, mcp_sdk_available
 from ..mcp.protocol import McpServerSpec, McpServerTestResult, McpStatusDetail, McpValidationResult
+from ..mcp.user_store import get_user_server_entries, set_user_server_entries
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
+security = HTTPBearer(auto_error=False)
 
 
 class ParseEntryRequest(BaseModel):
@@ -26,6 +32,27 @@ class TestServerRequest(BaseModel):
     entry: str | None = None
     test_self: bool = False
     timeout_seconds: float = Field(default=20.0, ge=3.0, le=60.0)
+
+
+class UserMcpServerEntry(BaseModel):
+    name: str
+    command: str
+
+
+class UserMcpServersRequest(BaseModel):
+    servers: list[UserMcpServerEntry] = Field(default_factory=list)
+
+
+async def get_optional_user_id(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> int:
+    if not credentials:
+        return 0
+    try:
+        payload = decode_token(credentials.credentials)
+        return int(payload.get("sub") or payload.get("user_id") or 0)
+    except HTTPException:
+        return 0
 
 
 @router.get("/status", response_model=McpStatusDetail)
@@ -93,3 +120,23 @@ async def mcp_test_server(body: TestServerRequest):
         )
 
     return await McpProbe.test_stdio(spec, timeout_seconds=body.timeout_seconds)
+
+
+@router.get("/user-servers")
+async def mcp_get_user_servers(user_id: int = Depends(get_optional_user_id)):
+    """MCP servers saved from the web UI for this user/session."""
+    entries = get_user_server_entries(user_id)
+    return {"count": len(entries), "servers": entries}
+
+
+@router.put("/user-servers")
+async def mcp_put_user_servers(
+    body: UserMcpServersRequest,
+    user_id: int = Depends(get_optional_user_id),
+):
+    """Replace saved MCP servers for this user/session."""
+    saved = set_user_server_entries(
+        user_id,
+        [entry.model_dump() for entry in body.servers],
+    )
+    return {"count": len(saved), "servers": saved}

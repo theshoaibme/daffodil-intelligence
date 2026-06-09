@@ -5,11 +5,14 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import Any, Dict, List, Optional
 
+from ..mcp.protocol import McpServerSpec
+
 _user_id: ContextVar[Optional[int]] = ContextVar("tool_user_id", default=None)
 _student_id: ContextVar[Optional[str]] = ContextVar("tool_student_id", default=None)
 _section: ContextVar[Optional[str]] = ContextVar("tool_section", default=None)
 _selected_tools: ContextVar[List[str]] = ContextVar("tool_selected_tools", default=[])
 _telegram_chat_id: ContextVar[Optional[int]] = ContextVar("tool_telegram_chat_id", default=None)
+_turn_mcp_specs: ContextVar[List[McpServerSpec]] = ContextVar("tool_turn_mcp_specs", default=[])
 
 
 def set_turn_context(
@@ -19,6 +22,7 @@ def set_turn_context(
     section: Optional[str] = None,
     selected_tools: Optional[List[str]] = None,
     telegram_chat_id: Optional[int] = None,
+    mcp_specs: Optional[List[McpServerSpec]] = None,
 ) -> None:
     if user_id is not None:
         _user_id.set(int(user_id))
@@ -30,6 +34,8 @@ def set_turn_context(
         _selected_tools.set(list(selected_tools))
     if telegram_chat_id is not None:
         _telegram_chat_id.set(int(telegram_chat_id))
+    if mcp_specs is not None:
+        _turn_mcp_specs.set(list(mcp_specs))
 
 
 def clear_turn_context() -> None:
@@ -38,6 +44,11 @@ def clear_turn_context() -> None:
     _section.set(None)
     _selected_tools.set([])
     _telegram_chat_id.set(None)
+    _turn_mcp_specs.set([])
+
+
+def get_turn_mcp_specs() -> List[McpServerSpec]:
+    return list(_turn_mcp_specs.get() or [])
 
 
 def get_user_id(default: int = 0) -> int:
