@@ -1,12 +1,23 @@
 import { useState } from "react";
-import { Copy, Check, Share2, Maximize2 } from "lucide-react";
+import { Copy, Check, Share2, Maximize2, Minimize2 } from "lucide-react";
 
 interface ActionButtonsProps {
   textToCopy: string;
   onFullView?: () => void;
+  onSidePanel?: () => void;
+  showFullView?: boolean;
+  showSidePanel?: boolean;
+  embedded?: boolean;
 }
 
-export function ActionButtons({ textToCopy, onFullView }: ActionButtonsProps) {
+export function ActionButtons({
+  textToCopy,
+  onFullView,
+  onSidePanel,
+  showFullView = true,
+  showSidePanel = false,
+  embedded = false,
+}: ActionButtonsProps) {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
 
@@ -27,7 +38,7 @@ export function ActionButtons({ textToCopy, onFullView }: ActionButtonsProps) {
   };
 
   return (
-    <div className="flex items-center justify-between border-t border-outline-variant/20 pt-4 mt-auto flex-shrink-0 select-none">
+    <div className="flex items-center justify-between pt-4 mt-auto flex-shrink-0 select-none">
       {/* Dynamic Action Buttons Group on the Left */}
       <div className="flex items-center gap-1.5">
         <button
@@ -54,14 +65,26 @@ export function ActionButtons({ textToCopy, onFullView }: ActionButtonsProps) {
         </button>
       </div>
 
-      {/* Full View Actions on the Right */}
-      <button
-        onClick={onFullView || (() => alert("Opening full system viewport..."))}
-        className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-xs font-semibold text-on-surface-variant border border-outline-variant/20 hover:border-outline-variant/40 outline-none shadow-sm"
-      >
-        <Maximize2 size={12} />
-        <span>Full View</span>
-      </button>
+      {showSidePanel && onSidePanel && (
+        <button
+          type="button"
+          onClick={onSidePanel}
+          className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-xs font-semibold text-on-surface-variant border border-outline-variant/20 hover:border-outline-variant/40 outline-none shadow-sm"
+        >
+          <Minimize2 size={12} />
+          <span>Side panel</span>
+        </button>
+      )}
+      {showFullView && onFullView && (
+        <button
+          type="button"
+          onClick={onFullView}
+          className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-surface-container-high rounded-full transition-all cursor-pointer text-xs font-semibold text-on-surface-variant border border-outline-variant/20 hover:border-outline-variant/40 outline-none shadow-sm"
+        >
+          <Maximize2 size={12} />
+          <span>Full View</span>
+        </button>
+      )}
     </div>
   );
 }

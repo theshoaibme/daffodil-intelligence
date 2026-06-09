@@ -13,6 +13,7 @@ interface ResponseContentProps {
   isThinking: boolean;
   isStreaming?: boolean;
   data: ResponseContentData;
+  variant?: "card" | "chat";
 }
 
 function renderFormattedText(text: string) {
@@ -53,13 +54,24 @@ function renderFormattedText(text: string) {
   });
 }
 
-export function ResponseContent({ isThinking, isStreaming = false, data }: ResponseContentProps) {
+export function ResponseContent({
+  isThinking,
+  isStreaming = false,
+  data,
+  variant = "card",
+}: ResponseContentProps) {
   if (isThinking && data.paragraphs.length === 0) {
     return null;
   }
 
+  const isChat = variant === "chat";
+
   return (
-    <div className="overflow-y-auto custom-scrollbar flex-1 pr-1.5 flex flex-col gap-3.5 text-on-surface text-[13.5px] leading-relaxed font-sans select-text">
+    <div
+      className={`flex flex-col gap-3 text-on-surface text-sm leading-relaxed font-sans select-text ${
+        isChat ? "overflow-visible" : "overflow-y-auto no-scrollbar flex-1 pr-1.5 gap-3.5 text-[13.5px]"
+      }`}
+    >
       {data.paragraphs.map((p, idx) => (
         <div key={idx} className="font-normal opacity-95 flex flex-col gap-1">
           {renderFormattedText(p)}

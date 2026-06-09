@@ -55,12 +55,14 @@ from .commands import (
 )
 from .handlers.registry import register_product_handlers
 from .keyboards import (
+    GOOGLE_LINK_BUTTON_LABEL,
     GOOGLE_LOGIN_BUTTON_LABEL,
     GOOGLE_REGISTER_BUTTON_LABEL,
     auth_keyboard as _auth_keyboard,
     auth_suggestion_keyboard as _auth_suggestion_keyboard,
     clear_suggestion_keyboard as _clear_suggestion_keyboard,
     google_auth_button as _google_auth_button,
+    google_link_markup as _google_link_markup,
     login_keyboard as _login_keyboard,
     register_keyboard as _register_keyboard,
     role_keyboard as _role_keyboard,
@@ -119,7 +121,7 @@ def _login_menu_text(telegram_id: int) -> str:
         "*Sign in to Daffodil Intelligence*\n\n"
         "Choose how you want to log in:\n"
         "• *Email & password* — email, first name, last name, and password\n"
-        "• *Google* — tap *Link to* below to sign in in your browser"
+        "• *Google* — tap *Login with Google* below to sign in in your browser"
     )
 
 
@@ -128,7 +130,7 @@ def _register_menu_text(telegram_id: int) -> str:
         "*Register for Daffodil Intelligence*\n\n"
         "Choose how you want to sign up:\n"
         "• *Email & password* — OTP verification, then profile setup\n"
-        "• *Google* — tap *Link to* below to sign up in your browser"
+        "• *Google* — tap *Register with Google* below to sign up in your browser"
     )
 
 
@@ -243,16 +245,15 @@ async def _send_google_login_link_message(
     *,
     register: bool,
 ) -> None:
-    """Post a clickable OAuth URL in chat (required when API host is localhost)."""
-    url = google_login_url(uid)
-    label = GOOGLE_REGISTER_BUTTON_LABEL if register else GOOGLE_LOGIN_BUTTON_LABEL
+    """Short prompt + Link button (no raw URL in chat)."""
+    heading = GOOGLE_REGISTER_BUTTON_LABEL if register else GOOGLE_LOGIN_BUTTON_LABEL
     action = "sign up" if register else "sign in"
     await message.reply_text(
-        f"*{label}*\n\n"
-        f"Open this link to {action} with Google in your browser:\n"
-        f"{url}\n\n"
+        f"*{heading}*\n\n"
+        f"Tap *{GOOGLE_LINK_BUTTON_LABEL}* below to {action} in your browser.\n\n"
         "_After success, return to Telegram for confirmation._",
         parse_mode="Markdown",
+        reply_markup=_google_link_markup(uid),
         disable_web_page_preview=True,
     )
 
@@ -610,11 +611,9 @@ class TelegramBot:
             profile_store.save(profile)
             await update.message.reply_text(
                 f"*{email}* is registered with *Google sign-in*.\n\n"
-                f"Tap *{GOOGLE_LOGIN_BUTTON_LABEL}* below to continue in your browser:",
+                f"Tap *{GOOGLE_LINK_BUTTON_LABEL}* below to continue in your browser:",
                 parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([
-                    [_google_auth_button(uid, label=GOOGLE_LOGIN_BUTTON_LABEL)]
-                ]),
+                reply_markup=_google_link_markup(uid),
             )
             return
         profile.email = email

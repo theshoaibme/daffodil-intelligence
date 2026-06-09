@@ -130,5 +130,17 @@ body {
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-surface-container-highest rounded-full;
   }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chat-bubble-user {
+    background-color: color-mix(in srgb, var(--color-surface-container-highest) 72%, transparent);
+  }
 }
 

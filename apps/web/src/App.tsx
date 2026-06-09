@@ -26,7 +26,14 @@ import {
 } from "@context";
 import { SuggestionChip } from "@ui";
 import { Sidebar, Header, SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_WIDTH_EXPANDED } from "@layout";
-import { PromptBar, TaskPanel, AiResponseCard, AgentDashboard, ComputerView } from "@features";
+import {
+  PromptBar,
+  TaskPanel,
+  AiResponseCard,
+  ResponseFullView,
+  AgentDashboard,
+  ComputerView,
+} from "@features";
 import type { TaskItem } from "@features/TaskPanel/TaskPanel";
 
 import { Routes, Route, Navigate, useSearchParams } from "react-router-dom";
@@ -171,6 +178,7 @@ function ChatDashboard() {
   const lastUrlChatRef = useRef<string | null>(searchParams.get("chat"));
   const [agentLiveTasks, setAgentLiveTasks] = useState<TaskItem[] | null>(null);
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
+  const [preferSidePanel, setPreferSidePanel] = useState(false);
 
   const agentModeActive = selectedTools.includes("Agent") && !copycatMode;
 
@@ -308,6 +316,7 @@ function ChatDashboard() {
     loadSession(session.chatId, session.messages);
     setPrompt("");
     setAgentViewOpen(false);
+    setPreferSidePanel(false);
   };
 
   const handleDeleteHistory = (id: string) => {
@@ -389,7 +398,9 @@ function ChatDashboard() {
   };
 
   const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
-  const showWelcomeHero = !showAgentDashboard;
+  const showCenterConversation =
+    hasMessages && !preferSidePanel && !showAgentDashboard && !copycatMode;
+  const showWelcomeHero = !showAgentDashboard && !showCenterConversation;
 
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
@@ -480,8 +491,33 @@ function ChatDashboard() {
             )}
           </AnimatePresence>
 
-          {hasMessages && (
-            <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-4 sm:pt-6 overflow-y-auto`}>
+          <AnimatePresence>
+            {showCenterConversation && (
+              <motion.div
+                key="center-conversation"
+                initial={enterOrSkip(uiReady, { opacity: 0, y: 10 })}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={overlayFade}
+                className={`${MAIN_STAGE} z-10 items-start justify-center pt-2 sm:pt-4 overflow-hidden`}
+              >
+                <div className="w-full max-w-3xl mx-auto min-w-0 h-full min-h-0 max-h-full flex flex-col px-1">
+                  <ResponseFullView
+                    messages={messages}
+                    isStreaming={isStreaming}
+                    thinkingSteps={thinkingSteps}
+                    thinkingText={thinkingText}
+                    thinkingMs={thinkingMs}
+                    error={error}
+                    onClose={() => setPreferSidePanel(true)}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {hasMessages && !showCenterConversation && (
+            <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-4 sm:pt-6 overflow-y-auto no-scrollbar`}>
               <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
                 <AiResponseCard
                   key={activeHistoryId ?? "active-chat"}
@@ -493,6 +529,7 @@ function ChatDashboard() {
                   thinkingMs={thinkingMs}
                   onEdit={handleEdit}
                   error={error}
+                  onFullView={() => setPreferSidePanel(false)}
                 />
               </div>
             </div>
@@ -561,7 +598,7 @@ function ChatDashboard() {
             transition={modeSpring}
           >
             <AnimatePresence>
-              {hasMessages && (
+              {hasMessages && !showCenterConversation && (
                 <motion.div
                   initial={enterOrSkip(uiReady, { opacity: 0, y: -20, scale: 0.95 })}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -580,6 +617,7 @@ function ChatDashboard() {
                     onEdit={handleEdit}
                     error={error}
                     fillHeight
+                    onFullView={() => setPreferSidePanel(false)}
                   />
                 </motion.div>
               )}

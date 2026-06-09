@@ -13,14 +13,36 @@ try:
         KeyboardButton,
         ReplyKeyboardMarkup,
         ReplyKeyboardRemove,
+        WebAppInfo,
     )
 except Exception:  # pragma: no cover
     InlineKeyboardButton = InlineKeyboardMarkup = KeyboardButton = object  # type: ignore
-    ReplyKeyboardMarkup = ReplyKeyboardRemove = object  # type: ignore
+    ReplyKeyboardMarkup = ReplyKeyboardRemove = WebAppInfo = object  # type: ignore
 
 
 GOOGLE_LOGIN_BUTTON_LABEL = "Login with Google"
 GOOGLE_REGISTER_BUTTON_LABEL = "Register with Google"
+GOOGLE_LINK_BUTTON_LABEL = "Link"
+
+
+def google_open_link_button(
+    telegram_id: int,
+    *,
+    label: str = GOOGLE_LINK_BUTTON_LABEL,
+) -> "InlineKeyboardButton":
+    """One-tap button that opens Google OAuth in the default browser (or in-app on localhost dev)."""
+    return google_open_link_button_for_url(google_login_url(telegram_id), label=label)
+
+
+def google_open_link_button_for_url(
+    url: str,
+    *,
+    label: str = GOOGLE_LINK_BUTTON_LABEL,
+) -> "InlineKeyboardButton":
+    if is_telegram_inline_url(url):
+        return InlineKeyboardButton(label, url=url)
+    # Telegram blocks localhost on url= buttons — Web App opens the route in the client browser.
+    return InlineKeyboardButton(label, web_app=WebAppInfo(url=url))
 
 
 def google_auth_button(
@@ -28,11 +50,7 @@ def google_auth_button(
     *,
     label: str = GOOGLE_LOGIN_BUTTON_LABEL,
 ) -> "InlineKeyboardButton":
-    url = google_login_url(telegram_id)
-    if is_telegram_inline_url(url):
-        return InlineKeyboardButton(label, url=url)
-    # Telegram rejects localhost/private URLs on inline URL buttons — callback posts link in chat.
-    return InlineKeyboardButton(label, callback_data="auth:google")
+    return google_open_link_button(telegram_id, label=label)
 
 
 def google_auth_row(
@@ -41,6 +59,14 @@ def google_auth_row(
     label: str = GOOGLE_LOGIN_BUTTON_LABEL,
 ) -> List["InlineKeyboardButton"]:
     return [google_auth_button(telegram_id, label=label)]
+
+
+def google_link_markup(
+    telegram_id: int,
+    *,
+    label: str = GOOGLE_LINK_BUTTON_LABEL,
+) -> "InlineKeyboardMarkup":
+    return InlineKeyboardMarkup([[google_open_link_button(telegram_id, label=label)]])
 
 
 def login_keyboard(telegram_id: int) -> "InlineKeyboardMarkup":

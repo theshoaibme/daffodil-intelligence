@@ -367,12 +367,17 @@ async def test_google_callback_sends_link_in_chat_on_localhost(tmp_path, monkeyp
         bot_pkg.profile_store = orig_prof
 
     assert len(query.message.replies) == 1
-    assert "google/start?token=" in query.message.replies[0]["text"]
-    assert "Login with Google" in query.message.replies[0]["text"]
+    reply = query.message.replies[0]
+    assert "google/start?token=" not in reply["text"]
+    assert "Link" in reply["text"]
+    markup = reply["reply_markup"]
+    link_btn = markup.inline_keyboard[0][0]
+    assert link_btn.text == "Link"
+    assert link_btn.web_app is not None or link_btn.url
 
 
 def test_telegram_inline_url_rejects_localhost():
-    from app.integrations.telegram.keyboards import google_auth_button
+    from app.integrations.telegram.keyboards import google_auth_button, google_open_link_button
     from app.integrations.telegram.tokens import (
         google_login_url,
         google_oauth_uses_inline_url,
@@ -387,8 +392,11 @@ def test_telegram_inline_url_rejects_localhost():
     assert "google:12345:" in url
     assert not google_oauth_uses_inline_url()
     btn = google_auth_button(12345)
-    assert btn.callback_data == "auth:google"
     assert btn.text == "Login with Google"
+    assert btn.web_app is not None or btn.url
+    link_btn = google_open_link_button(12345)
+    assert link_btn.text == "Link"
+    assert link_btn.web_app is not None or link_btn.url
 
 
 def test_google_callback_redirects_to_frontend():
