@@ -1,16 +1,12 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FileText, MessageSquare, Gift, Sun, Moon, LogOut } from "lucide-react";
+import { FileText, MessageSquare, Gift, Sun, Moon, LogOut, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeaderIcon } from "../ui";
 import { useThemeMode } from "../ThemeProvider";
 import { useAuth } from "../../context/AuthContext";
 import { ROUTES } from "../../lib/routes";
-import { dropdownPanelVariants, modeSpringSoft, sidebarWidthTransition } from "../../lib/motion";
-import {
-  SIDEBAR_WIDTH_COLLAPSED,
-  SIDEBAR_WIDTH_EXPANDED,
-} from "./Sidebar/Sidebar";
+import { dropdownPanelVariants, modeSpringSoft } from "../../lib/motion";
 
 function userInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -59,14 +55,22 @@ function UserAvatar({
 
 export interface HeaderProps {
   sidebarOpen?: boolean;
+  setSidebarOpen?: (open: boolean) => void;
 }
 
-export function Header({ sidebarOpen = false }: HeaderProps) {
+export function Header({ sidebarOpen = false, setSidebarOpen }: HeaderProps) {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const name = useMemo(
     () => (user ? displayName(user.full_name, user.email) : "Guest"),
@@ -93,18 +97,21 @@ export function Header({ sidebarOpen = false }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 shrink-0 flex justify-between items-center h-16 pr-4 sm:pr-6 w-full bg-background/90 backdrop-blur-md">
-      <motion.div
-        className="flex items-center gap-2.5 min-w-0"
-        initial={false}
-        animate={{
-          paddingLeft: (sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED) + 16,
-        }}
-        transition={sidebarWidthTransition}
-      >
+    <header className="sticky top-0 z-30 shrink-0 flex justify-between items-center h-16 pl-4 pr-4 sm:pr-6 w-full bg-background/90 backdrop-blur-md border-b border-outline-variant/10">
+      <div className="flex items-center min-w-0">
+        {!isDesktop && !sidebarOpen && setSidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open sidebar"
+            className="p-2 -ml-1 mr-2 rounded-full text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer flex items-center justify-center border-0 bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <Menu size={22} />
+          </button>
+        )}
         <Link
           to={ROUTES.home}
-          className="flex items-center gap-2.5 min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="flex items-center gap-2.5 min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40 animate-none"
         >
           <span className="text-xl sm:text-2xl font-bold tracking-tight truncate leading-none">
             <span className="bg-gradient-to-b from-blue-500 to-blue-600 bg-clip-text text-transparent">
@@ -113,7 +120,7 @@ export function Header({ sidebarOpen = false }: HeaderProps) {
             <span className="text-on-surface"> Intelligence</span>
           </span>
         </Link>
-      </motion.div>
+      </div>
 
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         <div className="hidden sm:flex items-center gap-1.5">

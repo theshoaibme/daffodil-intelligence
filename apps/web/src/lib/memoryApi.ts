@@ -1,127 +1,122 @@
-import { getAuthHeaders } from "./api";
+import { getAuthHeaders, ApiError } from "./api";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
-
-function url(path: string): string {
-  return `${API_BASE.replace(/\/$/, "")}${path}`;
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url(path), {
-    ...init,
-    headers: { ...getAuthHeaders(), ...(init?.headers || {}) },
-  });
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || `Request failed: ${res.status}`);
-  }
-  if (res.status === 204) return {} as T;
-  return res.json();
-}
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export interface MemoryRecord {
   id: string;
-  user_id: number;
-  agent_id: string;
-  scope: string;
+  agent_id?: string;
   content: string;
   memory_type: string;
-  visibility: string;
-  source: string;
-  payload: Record<string, unknown>;
-  metadata: Record<string, unknown>;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface MemoryListResponse {
-  items: MemoryRecord[];
-  total: number;
+  created_at: string;
+  visibility?: string;
+  source?: string;
+  payload?: any;
+  metadata?: any;
 }
 
 export interface MemoryStats {
   total: number;
   by_type: Record<string, number>;
   by_agent: Record<string, number>;
-  qdrant_available: boolean;
+  qdrant_available?: boolean;
+}
+
+async function request(path: string, options: RequestInit = {}) {
+  const url = `${API_BASE}${path}`;
+  const headers = {
+    ...getAuthHeaders(),
+    ...options.headers,
+  };
+  
+  const response = await fetch(url, { ...options, headers });
+  
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new ApiError(data.detail || "Request failed", response.status);
+  }
+  
+  return response.json();
 }
 
 export const memoryApi = {
-  list(params?: {
+  async list(opts: {
     agent_id?: string;
     memory_type?: string;
-    scope?: string;
-    chat_id?: string;
     limit?: number;
     offset?: number;
-  }) {
-    const qs = new URLSearchParams();
-    if (params?.agent_id) qs.set("agent_id", params.agent_id);
-    if (params?.memory_type) qs.set("memory_type", params.memory_type);
-    if (params?.scope) qs.set("scope", params.scope);
-    if (params?.chat_id) qs.set("chat_id", params.chat_id);
-    if (params?.limit) qs.set("limit", String(params.limit));
-    if (params?.offset) qs.set("offset", String(params.offset));
-    const q = qs.toString();
-    return request<MemoryListResponse>(`/api/memory${q ? `?${q}` : ""}`);
+  } = {}): Promise<{ items: MemoryRecord[]; total: number }> {
+    const params = new URLSearchParams();
+    if (opts.agent_id) params.append("agent_id", opts.agent_id);
+    if (opts.memory_type) params.append("memory_type", opts.memory_type);
+    if (opts.limit) params.append("limit", String(opts.limit));
+    if (opts.offset) params.append("offset", String(opts.offset));
+    
+    return request(`/api/memory?${params.toString()}`);
   },
 
-  stats() {
-    return request<MemoryStats>("/api/memory/stats");
+  async stats(): Promise<MemoryStats> {
+    return request("/api/memory/stats");
   },
 
-  context(agentId: string) {
-    return request<{ agent_id: string; snapshots: MemoryRecord[] }>(
-      `/api/memory/context/${encodeURIComponent(agentId)}`
-    );
+  async context(agentId: string): Promise<{ agent_id: string; snapshots: MemoryRecord[] }> {
+    return request(`/api/memory/context/${agentId}`);
   },
 
-  remember(body: {
+  async remember(payload: {
     text: string;
-    agent_id?: string;
-    memory_type?: string;
+    agent_id: string;
+    memory_type: string;
     visibility?: string;
-    metadata?: Record<string, unknown>;
-  }) {
-    return request<{ stored: boolean; id: string }>("/api/memory/remember", {
+    metadata?: any;
+    payload?: any;
+  }): Promise<{ stored: boolean; id: string }> {
+    return request("/api/memory/remember", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
   },
 
-  recall(query: string, params?: { k?: number; agent_id?: string; memory_type?: string; chat_id?: string }) {
-    const qs = new URLSearchParams({ query });
-    if (params?.k) qs.set("k", String(params.k));
-    if (params?.agent_id) qs.set("agent_id", params.agent_id);
-    if (params?.memory_type) qs.set("memory_type", params.memory_type);
-    if (params?.chat_id) qs.set("chat_id", params.chat_id);
-    return request<{ query: string; notes: MemoryRecord[]; count: number }>(
-      `/api/memory/recall?${qs}`
-    );
+  async recall(
+    query: string,
+    opts: {
+      agent_id?: string;
+      memory_type?: string;
+      k?: number;
+    } = {}
+  ): Promise<{ query: string; notes: MemoryRecord[]; count: number }> {
+    const params = new URLSearchParams();
+    params.append("query", query);
+    if (opts.agent_id) params.append("agent_id", opts.agent_id);
+    if (opts.memory_type) params.append("memory_type", opts.memory_type);
+    if (opts.k) params.append("k", String(opts.k));
+
+    return request(`/api/memory/recall?${params.toString()}`);
   },
 
-  delete(id: string) {
-    return request<{ deleted: boolean; id: string }>(`/api/memory/${id}`, { method: "DELETE" });
+  async delete(memoryId: string): Promise<{ deleted: boolean; id: string }> {
+    return request(`/api/memory/${memoryId}`, {
+      method: "DELETE",
+    });
   },
 
-  clear(params?: { agent_id?: string; memory_type?: string; chat_id?: string; all?: boolean }) {
-    const qs = new URLSearchParams();
-    if (params?.agent_id) qs.set("agent_id", params.agent_id);
-    if (params?.memory_type) qs.set("memory_type", params.memory_type);
-    if (params?.chat_id) qs.set("chat_id", params.chat_id);
-    if (params?.all) qs.set("all", "true");
-    const q = qs.toString();
-    return request<{ cleared: number }>(`/api/memory${q ? `?${q}` : ""}`, { method: "DELETE" });
+  async clear(opts: {
+    agent_id?: string;
+    memory_type?: string;
+    all?: boolean;
+  } = {}): Promise<{ cleared: number }> {
+    const params = new URLSearchParams();
+    if (opts.agent_id) params.append("agent_id", opts.agent_id);
+    if (opts.memory_type) params.append("memory_type", opts.memory_type);
+    if (opts.all) params.append("all", String(opts.all));
+
+    return request(`/api/memory?${params.toString()}`, {
+      method: "DELETE",
+    });
   },
 
-  consolidate() {
-    return request<{ promoted: number }>("/api/memory/consolidate", { method: "POST" });
-  },
-
-  summarize(chatId: number) {
-    return request<{ summarized: boolean; summary_id?: string }>(
-      `/api/memory/summarize/${chatId}`,
-      { method: "POST" }
-    );
+  async consolidate(): Promise<any> {
+    return request("/api/memory/consolidate", {
+      method: "POST",
+    });
   },
 };

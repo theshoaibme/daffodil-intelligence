@@ -45,6 +45,8 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-sans)', 'sans-serif'],
         mono: ['var(--font-mono)', 'monospace'],
+        fustat: ['Fustat', 'sans-serif'],
+        inter: ['Inter', 'sans-serif'],
       },
       spacing: {
         xs: '4px',

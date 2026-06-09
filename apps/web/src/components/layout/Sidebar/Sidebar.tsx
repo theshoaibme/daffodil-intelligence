@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -7,25 +7,25 @@ import type { SidebarProps } from "./types";
 import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "../../../lib/motion";
 import { useChatHistory } from "../../../context/ChatHistoryContext";
 import { ChatHistoryItem } from "./ChatHistoryItem";
-
+ 
 export type { SidebarProps } from "./types";
 export const SIDEBAR_WIDTH_EXPANDED = 280;
 export const SIDEBAR_WIDTH_COLLAPSED = 56;
-
+ 
 const iconBtn =
   "shrink-0 p-2 rounded-full transition-colors cursor-pointer flex items-center justify-center border-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
-
+ 
 const SIDEBAR_NAV = [
   { to: ROUTES.agentHub, label: "Agents", icon: LayoutGrid },
   { to: ROUTES.skills, label: "Skills", icon: Sparkles },
 ] as const;
-
+ 
 function matchesSearch(item: { title: string }, query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
   return item.title.toLowerCase().includes(normalized);
 }
-
+ 
 function SidebarNavLink({
   label,
   icon: Icon,
@@ -52,7 +52,7 @@ function SidebarNavLink({
     </button>
   );
 }
-
+ 
 function RailButton({
   label,
   onClick,
@@ -80,7 +80,7 @@ function RailButton({
     </button>
   );
 }
-
+ 
 export function Sidebar({
   sidebarOpen,
   setSidebarOpen,
@@ -96,54 +96,65 @@ export function Sidebar({
   const { histories } = useChatHistory();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+ 
   const visibleHistories = useMemo(
     () => histories.filter((entry) => matchesSearch(entry, searchQuery)),
     [histories, searchQuery]
   );
-
+ 
   const toggleSidebar = () => setSidebarOpen?.(!sidebarOpen);
-
+  
+  const widthClosed = isDesktop ? SIDEBAR_WIDTH_COLLAPSED : 0;
+ 
   return (
     <motion.aside
-      initial={enterOrSkip(uiReady, { width: SIDEBAR_WIDTH_COLLAPSED })}
-      animate={{ width: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED }}
+      initial={enterOrSkip(uiReady, { width: widthClosed })}
+      animate={{ width: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : widthClosed }}
       transition={sidebarWidthTransition}
-      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width]"
+      className="fixed lg:relative inset-y-0 lg:inset-auto left-0 z-50 lg:z-20 h-screen lg:h-full overflow-hidden bg-surface-container-low shadow-sm will-change-[width]"
     >
       <div
         className="relative h-full"
         style={{ width: SIDEBAR_WIDTH_EXPANDED }}
       >
-        {/* Collapsed icon rail */}
-        <motion.div
-          aria-hidden={sidebarOpen}
-          initial={false}
-          animate={{ opacity: sidebarOpen ? 0 : 1 }}
-          transition={{
-            ...sidebarPanelTransition,
-            delay: sidebarOpen ? 0 : 0.06,
-          }}
-          className={`absolute inset-y-0 left-0 flex w-[56px] flex-col items-center gap-2 py-4 ${
-            sidebarOpen ? "pointer-events-none" : "pointer-events-auto"
-          }`}
-        >
-          <RailButton label="Expand sidebar" onClick={toggleSidebar}>
-            <Menu size={22} />
-          </RailButton>
-          <RailButton label="New chat" onClick={() => onNewChat?.()}>
-            <Plus size={22} />
-          </RailButton>
-          <div className="flex-1" />
-          <RailButton
-            label="Account settings"
-            active={location.pathname === ROUTES.account}
-            onClick={() => navigate(ROUTES.account)}
+        {/* Collapsed icon rail - Desktop only */}
+        {isDesktop && (
+          <motion.div
+            aria-hidden={sidebarOpen}
+            initial={false}
+            animate={{ opacity: sidebarOpen ? 0 : 1 }}
+            transition={{
+              ...sidebarPanelTransition,
+              delay: sidebarOpen ? 0 : 0.06,
+            }}
+            className={`absolute inset-y-0 left-0 flex w-[56px] flex-col items-center gap-2 py-4 ${
+              sidebarOpen ? "pointer-events-none" : "pointer-events-auto"
+            }`}
           >
-            <Settings size={22} />
-          </RailButton>
-        </motion.div>
-
+            <RailButton label="Expand sidebar" onClick={toggleSidebar}>
+              <Menu size={22} />
+            </RailButton>
+            <RailButton label="New chat" onClick={() => onNewChat?.()}>
+              <Plus size={22} />
+            </RailButton>
+            <div className="flex-1" />
+            <RailButton
+              label="Account settings"
+              active={location.pathname === ROUTES.account}
+              onClick={() => navigate(ROUTES.account)}
+            >
+              <Settings size={22} />
+            </RailButton>
+          </motion.div>
+        )}
+ 
         {/* Expanded panel */}
         <motion.div
           aria-hidden={!sidebarOpen}

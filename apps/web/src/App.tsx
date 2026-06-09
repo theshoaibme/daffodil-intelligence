@@ -154,6 +154,13 @@ function ChatDashboard() {
   const handledAgentsParam = useRef(false);
   const [agentLiveTasks, setAgentLiveTasks] = useState<TaskItem[] | null>(null);
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const agentModeActive = selectedTools.includes("Agent") && !copycatMode;
 
@@ -337,172 +344,165 @@ function ChatDashboard() {
       />
 
       <main className="relative flex flex-1 flex-col min-w-0 w-full h-screen overflow-hidden bg-background">
-        <Header sidebarOpen={sidebarOpen} />
+        <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-        <div className="relative flex-1 min-h-0">
-          <AnimatePresence>
-            {showWelcomeHero && (
-              <motion.div
-                key="welcome-hero"
-                initial={enterOrSkip(uiReady, { opacity: 0, y: 12 })}
-                animate={{
-                  opacity: copycatMode ? 0.35 : 1,
-                  y: 0,
-                  scale: copycatMode ? 0.985 : 1,
-                  filter: copycatMode ? "blur(6px)" : "blur(0px)",
-                }}
-                exit={{ opacity: 0, y: -8, scale: 0.99 }}
-                transition={overlayFade}
-                className={`${MAIN_STAGE} z-10`}
-              >
-                <div
-                  className={`${MAIN_COLUMN} text-center ${
-                    copycatMode ? "pointer-events-none" : "pointer-events-auto"
-                  }`}
-                >
-                <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight px-2">
-                  <span className="text-on-surface-variant">Hello, </span>
-                  <span className="bg-gradient-to-r from-[#4285F4] via-[#9B72CB] to-[#D96570] bg-clip-text text-transparent">
-                    {displayName}
-                  </span>
-                </h1>
-                {!hasMessages && suggestionSkills.length > 0 && (
-                  <div className="mt-10 flex flex-wrap justify-center gap-2">
-                    {suggestionSkills.map((skill) => (
-                      <SuggestionChip
-                        key={skill.id}
-                        text={skill.name}
-                        onClick={() => sendPrompt(skill.name)}
-                      />
-                    ))}
+        <div className="relative flex-1 min-h-0 flex flex-row overflow-hidden w-full">
+          {/* Middle Chat Column */}
+          <div className="relative flex-grow flex-shrink flex flex-col h-full min-w-0 overflow-hidden">
+            {/* Scrollable area for Hero or Response Cards */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative px-4 pb-[8.5rem] pt-6 flex flex-col">
+              <AnimatePresence mode="wait">
+                {showWelcomeHero && (
+                  <motion.div
+                    key="welcome-hero"
+                    initial={enterOrSkip(uiReady, { opacity: 0, y: 12 })}
+                    animate={{
+                      opacity: copycatMode ? 0.35 : 1,
+                      y: 0,
+                      scale: copycatMode ? 0.985 : 1,
+                      filter: copycatMode ? "blur(6px)" : "blur(0px)",
+                    }}
+                    exit={{ opacity: 0, y: -8, scale: 0.99 }}
+                    transition={overlayFade}
+                    className="w-full flex-grow flex items-center justify-center pointer-events-none"
+                  >
+                    <div
+                      className={`${MAIN_COLUMN} text-center ${
+                        copycatMode ? "pointer-events-none" : "pointer-events-auto"
+                      }`}
+                    >
+                      <h1 className="text-4xl sm:text-[56px] leading-[1.1] font-medium tracking-tight px-2">
+                        <span className="text-on-surface-variant">Hello, </span>
+                        <span className="bg-gradient-to-r from-[#4285F4] via-[#9B72CB] to-[#D96570] bg-clip-text text-transparent">
+                          {displayName}
+                        </span>
+                      </h1>
+                      {!hasMessages && suggestionSkills.length > 0 && (
+                        <div className="mt-10 flex flex-wrap justify-center gap-2">
+                          {suggestionSkills.map((skill) => (
+                            <SuggestionChip
+                              key={skill.id}
+                              text={skill.name}
+                              onClick={() => sendPrompt(skill.name)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {hasMessages && (
+                <div className="w-full flex-grow flex items-start justify-center pt-2 pointer-events-auto">
+                  <div className={`${MAIN_COLUMN} flex flex-col gap-4`}>
+                    <AiResponseCard
+                      prompt={lastUserMessage?.content || ""}
+                      response={lastAssistantMessage?.content || ""}
+                      isStreaming={isStreaming}
+                      thinkingSteps={thinkingSteps}
+                      onEdit={handleEdit}
+                      error={error}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <AnimatePresence>
+                {showAgentDashboard && (
+                  <motion.div
+                    key="agent-mode-shell"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={overlayFade}
+                    className="w-full flex-grow flex items-center justify-center pointer-events-auto"
+                  >
+                    <div className="w-full max-w-4xl mx-auto h-[min(480px,calc(100%-1rem))] pointer-events-auto">
+                      <AgentDashboard embedded onClose={handleCloseAgentView} />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Prompt Bar slot (pinned relative to middle column bottom) */}
+            <LayoutGroup id="mode-switch">
+              <AnimatePresence>
+                {copycatMode && (
+                  <ComputerView
+                    key="copycat-mode"
+                    embedded
+                    onExitCopycat={() => setCopycatMode(false)}
+                  />
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence mode="popLayout">
+                {!copycatMode && (
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 z-30 pointer-events-none">
+                    <PromptBar
+                      key="chat-mode-bar"
+                      embedded
+                      uiReady={uiReady}
+                      prompt={prompt}
+                      setPrompt={setPrompt}
+                      isSent={hasMessages}
+                      handleSend={handleSend}
+                      plusMenuOpen={plusMenuOpen}
+                      setPlusMenuOpen={setPlusMenuOpen}
+                      textareaRef={textareaRef}
+                      isLoading={isLoading || isStreaming}
+                      onCopycatMode={() => setCopycatMode(true)}
+                      copycatActive={copycatMode}
+                      selectedTools={selectedTools}
+                      onToggleTool={handleToggleTool}
+                    />
                   </div>
                 )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </AnimatePresence>
+            </LayoutGroup>
+          </div>
 
-          {hasMessages && (
-            <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-6`}>
-              <div className={`${MAIN_COLUMN} flex flex-col gap-4`}>
-                <AiResponseCard
-                  prompt={lastUserMessage?.content || ""}
-                  response={lastAssistantMessage?.content || ""}
-                  isStreaming={isStreaming}
-                  thinkingSteps={thinkingSteps}
-                  onEdit={handleEdit}
-                  error={error}
-                />
-              </div>
-            </div>
-          )}
-
+          {/* Right Column: TaskPanel on Desktop */}
           <AnimatePresence>
-            {showAgentDashboard && (
+            {isDesktop && (showAgentDashboard || hasMessages) && !copycatMode && (
               <motion.div
-                key="agent-mode-shell"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={overlayFade}
-                className={`${MAIN_STAGE} z-20`}
+                key="right-task-sidebar"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={modeSpring}
+                className="w-[360px] flex-shrink-0 flex flex-col gap-4 border-l border-outline-variant/15 p-6 bg-surface-container-lowest/30 h-full justify-end"
               >
-                <div className="w-full max-w-4xl mx-auto h-[min(480px,calc(100%-1rem))] pointer-events-auto">
-                  <AgentDashboard embedded onClose={handleCloseAgentView} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <LayoutGroup id="mode-switch">
-            <AnimatePresence>
-              {copycatMode && (
-                <ComputerView
-                  key="copycat-mode"
-                  embedded
-                  onExitCopycat={() => setCopycatMode(false)}
-                />
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence mode="popLayout">
-              {!copycatMode && (
-                <div className={PROMPT_SLOT}>
-                  <PromptBar
-                    key="chat-mode-bar"
-                    embedded
+                <div className="pointer-events-auto mt-auto">
+                  <TaskPanel
+                    tasksCollapsed={tasksCollapsed}
+                    setTasksCollapsed={setTasksCollapsed}
                     uiReady={uiReady}
-                    prompt={prompt}
-                    setPrompt={setPrompt}
-                    isSent={hasMessages}
-                    handleSend={handleSend}
-                    plusMenuOpen={plusMenuOpen}
-                    setPlusMenuOpen={setPlusMenuOpen}
-                    textareaRef={textareaRef}
-                    isLoading={isLoading || isStreaming}
-                    onCopycatMode={() => setCopycatMode(true)}
-                    copycatActive={copycatMode}
-                    selectedTools={selectedTools}
-                    onToggleTool={handleToggleTool}
+                    liveTasks={showAgentDashboard ? agentLiveTasks : null}
+                    agentMode={showAgentDashboard}
                   />
                 </div>
-              )}
-            </AnimatePresence>
-          </LayoutGroup>
-        </div>
-
-        <motion.div
-          className="hidden md:flex fixed top-20 right-6 bottom-6 w-[360px] flex-col gap-4 z-40 pointer-events-none"
-          animate={{
-            opacity: copycatMode ? 0 : 1,
-            x: copycatMode ? 24 : 0,
-          }}
-          transition={modeSpring}
-        >
-          <AnimatePresence>
-            {hasMessages && (
-              <motion.div
-                initial={enterOrSkip(uiReady, { opacity: 0, y: -20, scale: 0.95 })}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="pointer-events-auto flex-shrink-0"
-              >
-                <AiResponseCard
-                  prompt={lastUserMessage?.content || ""}
-                  response={lastAssistantMessage?.content || ""}
-                  isStreaming={isStreaming}
-                  thinkingSteps={thinkingSteps}
-                  onEdit={handleEdit}
-                  error={error}
-                />
               </motion.div>
             )}
           </AnimatePresence>
-
-          <div className="pointer-events-auto mt-auto">
-            <TaskPanel
-              tasksCollapsed={tasksCollapsed}
-              setTasksCollapsed={setTasksCollapsed}
-              uiReady={uiReady}
-              liveTasks={showAgentDashboard ? agentLiveTasks : null}
-              agentMode={showAgentDashboard}
-            />
-          </div>
-        </motion.div>
-
-        <div className="md:hidden fixed bottom-28 left-0 right-0 z-20 flex justify-center px-4 pointer-events-none">
-          <div className="w-full max-w-md pointer-events-auto">
-            <TaskPanel
-              tasksCollapsed={tasksCollapsed}
-              setTasksCollapsed={setTasksCollapsed}
-              uiReady={uiReady}
-              liveTasks={showAgentDashboard ? agentLiveTasks : null}
-              agentMode={showAgentDashboard}
-            />
-          </div>
         </div>
 
+        {/* TaskPanel on Mobile/Tablet */}
+        {!isDesktop && (
+          <div className="fixed bottom-28 left-0 right-0 z-20 flex justify-center px-4 pointer-events-none">
+            <div className="w-full max-w-md pointer-events-auto">
+              <TaskPanel
+                tasksCollapsed={tasksCollapsed}
+                setTasksCollapsed={setTasksCollapsed}
+                uiReady={uiReady}
+                liveTasks={showAgentDashboard ? agentLiveTasks : null}
+                agentMode={showAgentDashboard}
+              />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

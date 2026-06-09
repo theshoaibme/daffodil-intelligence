@@ -1,189 +1,141 @@
-import type { ChatMessage } from "../hooks/useChat";
-import { loadChatSession } from "./chatStorage";
-
-const HISTORY_KEY = "di-dashboard-chat-history";
-const ACTIVE_KEY = "di-dashboard-active-chat-id";
-
 export interface ChatHistoryEntry {
   id: string;
-  title: string;
-  updatedAt: string;
   chatId: number | null;
-  messages: Array<Omit<ChatMessage, "timestamp"> & { timestamp: string }>;
+  title: string;
+  messages: any[];
+  timestamp: string; // ISO String
+  updatedAt: string; // ISO String
 }
 
-const DEFAULT_HISTORY: ChatHistoryEntry[] = [
-  {
-    id: "seed-thesis-hub",
-    title: "DIU ThesisHub",
-    updatedAt: new Date("2026-04-19").toISOString(),
-    chatId: null,
-    messages: [],
-  },
-  {
-    id: "seed-uniproject-hub",
-    title: "UniProject Hub",
-    updatedAt: new Date("2026-04-18").toISOString(),
-    chatId: null,
-    messages: [],
-  },
-];
-
-export function generateChatSessionId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `chat-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-}
-
-function serializeMessages(messages: ChatMessage[]) {
-  return messages.map((message) => ({
-    ...message,
-    isStreaming: false,
-    timestamp: message.timestamp.toISOString(),
-  }));
-}
-
-function deserializeMessages(
-  messages: ChatHistoryEntry["messages"]
-): ChatMessage[] {
-  return messages.map((message) => ({
-    ...message,
-    isStreaming: false,
-    timestamp: new Date(message.timestamp),
-  }));
-}
-
-function deriveTitle(messages: ChatMessage[]): string {
-  const firstUser = messages.find((message) => message.role === "user");
-  if (!firstUser?.content.trim()) return "New chat";
-  const text = firstUser.content.trim();
-  return text.length > 42 ? `${text.slice(0, 42)}…` : text;
-}
-
-function migrateLegacySession(history: ChatHistoryEntry[]): ChatHistoryEntry[] {
-  const legacy = loadChatSession();
-  if (!legacy?.messages.length) return history;
-
-  const existing = history.find((entry) => entry.chatId === legacy.chatId);
-  if (existing) return history;
-
-  return [
-    {
-      id: generateChatSessionId(),
-      title: deriveTitle(legacy.messages),
-      updatedAt: new Date().toISOString(),
-      chatId: legacy.chatId,
-      messages: serializeMessages(legacy.messages),
-    },
-    ...history,
-  ];
-}
+const HISTORY_KEY = "di-chat-history";
+const ACTIVE_ID_KEY = "di-active-history-id";
 
 export function loadChatHistory(): ChatHistoryEntry[] {
   try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    const parsed = raw ? (JSON.parse(raw) as ChatHistoryEntry[]) : DEFAULT_HISTORY;
-    const withLegacy = migrateLegacySession(parsed.length ? parsed : DEFAULT_HISTORY);
-    if (!raw || withLegacy.length !== parsed.length) {
-      saveChatHistory(withLegacy);
+    const stored = localStorage.getItem(HISTORY_KEY);
+    const parsed = stored ? JSON.parse(stored) : [];
+    if (Array.isArray(parsed)) {
+      // Sort by timestamp descending
+      return parsed.sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
     }
-    return withLegacy;
+    return [];
   } catch {
-    return DEFAULT_HISTORY;
-  }
-}
-
-export function saveChatHistory(entries: ChatHistoryEntry[]) {
-  try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
-  } catch {
-    // Ignore quota / private mode errors.
+    return [];
   }
 }
 
 export function getActiveHistoryId(): string | null {
   try {
-    return localStorage.getItem(ACTIVE_KEY);
+    return localStorage.getItem(ACTIVE_ID_KEY);
   } catch {
     return null;
   }
 }
 
-export function setActiveHistoryId(id: string | null) {
+export function setActiveHistoryId(id: string | null): void {
   try {
-    if (id) localStorage.setItem(ACTIVE_KEY, id);
-    else localStorage.removeItem(ACTIVE_KEY);
-  } catch {
-    // Ignore storage errors.
-  }
+    if (id) {
+      localStorage.setItem(ACTIVE_ID_KEY, id);
+    } else {
+      localStorage.removeItem(ACTIVE_ID_KEY);
+    }
+  } catch {}
 }
 
-export function formatHistoryDate(iso: string): string {
-  const date = new Date(iso);
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+export function getHistoryEntry(id: string): ChatHistoryEntry | null {
+  const history = loadChatHistory();
+  return history.find((e) => e.id === id) || null;
 }
 
 export function createHistorySession(title = "New chat"): ChatHistoryEntry {
-  const entry: ChatHistoryEntry = {
-    id: generateChatSessionId(),
-    title,
-    updatedAt: new Date().toISOString(),
+  const now = new Date().toISOString();
+  const newEntry: ChatHistoryEntry = {
+    id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     chatId: null,
+    title,
     messages: [],
-  };
-  const entries = [entry, ...loadChatHistory()];
-  saveChatHistory(entries);
-  setActiveHistoryId(entry.id);
-  return entry;
-}
-
-export function upsertHistoryEntry(
-  activeId: string | null,
-  chatId: number | null,
-  messages: ChatMessage[]
-): { entries: ChatHistoryEntry[]; activeId: string | null } {
-  const entries = loadChatHistory();
-  if (!messages.length) return { entries, activeId };
-
-  const payload = {
-    title: deriveTitle(messages),
-    updatedAt: new Date().toISOString(),
-    chatId,
-    messages: serializeMessages(messages),
+    timestamp: now,
+    updatedAt: now,
   };
 
-  if (activeId) {
-    const index = entries.findIndex((entry) => entry.id === activeId);
-    if (index >= 0) {
-      entries[index] = { ...entries[index], ...payload };
-      saveChatHistory(entries);
-      return { entries, activeId };
-    }
-  }
-
-  const id = generateChatSessionId();
-  const next = [{ id, ...payload }, ...entries];
-  saveChatHistory(next);
-  setActiveHistoryId(id);
-  return { entries: next, activeId: id };
+  const history = loadChatHistory();
+  const updated = [newEntry, ...history];
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  setActiveHistoryId(newEntry.id);
+  return newEntry;
 }
 
 export function deleteHistoryEntry(id: string): ChatHistoryEntry[] {
-  const entries = loadChatHistory().filter((entry) => entry.id !== id);
-  saveChatHistory(entries);
-  if (getActiveHistoryId() === id) setActiveHistoryId(null);
-  return entries;
+  const history = loadChatHistory();
+  const updated = history.filter((e) => e.id !== id);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+
+  const activeId = getActiveHistoryId();
+  if (activeId === id) {
+    const nextActiveId = updated.length > 0 ? updated[0].id : null;
+    setActiveHistoryId(nextActiveId);
+  }
+
+  return updated;
 }
 
-export function getHistoryEntry(id: string): {
-  chatId: number | null;
-  messages: ChatMessage[];
-} | null {
-  const entry = loadChatHistory().find((item) => item.id === id);
-  if (!entry) return null;
-  return {
-    chatId: entry.chatId,
-    messages: deserializeMessages(entry.messages),
-  };
+export function upsertHistoryEntry(
+  id: string | null,
+  chatId: number | null,
+  messages: any[]
+): { entries: ChatHistoryEntry[]; activeId: string | null } {
+  let activeId = id;
+
+  if (!activeId) {
+    const newSession = createHistorySession("New chat");
+    activeId = newSession.id;
+  }
+
+  const entries = loadChatHistory();
+  const index = entries.findIndex((e) => e.id === activeId);
+  if (index !== -1) {
+    const entry = entries[index];
+    entry.chatId = chatId;
+    entry.messages = messages;
+    const now = new Date().toISOString();
+    entry.timestamp = now;
+    entry.updatedAt = now;
+
+    if (entry.title === "New chat" && messages.length > 0) {
+      const firstUserMsg = messages.find((m) => m.role === "user");
+      if (firstUserMsg && firstUserMsg.content) {
+        const text = firstUserMsg.content.trim();
+        entry.title = text.slice(0, 30) + (text.length > 30 ? "..." : "");
+      }
+    }
+
+    entries[index] = entry;
+  }
+
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  return { entries, activeId };
+}
+
+export function formatHistoryDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  
+  const diffTime = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 1) {
+    if (date.getDate() === now.getDate()) {
+      return "Today";
+    }
+    return "Yesterday";
+  }
+  if (diffDays === 1) {
+    return "Yesterday";
+  }
+  if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  }
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
