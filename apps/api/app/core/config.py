@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = ""
     OPENAI_MODEL_NAME: str = "gpt-4-turbo-preview"
+    GROQ_API_KEY: str = ""
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_FAST_MODEL: str = "llama-3.1-8b-instant"
+    GROQ_FAST_CHAT: bool = True
     GEMINI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
 
@@ -70,8 +75,8 @@ class Settings(BaseSettings):
     TELEGRAM_ADMIN_USER_IDS: str = ""
     # Keep False so commands/messages sent during API restarts are processed when the bot is back.
     TELEGRAM_DROP_PENDING_UPDATES: bool = False
-    # Fast model for snappy Telegram replies; set to "auto" to use the model router instead.
-    TELEGRAM_CHAT_MODEL: str = "gemini-2.0-flash-lite"
+    # Telegram chat model; "auto" uses the router (Groq for simple chat, Gemini otherwise).
+    TELEGRAM_CHAT_MODEL: str = "auto"
     API_PUBLIC_URL: str = "http://localhost:8000"
     FRONTEND_PUBLIC_URL: str = "http://localhost:3000"
     # Optional HTTPS/ngrok URL for Telegram Google sign-in buttons (empty = API_PUBLIC_URL)

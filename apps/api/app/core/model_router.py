@@ -103,6 +103,6 @@ def resolve_model_for_turn(
         return "gemini-2.5-flash", True, "complex"
 
     if word_count <= 25 and any(k in lower for k in _FAST_KEYWORDS):
-        return "gemini-2.0-flash-lite", True, "fast_simple"
+        return "gemini-2.5-flash", True, "fast_simple"
 
     return default, True, "default"

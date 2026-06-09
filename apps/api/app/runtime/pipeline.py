@@ -13,7 +13,8 @@ from typing import Any, AsyncIterator, List, Optional
 from ..core.model_router import resolve_model_for_turn
 from ..memory import memory_service
 from ..skills.resolver import resolve_runtime_config
-from . import orchestrator
+from . import groq_chat, orchestrator
+from .chat_router import groq_model_for_routing, should_use_fast_groq
 from .tool_context import clear_turn_context, set_turn_context
 from .trace import estimate_tokens, trace_recorder
 
@@ -121,24 +122,44 @@ async def _run_turn_inner(
     if mode_hint:
         extra_system = f"{extra_system}\n\n{mode_hint}".strip() if extra_system else mode_hint
     prompt = _compose_message(message, context_prefix)
-    result = await orchestrator.run(
-        prompt,
-        user_id=user_id,
-        chat_id=chat_id,
-        persona=cfg.persona,
-        attachments=attachments,
-        lang=lang,
+
+    use_fast_groq = should_use_fast_groq(
+        attachments=bool(attachments),
+        routing=routing,
+        was_auto=was_auto,
+        metadata=metadata,
         agent_id=cfg.agent_id,
-        extra_system=extra_system or None,
-        model=resolved_model,
+        persona=cfg.persona,
         include_tools=cfg.tool_names,
     )
+    groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
+
+    if use_fast_groq and groq_chat.is_available():
+        result = await groq_chat.chat(
+            prompt,
+            extra_system=extra_system or None,
+            model=groq_model,
+        )
+    else:
+        result = await orchestrator.run(
+            prompt,
+            user_id=user_id,
+            chat_id=chat_id,
+            persona=cfg.persona,
+            attachments=attachments,
+            lang=lang,
+            agent_id=cfg.agent_id,
+            extra_system=extra_system or None,
+            model=resolved_model,
+            include_tools=cfg.tool_names,
+        )
+
     result["agent_id"] = cfg.agent_id
     result["skill_ids"] = cfg.skill_ids
     result["ruleset_ids"] = cfg.ruleset_ids
-    result["model_id"] = resolved_model
+    result["model_id"] = groq_model if use_fast_groq else resolved_model
     result["model_mode"] = "auto" if was_auto else "manual"
-    result["model_routing"] = routing
+    result["model_routing"] = "groq_fast" if use_fast_groq else routing
     return result
 
 
@@ -190,12 +211,6 @@ async def _run_turn_stream_inner(
         message=message,
         has_attachments=bool(attachments),
     )
-    yield {
-        "type": "model",
-        "model_id": resolved_model,
-        "model_mode": "auto" if was_auto else "manual",
-        "model_routing": routing,
-    }
     cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
     recall_block = await memory_service.build_recall_context(
         int(user_id or 0),
@@ -211,42 +226,73 @@ async def _run_turn_stream_inner(
         extra_system = f"{extra_system}\n\n{mode_hint}".strip() if extra_system else mode_hint
     prompt = _compose_message(message, context_prefix)
 
+    use_fast_groq = should_use_fast_groq(
+        attachments=bool(attachments),
+        routing=routing,
+        was_auto=was_auto,
+        metadata=metadata,
+        agent_id=cfg.agent_id,
+        persona=cfg.persona,
+        include_tools=cfg.tool_names,
+    )
+    groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
+    active_model = groq_model if use_fast_groq else resolved_model
+    active_routing = "groq_fast" if use_fast_groq else routing
+
+    yield {
+        "type": "model",
+        "model_id": active_model,
+        "model_mode": "auto" if was_auto else "manual",
+        "model_routing": active_routing,
+    }
+
     turn_id = trace_recorder.begin_turn(
         user_id=user_id,
         chat_id=chat_id,
         agent_id=cfg.agent_id,
-        model=resolved_model or "auto",
+        model=active_model or "auto",
     )
     trace_recorder.add_tokens(turn_id, estimate_tokens(prompt) + estimate_tokens(extra_system or ""))
-    trace_recorder.event(turn_id, type="model", name=resolved_model or "auto", detail=routing or "")
+    trace_recorder.event(turn_id, type="model", name=active_model or "auto", detail=active_routing or "")
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
     yield {"type": "agent", "agent_id": cfg.agent_id, "name": cfg.agent_id, "status": "active"}
 
     try:
-        async for event in orchestrator.run_stream(
-            prompt,
-            user_id=user_id,
-            chat_id=chat_id,
-            persona=cfg.persona,
-            attachments=attachments,
-            lang=lang,
-            agent_id=cfg.agent_id,
-            extra_system=extra_system or None,
-            model=resolved_model,
-            include_tools=cfg.tool_names,
-        ):
-            etype = event.get("type") if isinstance(event, dict) else None
-            if etype == "content":
-                trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
-            elif etype in ("tool", "thinking", "subagent"):
-                trace_recorder.event(
-                    turn_id,
-                    type=etype,
-                    name=event.get("name", ""),
-                    status=event.get("status", ""),
-                    detail=(event.get("content", "") or "")[:160],
-                )
-            yield event
+        if use_fast_groq and groq_chat.is_available():
+            async for event in groq_chat.stream_chat(
+                prompt,
+                extra_system=extra_system or None,
+                model=groq_model,
+            ):
+                etype = event.get("type") if isinstance(event, dict) else None
+                if etype == "content":
+                    trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
+                yield event
+        else:
+            async for event in orchestrator.run_stream(
+                prompt,
+                user_id=user_id,
+                chat_id=chat_id,
+                persona=cfg.persona,
+                attachments=attachments,
+                lang=lang,
+                agent_id=cfg.agent_id,
+                extra_system=extra_system or None,
+                model=resolved_model,
+                include_tools=cfg.tool_names,
+            ):
+                etype = event.get("type") if isinstance(event, dict) else None
+                if etype == "content":
+                    trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
+                elif etype in ("tool", "thinking", "subagent"):
+                    trace_recorder.event(
+                        turn_id,
+                        type=etype,
+                        name=event.get("name", ""),
+                        status=event.get("status", ""),
+                        detail=(event.get("content", "") or "")[:160],
+                    )
+                yield event
     finally:
         trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="success")
         trace_recorder.end_turn(turn_id)

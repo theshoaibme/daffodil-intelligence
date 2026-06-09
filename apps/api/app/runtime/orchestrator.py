@@ -96,7 +96,21 @@ async def run_stream(
                 yield event
             return
         except Exception as e:
-            logger.error(f"Antigravity stream failed, falling back to legacy: {e}")
+            logger.error(f"Antigravity stream failed, falling back: {e}")
+
+    from .groq_chat import is_available as groq_available, stream_chat as groq_stream
+
+    if groq_available():
+        try:
+            async for event in groq_stream(
+                message,
+                extra_system=extra_system,
+                model=model,
+            ):
+                yield event
+            return
+        except Exception as e:
+            logger.error(f"Groq stream failed, falling back to legacy: {e}")
 
     result = await _legacy_run(message, user_id)
     content = result["content"] or ""

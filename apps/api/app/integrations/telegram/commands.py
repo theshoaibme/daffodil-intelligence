@@ -178,6 +178,15 @@ def default_authenticated_message() -> str:
     )
 
 
+def chat_turn_fallback_message(user_text: str) -> str:
+    """Reply when the runtime returns no content (not for empty user input)."""
+    from .services.chat_runtime import is_simple_greeting
+
+    if is_simple_greeting(user_text):
+        return GREETING_EN
+    return "Sorry, I couldn't reply just now. Please try again in a moment."
+
+
 def unsupported_media_message(*, authenticated: bool) -> str:
     if authenticated:
         return (

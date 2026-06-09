@@ -78,6 +78,25 @@ def build_turn_metadata(
     }
 
 
+_SIMPLE_GREETINGS = frozenset({
+    "hello",
+    "hi",
+    "hey",
+    "hi there",
+    "hello there",
+    "hola",
+    "salam",
+    "assalamu alaikum",
+    "assalamualaikum",
+})
+
+
+def is_simple_greeting(text: str) -> bool:
+    """True when the message is only a short hello/hi (no other content)."""
+    normalized = (text or "").strip().lower().rstrip("!?.")
+    return normalized in _SIMPLE_GREETINGS
+
+
 def telegram_model_id() -> Optional[str]:
     """Concrete model id for Telegram, or None for auto routing."""
     mid = (get_settings().TELEGRAM_CHAT_MODEL or "auto").strip()

@@ -9,6 +9,8 @@ from app.integrations.telegram.services.chat_runtime import (
     build_turn_metadata,
     build_telegram_turn,
     is_known_agent_id,
+    is_simple_greeting,
+    telegram_model_id,
 )
 from app.integrations.telegram.web_auth import parse_web_user_id, resolve_runtime_user_id
 from app.automation import telegram_notify
@@ -45,6 +47,21 @@ def test_build_turn_metadata_enables_mcp_and_agent(monkeypatch):
     assert meta["channel"] == "telegram"
     assert "MCP" in meta["selected_tools"]
     assert "Agent" in meta["selected_tools"]
+
+
+def test_telegram_model_id_defaults_to_auto(monkeypatch):
+    from app.core.config import get_settings
+
+    s = get_settings()
+    monkeypatch.setattr(s, "TELEGRAM_CHAT_MODEL", "auto")
+    assert telegram_model_id() is None
+
+
+def test_is_simple_greeting():
+    assert is_simple_greeting("Hello!")
+    assert is_simple_greeting("hi")
+    assert not is_simple_greeting("Amar vlo lagteche na")
+    assert not is_simple_greeting("hello how are you")
 
 
 def test_build_telegram_turn_returns_runtime_user(monkeypatch):

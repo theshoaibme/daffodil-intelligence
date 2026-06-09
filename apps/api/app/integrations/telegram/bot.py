@@ -41,6 +41,7 @@ from .auth_store import auth_store
 from .web_auth import resolve_login_email_status, verify_web_password_login
 from .commands import (
     auth_required_message,
+    chat_turn_fallback_message,
     default_authenticated_message,
     default_guest_message,
     help_text,
@@ -1308,6 +1309,30 @@ class TelegramBot:
             tool_calls = result.get("tool_calls") or tool_calls
             resolved_agent = result.get("agent_id") or resolved_agent
 
+        if not content and model_id is not None:
+            result = await run_turn(
+                text,
+                user_id=runtime_user_id,
+                chat_id=chat_id,
+                agent_id=agent_id,
+                context_prefix=prefix,
+                attachments=attachments,
+                model_id=None,
+                metadata=metadata,
+            )
+            content = (result.get("content") or "").strip()
+            tool_calls = result.get("tool_calls") or tool_calls
+            resolved_agent = result.get("agent_id") or resolved_agent
+
+        if not content:
+            try:
+                from ...runtime.orchestrator import _legacy_run
+
+                legacy = await _legacy_run(text, runtime_user_id)
+                content = (legacy.get("content") or "").strip()
+            except Exception as legacy_err:
+                logger.debug("Telegram legacy fallback failed: %s", legacy_err)
+
         if flow_msg is not None:
             try:
                 await flow_msg.edit_text(
@@ -1326,7 +1351,7 @@ class TelegramBot:
                 pass
 
         if not content:
-            content = default_authenticated_message()
+            content = chat_turn_fallback_message(text)
         for chunk in _chunk(content, 4000):
             await update.message.reply_text(chunk)
         try:
