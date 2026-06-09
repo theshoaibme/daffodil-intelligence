@@ -624,9 +624,11 @@ class TelegramBot:
         profile.email = acct.email
         profile.full_name = acct.full_name
         profile_store.save(profile)
+        from .web_auth import resolve_runtime_user_id
+
         await memory_service.remember(
             acct.context_line(),
-            user_id=uid,
+            user_id=resolve_runtime_user_id(uid, acct),
             metadata={"source": "telegram_login", "email": acct.email},
         )
         await send_auth_welcome(
@@ -818,9 +820,11 @@ class TelegramBot:
         profile.step = STEP_COMPLETE
         profile.pending_password = ""
         profile_store.save(profile)
+        from .web_auth import resolve_runtime_user_id
+
         await memory_service.remember(
             account.context_line(),
-            user_id=uid,
+            user_id=resolve_runtime_user_id(uid, account),
             metadata={"source": "telegram_register", "email": account.email},
         )
         await send_auth_welcome(

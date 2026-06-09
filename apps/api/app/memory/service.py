@@ -338,15 +338,16 @@ class MemoryService:
     async def consolidate(self, user_id: int) -> Dict[str, Any]:
         """Promote sub-agent memories with agent_tree visibility to shared."""
         promoted = 0
+        pg_uid = pg_memory_user_id(user_id)
         try:
             async with _session() as db:
-                if not hasattr(db, "commit"):
+                if pg_uid is None or not hasattr(db, "commit"):
                     return {"promoted": 0}
                 from ..models.memory import AgentMemory
 
                 result = await db.execute(
                     select(AgentMemory).where(
-                        AgentMemory.user_id == user_id,
+                        AgentMemory.user_id == pg_uid,
                         AgentMemory.scope == "subagent",
                         AgentMemory.visibility == "agent_tree",
                     )

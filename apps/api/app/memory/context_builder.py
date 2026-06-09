@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from ..core.config import get_settings
 from ..skills.resolver import RuntimeConfig, resolve_runtime_config
 from ..tools.registry import get_registry
+from .pg_user import pg_memory_user_id
 from .repository import MemoryRepository
 from .types import CONFIG_TYPES, ROOT_AGENT_ID, compute_content_hash
 
@@ -245,6 +246,10 @@ async def build_turn_memory_context(
     if cfg is None:
         cfg = await resolve_runtime_config(agent_id=agent_id, user_id=user_id)
 
+    pg_uid = pg_memory_user_id(user_id)
+    if pg_uid is None:
+        return ""
+
     maker = get_session_maker()
     if maker is None:
         return ""
@@ -253,12 +258,12 @@ async def build_turn_memory_context(
         repo = MemoryRepository(session)
         builder = MemoryContextBuilder(repo)
         try:
-            await builder.snapshot_runtime_context(user_id, agent_id, cfg)
+            await builder.snapshot_runtime_context(pg_uid, agent_id, cfg)
         except Exception as e:
             logger.warning("snapshot_runtime_context failed: %s", e)
         try:
             return await builder.build_recall_context(
-                user_id, agent_id, message, chat_id=chat_id
+                pg_uid, agent_id, message, chat_id=chat_id
             )
         except Exception as e:
             logger.warning("build_recall_context failed: %s", e)
