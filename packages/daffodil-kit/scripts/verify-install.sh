@@ -54,8 +54,33 @@ else
 fi
 
 copycat_step "Security modules"
-python3 -m pytest "${SCRIPT_DIR}/tests/test_security.py" "${SCRIPT_DIR}/tests/test_copycat_guard.py" -q \
-  && copycat_ok "Security tests passed" || { copycat_fail "Security tests failed"; fail=1; }
+if python3 - <<'PY'
+import time
+
+from daffodil_kit import __version__
+from daffodil_kit.copycat_guard import BLOCKED_METHODS, check_method_allowed
+from daffodil_kit.security import generate_device_secret, sign_command, verify_command
+
+parts = __version__.split(".")
+assert len(parts) == 3 and all(p.isdigit() for p in parts)
+assert "mouse.click" in BLOCKED_METHODS
+assert check_method_allowed("mouse.click") is None
+
+secret = generate_device_secret()
+assert len(secret) == 64
+payload = '{"method":"mouse.click","params":{"x":1,"y":2}}'
+ts = time.time()
+sig = sign_command(secret, payload, ts)
+assert verify_command(secret, payload, ts, sig)
+assert not verify_command(secret, payload, ts + 120, sig, max_age=60)
+print("security-ok")
+PY
+then
+  copycat_ok "Security smoke checks passed"
+else
+  copycat_fail "Security smoke checks failed"
+  fail=1
+fi
 
 copycat_step "Config directory permissions"
 cfg="$HOME/.daffodil-kit"

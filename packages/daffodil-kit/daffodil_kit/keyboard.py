@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 try:
     import pyautogui
     PYAUTOGUI_AVAILABLE = True
-except ImportError:
+except Exception:
     PYAUTOGUI_AVAILABLE = False
-    logger.warning("pyautogui not installed. Keyboard control disabled.")
+    logger.warning("pyautogui not available. Keyboard control disabled.")
 
 PYNPUT_AVAILABLE = importlib.util.find_spec("pynput.keyboard") is not None
 
