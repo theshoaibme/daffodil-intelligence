@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ROUTES } from "../lib/routes";
+import { ROUTES } from "@lib";
 import {
   createHistorySession,
   deleteHistoryEntry,
@@ -16,8 +16,8 @@ import {
   setActiveHistoryId,
   upsertHistoryEntry,
   type ChatHistoryEntry,
-} from "../lib/chatHistoryStorage";
-import type { ChatMessage } from "../hooks/useChat";
+} from "@lib";
+import type { ChatMessage } from "@hooks";
 
 export interface ChatSessionState {
   sessionId: string;

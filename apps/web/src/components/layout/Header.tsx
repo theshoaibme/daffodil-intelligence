@@ -4,9 +4,9 @@ import { FileText, MessageSquare, Gift, Sun, Moon, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeaderIcon } from "../ui";
 import { useThemeMode } from "../ThemeProvider";
-import { useAuth } from "../../context/AuthContext";
-import { ROUTES } from "../../lib/routes";
-import { dropdownPanelVariants, modeSpringSoft, sidebarWidthTransition } from "../../lib/motion";
+import { useAuth } from "@context";
+import { ROUTES } from "@lib";
+import { dropdownPanelVariants, modeSpringSoft, sidebarWidthTransition } from "@lib";
 import {
   SIDEBAR_WIDTH_COLLAPSED,
   SIDEBAR_WIDTH_EXPANDED,

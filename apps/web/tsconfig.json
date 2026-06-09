@@ -17,6 +17,10 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
+      "@lib": ["src/lib/index.ts"],
+      "@hooks": ["src/hooks/index.ts"],
+      "@context": ["src/context/index.ts"],
+      "@styles": ["src/styles/index.ts"],
       "@ui": ["src/components/ui/index.ts"],
       "@components/*": ["src/components/*"]
     }

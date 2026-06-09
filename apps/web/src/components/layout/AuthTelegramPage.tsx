@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
-import { ROUTES } from "../../lib/routes";
+import { useAuth } from "@context";
+import { ROUTES } from "@lib";
 
 export function AuthTelegramPage() {
   const [searchParams] = useSearchParams();

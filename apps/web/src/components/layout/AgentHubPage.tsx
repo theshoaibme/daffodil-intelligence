@@ -12,18 +12,21 @@ import {
   Pencil,
   X,
 } from "lucide-react";
-import { ROUTES } from "../../lib/routes";
-import { useLocalStorageState } from "../../hooks/useLocalStorageState";
-import AgentDashboard from "./AgentDashboard";
-import { hubApi, type AgentHubRecord, type SkillRecord } from "../../lib/hubApi";
-import { parseN8nWorkflow, type AgentCapabilityInput } from "../../lib/n8nWorkflowParser";
 import {
   FIELD_CLASS,
   FIELD_LABEL_CLASS,
   FIELD_PILL_CLASS,
+  hubApi,
+  parseN8nWorkflow,
+  ROUTES,
   SELECT_PILL_CLASS,
   TEXTAREA_CLASS,
-} from "../../lib/formStyles";
+  type AgentCapabilityInput,
+  type AgentHubRecord,
+  type SkillRecord,
+} from "@lib";
+import { useLocalStorageState } from "@hooks";
+import AgentDashboard from "./AgentDashboard";
 import { getAgentIconStyle } from "./AgentDashboard/agentIcons";
 import { CATEGORY_LABELS } from "./AgentDashboard/agentConstants";
 
@@ -346,7 +349,7 @@ export function AgentHubPage() {
 
   return (
     <div className="flex flex-col h-screen text-on-surface font-sans overflow-hidden">
-      <header className="shrink-0 z-10 w-full">
+      <header className="shrink-0 z-10 w-full bg-transparent">
         <div className="w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link

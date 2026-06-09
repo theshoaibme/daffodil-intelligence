@@ -16,8 +16,8 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { BOTTOM_BAR_LAYOUT_ID, modeSpring } from "../../../lib/motion";
-import type { KitPermissions } from "../../../hooks/useKit";
+import { BOTTOM_BAR_LAYOUT_ID, modeSpring } from "@lib";
+import type { KitPermissions } from "@hooks";
 
 function ToolbarButton({
   onClick,

@@ -4,9 +4,9 @@ import { PlusMenuDropdown } from "./PlusMenuDropdown";
 import { McpConfigureDialog } from "./McpConfigureDialog";
 import { ModelSelector } from "./ModelSelector";
 import { FileAttachmentButton, SendButton, LiveVoiceButton } from "./ActionButtons";
-import { BOTTOM_BAR_LAYOUT_ID, enterOrSkip, modeSpring } from "../../../lib/motion";
-import { useLocalStorageState } from "../../../hooks/useLocalStorageState";
-import { useMcpStatus } from "../../../hooks/useMcpStatus";
+import { BOTTOM_BAR_LAYOUT_ID, enterOrSkip, modeSpring } from "@lib";
+import { useLocalStorageState } from "@hooks";
+import { useMcpStatus } from "@hooks";
 
 interface PromptBarProps {
   prompt: string;

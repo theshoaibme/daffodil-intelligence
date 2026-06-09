@@ -2,10 +2,10 @@ import { useMemo, type ReactNode } from "react";
 import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ROUTES } from "../../../lib/routes";
+import { ROUTES } from "@lib";
 import type { SidebarProps } from "./types";
-import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "../../../lib/motion";
-import { useChatHistory } from "../../../context/ChatHistoryContext";
+import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "@lib";
+import { useChatHistory } from "@context";
 import { ChatHistoryItem } from "./ChatHistoryItem";
 
 export type { SidebarProps } from "./types";

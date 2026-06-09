@@ -12,11 +12,11 @@ import {
   Shield,
   User,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-import { changePassword, DELETE_ACCOUNT_PHRASE } from "../../lib/api";
-import { ROUTES } from "../../lib/routes";
-import { FIELD_CLASS } from "../../lib/formStyles";
-import { dropdownPanelVariants } from "../../lib/motion";
+import { useAuth } from "@context";
+import { changePassword, DELETE_ACCOUNT_PHRASE } from "@lib";
+import { ROUTES } from "@lib";
+import { FIELD_CLASS } from "@lib";
+import { dropdownPanelVariants } from "@lib";
 import { MemorySettingsSection } from "./MemorySettingsSection";
 
 interface ProfileForm {

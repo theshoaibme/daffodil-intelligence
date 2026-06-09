@@ -5,10 +5,10 @@ import {
   addLocalMcpServer,
   removeLocalMcpServer,
   type LocalMcpServer,
-} from "../../../lib/mcpConfig";
-import type { McpStatus } from "../../../hooks/useMcpStatus";
-import { dropdownPanelVariants } from "../../../lib/motion";
-import { FIELD_CLASS } from "../../../lib/formStyles";
+} from "@lib";
+import type { McpStatus } from "@hooks";
+import { dropdownPanelVariants } from "@lib";
+import { FIELD_CLASS } from "@lib";
 
 interface McpConfigureDialogProps {
   open: boolean;

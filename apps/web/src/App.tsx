@@ -5,18 +5,25 @@
 
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { enterOrSkip, modeSpring, overlayFade } from "./lib/motion";
-import { UiAnimationProvider, useUiAnimationReady } from "./context/UiAnimationContext";
-import { ChatHistoryProvider, useChatHistory } from "./context/ChatHistoryContext";
-import { getHistoryEntry } from "./lib/chatHistoryStorage";
-import { SuggestionChip } from "./components/ui";
+import {
+  enterOrSkip,
+  getHistoryEntry,
+  hubApi,
+  modeSpring,
+  overlayFade,
+  ROUTES,
+} from "@lib";
+import { useChat, useLocalStorageState } from "@hooks";
+import {
+  ChatHistoryProvider,
+  UiAnimationProvider,
+  useAuth,
+  useChatHistory,
+  useUiAnimationReady,
+} from "@context";
+import { SuggestionChip } from "@ui";
 import { Sidebar, Header, PromptBar, TaskPanel, AiResponseCard } from "./components/layout";
 import type { TaskItem } from "./components/layout/TaskPanel/TaskPanel";
-import { useChat } from "./hooks/useChat";
-import { hubApi } from "./lib/hubApi";
-import { useLocalStorageState } from "./hooks/useLocalStorageState";
-import { useAuth } from "./context/AuthContext";
-import { ROUTES } from "./lib/routes";
 
 import { Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import {

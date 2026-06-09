@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { GoogleAuthButton, RegisterForm } from "../auth";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "@context";
 import { AuthDivider, AuthLayout } from "./AuthLayout";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@lib";
 
 export function RegisterPage() {
   const navigate = useNavigate();

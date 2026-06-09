@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { Compass, ChevronUp, ChevronDown, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader } from "../../ui/Loader";
-import { useLocalStorageState } from "../../../hooks/useLocalStorageState";
-import { enterOrSkip } from "../../../lib/motion";
+import { useLocalStorageState } from "@hooks";
+import { enterOrSkip } from "@lib";
 
 export interface TaskItem {
   id: string;

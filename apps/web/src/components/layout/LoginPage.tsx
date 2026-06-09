@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CredentialForm, GoogleAuthButton } from "../auth";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "@context";
 import { AuthDivider, AuthLayout } from "./AuthLayout";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@lib";
 
 interface LoginLocationState {
   registered?: boolean;

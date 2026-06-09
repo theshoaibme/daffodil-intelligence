@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail, Lock, User } from "lucide-react";
-import { sendRegisterOtp, verifyRegisterOtp } from "../../lib/api";
-import { ROUTES } from "../../lib/routes";
+import { sendRegisterOtp, verifyRegisterOtp } from "@lib";
+import { ROUTES } from "@lib";
 import { Input, Button } from "../ui";
 
 interface RegisterFormProps {

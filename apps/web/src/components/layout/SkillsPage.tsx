@@ -10,9 +10,9 @@ import {
   Link2,
   X,
 } from "lucide-react";
-import { ROUTES } from "../../lib/routes";
-import { FIELD_CLASS_COMPACT, SELECT_CLASS } from "../../lib/formStyles";
-import { hubApi, type AgentHubRecord, type SkillRecord } from "../../lib/hubApi";
+import { ROUTES } from "@lib";
+import { FIELD_CLASS_COMPACT, SELECT_CLASS } from "@lib";
+import { hubApi, type AgentHubRecord, type SkillRecord } from "@lib";
 
 type AssignTarget = "global" | string;
 

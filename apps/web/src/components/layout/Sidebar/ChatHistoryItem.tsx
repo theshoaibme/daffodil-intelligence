@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageSquare, MoreHorizontal, Trash2, Share2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { formatHistoryDate } from "../../../lib/chatHistoryStorage";
+import { formatHistoryDate } from "@lib";
 
 interface ChatHistoryItemProps {
   id: string;

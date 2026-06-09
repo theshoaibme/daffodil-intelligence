@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Agent } from "../../../hooks/useAgents";
+import type { Agent } from "@hooks";
 import { AgentDetailContent, useAgentSkills } from "./agentDetailContent";
 
 export interface HoverAnchor {

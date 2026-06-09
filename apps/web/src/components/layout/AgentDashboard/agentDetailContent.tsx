@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Wrench, Sparkles, ListChecks } from "lucide-react";
-import type { Agent } from "../../../hooks/useAgents";
+import type { Agent } from "@hooks";
 import { getAgentIconStyle } from "./agentIcons";
 import {
   CATEGORY_DESCRIPTIONS,
@@ -8,7 +8,7 @@ import {
   resolveAgentDescription,
 } from "./agentConstants";
 
-import { getAuthHeaders } from "../../../lib/api";
+import { getAuthHeaders } from "@lib";
 
 export interface SkillInfo {
   id: string;

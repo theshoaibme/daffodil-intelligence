@@ -18,7 +18,7 @@ import {
   updateCurrentUser,
   type UserResponse,
   type UserUpdatePayload,
-} from "../lib/api";
+} from "@lib";
 import {
   clearAuthSession,
   isTokenExpired,
@@ -26,7 +26,7 @@ import {
   readStoredToken,
   readStoredUser,
   shouldRefreshToken,
-} from "../lib/authSession";
+} from "@lib";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "offline";
 

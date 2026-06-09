@@ -1,6 +1,6 @@
 import { Link, Sparkles, ArrowUp, Loader2, Mic } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ROUTES } from "../../../lib/routes";
+import { ROUTES } from "@lib";
 
 const promptIconButtonClass =
   "w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest rounded-full transition-all cursor-pointer border-0 outline-none";

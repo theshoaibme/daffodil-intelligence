@@ -10,6 +10,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@lib': resolve(__dirname, './src/lib/index.ts'),
+      '@hooks': resolve(__dirname, './src/hooks/index.ts'),
+      '@context': resolve(__dirname, './src/context/index.ts'),
+      '@styles': resolve(__dirname, './src/styles/index.ts'),
       '@ui': resolve(__dirname, './src/components/ui/index.ts'),
       '@components': resolve(__dirname, './src/components')
     }

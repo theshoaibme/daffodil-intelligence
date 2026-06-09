@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { fetchGoogleOAuthConfig, googleOAuthStartUrl } from "../../lib/api";
+import { fetchGoogleOAuthConfig, googleOAuthStartUrl } from "@lib";
 import { Button } from "../ui";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@lib";
 
 interface GoogleAuthButtonProps {
   disabled?: boolean;

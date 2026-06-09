@@ -1,11 +1,11 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { useComputerStream } from "../../../hooks/useComputerStream";
-import { useKit } from "../../../hooks/useKit";
+import { useComputerStream } from "@hooks";
+import { useKit } from "@hooks";
 import { KitToolbar } from "./KitToolbar";
-import { ROUTES } from "../../../lib/routes";
-import { modeSpring, modeSpringSoft, overlayFade } from "../../../lib/motion";
+import { ROUTES } from "@lib";
+import { modeSpring, modeSpringSoft, overlayFade } from "@lib";
 import { AlertTriangle, Monitor, Zap, Send, Square } from "lucide-react";
 
 // ─── Screen Viewer ───────────────────────────────────────────────────────────

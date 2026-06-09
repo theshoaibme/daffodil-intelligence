@@ -12,7 +12,12 @@ export function FitViewOnUpdate({ trigger }: FitViewOnUpdateProps) {
   useEffect(() => {
     if (trigger === 0) return;
     const frame = window.requestAnimationFrame(() => {
-      void fitView(FLOW_FIT_OPTIONS);
+      // First fit: snap instantly so load does not animate from a stale viewport.
+      const options =
+        trigger === 1
+          ? { ...FLOW_FIT_OPTIONS, duration: 0 }
+          : FLOW_FIT_OPTIONS;
+      void fitView(options);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [trigger, fitView]);

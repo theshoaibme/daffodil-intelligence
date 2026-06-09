@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { useConfig, detectLanguage } from "../../context/ConfigContext";
+import { useConfig, detectLanguage } from "@context";
 
 interface TranscriptItem {
   id: number;

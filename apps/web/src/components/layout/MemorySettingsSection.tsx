@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Brain, Loader2, Plus, Search, Trash2 } from "lucide-react";
-import { useMemory, MemoryTab } from "../../hooks/useMemory";
-import { hubApi, AgentHubRecord } from "../../lib/hubApi";
-import { FIELD_CLASS, TEXTAREA_CLASS } from "../../lib/formStyles";
+import { useMemory, MemoryTab } from "@hooks";
+import { hubApi, AgentHubRecord } from "@lib";
+import { FIELD_CLASS, TEXTAREA_CLASS } from "@lib";
 
 const TABS: { id: MemoryTab; label: string }[] = [
   { id: "facts", label: "Facts" },

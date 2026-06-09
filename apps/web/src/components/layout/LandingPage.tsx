@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Brain, GraduationCap, Bot, Shield, ArrowRight } from "lucide-react";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@lib";
 
 const features = [
   {

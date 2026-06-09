@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { exchangeGoogleCode } from "../../lib/api";
-import { useAuth } from "../../context/AuthContext";
+import { exchangeGoogleCode } from "@lib";
+import { useAuth } from "@context";
 import { googleRedirectUri } from "../auth/GoogleAuthButton";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@lib";
 import { Loader } from "../ui";
 
 export function GoogleCallbackPage() {

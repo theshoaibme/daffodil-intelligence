@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ROUTES } from "../../../lib/routes";
+import { ROUTES } from "@lib";
 import { motion, AnimatePresence } from "framer-motion";
-import { DEFAULT_MODELS, getModels, type ModelInfo } from "../../../lib/models";
+import { DEFAULT_MODELS, getModels, type ModelInfo } from "@lib";
 import { DropdownItem } from "../../ui";
 
 export type { ModelInfo };

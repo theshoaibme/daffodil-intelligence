@@ -11,8 +11,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import "./flowTheme.css";
 
-import type { Agent } from "../../../hooks/useAgents";
-import { useRuntimeStatus } from "../../../hooks/useRuntimeStatus";
+import type { Agent } from "@hooks";
+import { useRuntimeStatus } from "@hooks";
 import { ActiveBeamEdge } from "./ActiveBeamEdge";
 import { AgentHoverCard, type HoverAnchor } from "./AgentHoverCard";
 import { FlowZoomControls } from "./FlowZoomControls";
@@ -20,8 +20,6 @@ import { flowNodeTypes } from "./FlowNodes";
 import { FitViewOnUpdate } from "./FitViewOnUpdate";
 import { buildAgentGraph } from "./graphBuilder";
 import { loadLayout, saveLayout } from "./layoutStorage";
-import { FLOW_FIT_OPTIONS } from "./flowLayout";
-
 const edgeTypes = { activeBeam: ActiveBeamEdge };
 
 const IDLE_OVERLAY = {
@@ -38,9 +36,17 @@ interface AgentFlowCanvasProps {
   editing: boolean;
   onSave: () => void;
   saveSignal: number;
+  /** When false, defer fit-to-view until the graph has finished loading. */
+  graphReady?: boolean;
 }
 
-export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFlowCanvasProps) {
+export function AgentFlowCanvas({
+  agents,
+  editing,
+  onSave,
+  saveSignal,
+  graphReady = true,
+}: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(agents), [agents]);
   const { runtime } = useRuntimeStatus();
   const [fitTrigger, setFitTrigger] = useState(0);
@@ -90,12 +96,13 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
   }, [saveSignal, onSave]);
 
   useEffect(() => {
-    if (agents.length > 0) {
-      setFitTrigger((n) => n + 1);
-    }
-  }, [agents.length]);
+    if (!graphReady) return;
+    setFitTrigger((n) => n + 1);
+  }, [graphReady, agents.length]);
 
   useEffect(() => {
+    if (!graphReady) return;
+
     const el = containerRef.current;
     if (!el) return;
 
@@ -115,7 +122,7 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
         window.clearTimeout(resizeTimer.current);
       }
     };
-  }, []);
+  }, [graphReady]);
 
   const clearHoverLeaveTimer = useCallback(() => {
     if (hoverLeaveTimer.current !== null) {
@@ -213,8 +220,6 @@ export function AgentFlowCanvas({ agents, editing, onSave, saveSignal }: AgentFl
         zoomOnPinch
         minZoom={0.25}
         maxZoom={1.75}
-        fitView
-        fitViewOptions={FLOW_FIT_OPTIONS}
         proOptions={{ hideAttribution: true }}
         className={editing ? "cursor-default" : "cursor-grab active:cursor-grabbing"}
       >

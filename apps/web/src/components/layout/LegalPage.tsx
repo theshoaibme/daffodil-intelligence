@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@lib";
 
 interface LegalPageProps {
   title: string;

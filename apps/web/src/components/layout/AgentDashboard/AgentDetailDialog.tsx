@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import type { Agent } from "../../../hooks/useAgents";
+import type { Agent } from "@hooks";
 import { AgentDetailContent, AgentProfileRow, useAgentSkills } from "./agentDetailContent";
 
 interface AgentDetailDialogProps {

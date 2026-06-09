@@ -1,5 +1,5 @@
 import type { Node } from "@xyflow/react";
-import type { Agent } from "../../../hooks/useAgents";
+import type { Agent } from "@hooks";
 import { computeDefaultPositions } from "./graphBuilder";
 import type { SavedPositions } from "./flowLayout";
 

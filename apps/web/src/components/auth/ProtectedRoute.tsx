@@ -1,7 +1,7 @@
 import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
-import { ROUTES } from "../../lib/routes";
+import { useAuth } from "@context";
+import { ROUTES } from "@lib";
 import { Loader } from "../ui";
 
 export const ProtectedRoute: React.FC = () => {

@@ -2,9 +2,9 @@ import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Check, Pencil, RefreshCw, X } from "lucide-react";
-import { useAgents } from "../../../hooks/useAgents";
-import { ROUTES } from "../../../lib/routes";
-import { modeSpringSoft } from "../../../lib/motion";
+import { useAgents } from "@hooks";
+import { ROUTES } from "@lib";
+import { modeSpringSoft } from "@lib";
 import { AgentFlowCanvas } from "./AgentFlowCanvas";
 import { clearLayout } from "./layoutStorage";
 export interface AgentDashboardProps {
@@ -142,6 +142,7 @@ export default function AgentDashboard({
           editing={editing}
           onSave={handleSave}
           saveSignal={saveSignal}
+          graphReady={!loading}
         />
       </div>
 
