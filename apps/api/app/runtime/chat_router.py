@@ -25,7 +25,9 @@ def groq_model_for_routing(routing: str) -> str:
     settings = get_settings()
     if routing in ("fast_simple", "default"):
         return settings.GROQ_FAST_MODEL
-    return settings.GROQ_MODEL
+    if routing == "complex":
+        return settings.GROQ_MODEL
+    return settings.GROQ_FAST_MODEL
 
 
 def should_use_fast_groq(

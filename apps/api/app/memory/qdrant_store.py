@@ -93,9 +93,9 @@ class QdrantMemoryStore:
             must.append(FieldCondition(key="chat_id", match=MatchValue(value=str(chat_id))))
 
         vector = await embed_text(query)
-        hits = self._client.search(
+        response = self._client.query_points(
             collection_name=self._collection,
-            query_vector=vector,
+            query=vector,
             query_filter=Filter(must=must),
             limit=k,
             with_payload=True,
@@ -106,7 +106,7 @@ class QdrantMemoryStore:
                 "score": hit.score,
                 "payload": hit.payload or {},
             }
-            for hit in hits
+            for hit in (response.points or [])
         ]
 
     def delete(self, point_id: str) -> None:

@@ -204,6 +204,25 @@ export function useChat(options?: UseChatOptions) {
           if (isSendStale(generation)) return;
           if (event.type === "thinking" && event.content) {
             setThinkingText((prev) => prev + event.content);
+          } else if (event.type === "status" && event.content) {
+            setThinkingSteps((prev) => [
+              ...prev,
+              {
+                id: `status:${prev.length}`,
+                title: event.content!,
+                status: "success",
+              },
+            ]);
+          } else if (event.type === "model" && event.content) {
+            setThinkingSteps((prev) =>
+              upsertStep(
+                prev,
+                "model",
+                `Model: ${event.content}${event.name ? ` (${event.name})` : ""}`,
+                "success"
+              )
+            );
+            emitFlow({ modelActive: true });
           } else if (event.type === "tool" && event.name) {
             setThinkingSteps((prev) =>
               upsertStep(

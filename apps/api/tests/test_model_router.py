@@ -14,9 +14,11 @@ def test_manual_model_bypasses_auto():
     assert reason == "manual"
 
 
-def test_auto_defaults_for_simple_message():
+def test_auto_defaults_for_simple_message(monkeypatch):
+    monkeypatch.setenv("GROQ_FAST_CHAT", "false")
     from app.core.config import get_settings
 
+    get_settings.cache_clear()
     resolved, was_auto, reason = resolve_model_for_turn(
         model_id=AUTO_MODEL_ID,
         message="Tell me about the weather today.",
@@ -24,6 +26,22 @@ def test_auto_defaults_for_simple_message():
     assert was_auto is True
     assert reason == "default"
     assert resolved == get_settings().ANTIGRAVITY_MODEL
+
+
+def test_auto_defaults_to_groq_fast_when_enabled(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_FAST_CHAT", "true")
+    monkeypatch.setenv("GROQ_FAST_MODEL", "llama-3.1-8b-instant")
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    resolved, was_auto, reason = resolve_model_for_turn(
+        model_id=AUTO_MODEL_ID,
+        message="Tell me about the weather today.",
+    )
+    assert was_auto is True
+    assert reason == "default"
+    assert resolved == "llama-3.1-8b-instant"
 
 
 def test_auto_picks_pro_for_reasoning():

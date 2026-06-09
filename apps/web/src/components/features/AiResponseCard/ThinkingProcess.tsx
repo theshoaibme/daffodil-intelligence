@@ -126,27 +126,35 @@ export function ThinkingProcess({
             )}
             {steps.length > 0 && (
               <div className="flex flex-col gap-1.5">
-                {steps.map((step) => (
-                  <div
-                    key={step.id}
-                    className={`flex items-center gap-2.5 p-2 rounded-xl transition-colors ${
-                      step.status === "active"
-                        ? "bg-primary/10 text-primary"
-                        : "text-on-surface-variant hover:bg-surface-container-high/60"
-                    }`}
-                  >
-                    {step.status === "success" && (
-                      <Check size={13} className="text-primary stroke-[3.5] flex-shrink-0" />
-                    )}
-                    {step.status === "active" && (
-                      <Loader2 size={13} className="animate-spin text-primary flex-shrink-0" />
-                    )}
-                    {step.status === "pending" && (
-                      <div className="w-3.5 h-3.5 rounded-full border-2 border-outline-variant/40 flex-shrink-0" />
-                    )}
-                    <span className="text-xs font-medium leading-none">{step.title}</span>
-                  </div>
-                ))}
+                {steps.map((step) => {
+                  const isSystem = step.id.startsWith("status:") || step.id === "model";
+                  return (
+                    <div
+                      key={step.id}
+                      className={`flex items-center gap-2.5 p-2 rounded-xl transition-colors ${
+                        step.status === "active"
+                          ? "bg-primary/10 text-primary"
+                          : isSystem
+                            ? "text-on-surface-variant/75 italic"
+                            : "text-on-surface-variant hover:bg-surface-container-high/60"
+                      }`}
+                    >
+                      {step.status === "success" && !isSystem && (
+                        <Check size={13} className="text-primary stroke-[3.5] flex-shrink-0" />
+                      )}
+                      {step.status === "success" && isSystem && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-on-surface-variant/40 flex-shrink-0 ml-1" />
+                      )}
+                      {step.status === "active" && (
+                        <Loader2 size={13} className="animate-spin text-primary flex-shrink-0" />
+                      )}
+                      {step.status === "pending" && (
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-outline-variant/40 flex-shrink-0" />
+                      )}
+                      <span className="text-xs font-medium leading-snug">{step.title}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </motion.div>

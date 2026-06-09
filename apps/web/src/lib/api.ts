@@ -286,7 +286,7 @@ interface StreamResult {
 }
 
 export interface StreamEvent {
-  type: "thinking" | "tool" | "agent" | "subagent";
+  type: "thinking" | "tool" | "agent" | "subagent" | "status" | "model";
   content?: string;
   name?: string;
   status?: string;
@@ -367,6 +367,16 @@ async function consumeSSEStream(
             model_mode: parsed.model_mode,
             model_routing: parsed.model_routing,
           };
+          onEvent?.({
+            type: "model",
+            content: parsed.model_id,
+            name: parsed.model_routing,
+          });
+          continue;
+        }
+
+        if (parsed.type === "status") {
+          if (parsed.content) onEvent?.({ type: "status", content: parsed.content });
           continue;
         }
 

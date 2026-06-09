@@ -176,6 +176,10 @@ async def add_message(
                     thinking = event.get("content") or ""
                     if thinking:
                         yield f'data: {json.dumps({"type": "thinking", "content": thinking})}\n\n'
+                elif event_type == "status":
+                    status_msg = event.get("content") or ""
+                    if status_msg:
+                        yield f'data: {json.dumps({"type": "status", "content": status_msg})}\n\n'
                 elif event_type == "tool":
                     tool_name = event.get("name")
                     if not tool_name:

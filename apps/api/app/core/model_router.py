@@ -76,7 +76,10 @@ def resolve_model_for_turn(
     Returns ``(resolved_model_id, was_auto, routing_reason)``.
     """
     settings = get_settings()
-    default = default_model or settings.ANTIGRAVITY_MODEL
+    use_groq = settings.GROQ_FAST_CHAT and bool(settings.GROQ_API_KEY)
+    groq_fast = settings.GROQ_FAST_MODEL
+    groq_strong = settings.GROQ_MODEL
+    default = default_model or (groq_fast if use_groq else settings.ANTIGRAVITY_MODEL)
 
     if model_id and model_id != AUTO_MODEL_ID:
         return model_id, False, "manual"
@@ -100,9 +103,11 @@ def resolve_model_for_turn(
         return "gemini-2.5-pro", True, "long_context"
 
     if any(k in lower for k in _COMPLEX_KEYWORDS) or word_count > 100:
+        if use_groq:
+            return groq_strong, True, "complex"
         return "gemini-2.5-flash", True, "complex"
 
     if word_count <= 25 and any(k in lower for k in _FAST_KEYWORDS):
-        return "gemini-2.5-flash", True, "fast_simple"
+        return groq_fast if use_groq else "gemini-2.0-flash-lite", True, "fast_simple"
 
     return default, True, "default"

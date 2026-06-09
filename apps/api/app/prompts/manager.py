@@ -20,7 +20,7 @@ from . import core
 settings = get_settings()
 
 # Standard English greeting (user-facing; use exact wording).
-GREETING_EN = "Hello! I'm daffodil intelegence. How can I help you today?"
+GREETING_EN = "Hello! I'm Daffodil Intelligence. How can I help you today?"
 
 
 UNIVERSAL_MAIN_PROMPT = """You are Daffodil Intelligence — a universal, multi-agent AI assistant for
@@ -139,7 +139,7 @@ def get_system_instructions(
 def get_greeting(lang: Optional[str] = None) -> str:
     """Return the standard greeting for the given language."""
     if (lang or "").startswith("bn"):
-        return "হ্যালো! আমি daffodil intelegence। আজ আপনাকে কীভাবে সাহায্য করতে পারি?"
+        return "হ্যালো! আমি Daffodil Intelligence। আজ আপনাকে কীভাবে সাহায্য করতে পারি?"
     return GREETING_EN
 
 

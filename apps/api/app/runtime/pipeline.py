@@ -12,9 +12,11 @@ from typing import Any, AsyncIterator, List, Optional
 
 from ..core.model_router import resolve_model_for_turn
 from ..memory import memory_service
+from ..prompts.modes import build_mode_system_prompt, mode_status_messages
 from ..skills.resolver import resolve_runtime_config
 from . import groq_chat, orchestrator
 from .chat_router import groq_model_for_routing, should_use_fast_groq
+from .stream_signals import stream_turn_preamble
 from .tool_context import clear_turn_context, set_turn_context
 from .trace import estimate_tokens, trace_recorder
 
@@ -25,24 +27,25 @@ def _compose_message(message: str, context_prefix: Optional[str]) -> str:
     return message
 
 
-def _tools_mode_hint(metadata: Optional[dict]) -> str:
-    if not metadata:
-        return ""
-    tools = metadata.get("selected_tools") or []
-    if not tools:
-        return ""
-    lines = ["ACTIVE USER MODES (from chat UI — honor these):"]
-    if "Planning" in tools:
-        lines.append(
-            "- Planning: break goals into steps; use invoke_agent(planning) or create_plan flows."
-        )
-    if "Research" in tools:
-        lines.append("- Research: use invoke_agent(research) and web search tools.")
-    if "MCP" in tools:
-        lines.append("- MCP tools enabled when configured.")
-    if "Agent" in tools:
-        lines.append("- Agent dashboard mode: coordinate multiple invoke_agent calls when needed.")
-    return "\n".join(lines)
+def _apply_mode_system(
+    extra_system: str,
+    metadata: Optional[dict],
+    *,
+    routing: str,
+    model_id: str,
+    engine: str,
+) -> str:
+    mode_block = build_mode_system_prompt(
+        metadata,
+        routing=routing,
+        model_id=model_id,
+        engine=engine,
+    )
+    if not mode_block:
+        return extra_system
+    if extra_system:
+        return f"{extra_system}\n\n{mode_block}".strip()
+    return mode_block
 
 
 def _apply_turn_context(
@@ -118,9 +121,6 @@ async def _run_turn_inner(
     extra_system = cfg.extra_system or ""
     if recall_block:
         extra_system = f"{recall_block}\n\n{extra_system}".strip() if extra_system else recall_block
-    mode_hint = _tools_mode_hint(metadata)
-    if mode_hint:
-        extra_system = f"{extra_system}\n\n{mode_hint}".strip() if extra_system else mode_hint
     prompt = _compose_message(message, context_prefix)
 
     use_fast_groq = should_use_fast_groq(
@@ -133,6 +133,16 @@ async def _run_turn_inner(
         include_tools=cfg.tool_names,
     )
     groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
+    active_model = groq_model if use_fast_groq else resolved_model
+    active_routing = "groq_fast" if use_fast_groq else routing
+    engine = "groq" if use_fast_groq else "antigravity"
+    extra_system = _apply_mode_system(
+        extra_system,
+        metadata,
+        routing=active_routing,
+        model_id=active_model,
+        engine=engine,
+    )
 
     if use_fast_groq and groq_chat.is_available():
         result = await groq_chat.chat(
@@ -157,9 +167,10 @@ async def _run_turn_inner(
     result["agent_id"] = cfg.agent_id
     result["skill_ids"] = cfg.skill_ids
     result["ruleset_ids"] = cfg.ruleset_ids
-    result["model_id"] = groq_model if use_fast_groq else resolved_model
+    result["model_id"] = active_model
     result["model_mode"] = "auto" if was_auto else "manual"
-    result["model_routing"] = "groq_fast" if use_fast_groq else routing
+    result["model_routing"] = active_routing
+    result["engine"] = engine
     return result
 
 
@@ -221,9 +232,6 @@ async def _run_turn_stream_inner(
     extra_system = cfg.extra_system or ""
     if recall_block:
         extra_system = f"{recall_block}\n\n{extra_system}".strip() if extra_system else recall_block
-    mode_hint = _tools_mode_hint(metadata)
-    if mode_hint:
-        extra_system = f"{extra_system}\n\n{mode_hint}".strip() if extra_system else mode_hint
     prompt = _compose_message(message, context_prefix)
 
     use_fast_groq = should_use_fast_groq(
@@ -238,6 +246,14 @@ async def _run_turn_stream_inner(
     groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
     active_model = groq_model if use_fast_groq else resolved_model
     active_routing = "groq_fast" if use_fast_groq else routing
+    engine = "groq" if use_fast_groq else "antigravity"
+    extra_system = _apply_mode_system(
+        extra_system,
+        metadata,
+        routing=active_routing,
+        model_id=active_model,
+        engine=engine,
+    )
 
     yield {
         "type": "model",
@@ -256,6 +272,25 @@ async def _run_turn_stream_inner(
     trace_recorder.event(turn_id, type="model", name=active_model or "auto", detail=active_routing or "")
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
     yield {"type": "agent", "agent_id": cfg.agent_id, "name": cfg.agent_id, "status": "active"}
+
+    status_lines = mode_status_messages(
+        metadata,
+        routing=active_routing,
+        model_id=active_model,
+        engine=engine,
+    )
+    async for signal in stream_turn_preamble(
+        status_lines=status_lines,
+        routing=active_routing,
+    ):
+        stype = signal.get("type")
+        if stype in ("thinking", "status"):
+            trace_recorder.event(
+                turn_id,
+                type=stype,
+                detail=(signal.get("content", "") or "")[:160],
+            )
+        yield signal
 
     try:
         if use_fast_groq and groq_chat.is_available():
@@ -284,7 +319,7 @@ async def _run_turn_stream_inner(
                 etype = event.get("type") if isinstance(event, dict) else None
                 if etype == "content":
                     trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
-                elif etype in ("tool", "thinking", "subagent"):
+                elif etype in ("tool", "thinking", "subagent", "status"):
                     trace_recorder.event(
                         turn_id,
                         type=etype,
