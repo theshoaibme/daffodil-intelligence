@@ -110,4 +110,8 @@ if (-not $py) {
 if (-not $py) { throw "Python still not found after install — restart terminal and re-run" }
 
 Write-Log "Using Python: $($py -join ' ')"
-& $py[0] $py[1..($py.Length-1)] $InstallPy
+$pythonExe = $py[0]
+$pythonArgs = @()
+if ($py.Length -gt 1) { $pythonArgs = $py[1..($py.Length - 1)] }
+& "$pythonExe" @pythonArgs "$InstallPy"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
