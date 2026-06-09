@@ -13,6 +13,7 @@ import "./flowTheme.css";
 
 import type { Agent } from "@hooks";
 import { useRuntimeStatus } from "@hooks";
+import { subscribeFlow, type FlowState } from "@lib";
 import { ActiveBeamEdge } from "./ActiveBeamEdge";
 import { AgentHoverCard, type HoverAnchor } from "./AgentHoverCard";
 import { FlowZoomControls } from "./FlowZoomControls";
@@ -52,6 +53,13 @@ export function AgentFlowCanvas({
 }: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(agents), [agents]);
   const { runtime } = useRuntimeStatus();
+  const [flow, setFlow] = useState<FlowState>({
+    activeAgentIds: [],
+    activeTools: [],
+    modelActive: false,
+  });
+
+  useEffect(() => subscribeFlow(setFlow), []);
   const [fitTrigger, setFitTrigger] = useState(0);
   const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null);
   const [hoverAnchor, setHoverAnchor] = useState<HoverAnchor | null>(null);
@@ -61,16 +69,17 @@ export function AgentFlowCanvas({
   const hoverLeaveTimer = useRef<number | null>(null);
   const resizeTimer = useRef<number | null>(null);
 
+  const live = flow.modelActive || flow.activeAgentIds.length > 0;
   const graph = useMemo(
     () =>
       buildAgentGraph(agents, savedLayout, {
-        activeAgentIds: IDLE_OVERLAY.activeAgentIds,
+        activeAgentIds: live ? flow.activeAgentIds : IDLE_OVERLAY.activeAgentIds,
         activeInputId: IDLE_OVERLAY.activeInputId,
-        modelActive: IDLE_OVERLAY.modelActive,
-        activeModelId: IDLE_OVERLAY.activeModelId,
+        modelActive: live ? flow.modelActive : IDLE_OVERLAY.modelActive,
+        activeModelId: runtime.model || IDLE_OVERLAY.activeModelId,
         engine: runtime.engine,
       }),
-    [agents, savedLayout, runtime.engine]
+    [agents, savedLayout, runtime.engine, runtime.model, live, flow.activeAgentIds, flow.modelActive]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);

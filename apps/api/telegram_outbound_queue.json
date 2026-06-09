@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "login_success",
+    "telegram_id": 999001,
+    "payload": {
+      "title": "Login successful",
+      "photo_url": null,
+      "account": {
+        "user_id": "c11e29bf6a238817",
+        "telegram_id": 999001,
+        "email": "callback@test.com",
+        "full_name": "Callback Test",
+        "first_name": "Callback",
+        "last_name": "Test",
+        "username": "",
+        "phone": "",
+        "role": "student",
+        "student_id": "",
+        "department": "",
+        "password_hash": "",
+        "auth_provider": "google",
+        "avatar_url": "",
+        "email_verified": true,
+        "created_at": 1780917040,
+        "last_login": 1781005719
+      }
+    },
+    "created_at": "2026-06-09T11:48:39.640652+00:00"
+  }
+]

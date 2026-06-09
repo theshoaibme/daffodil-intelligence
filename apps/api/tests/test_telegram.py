@@ -75,20 +75,20 @@ async def test_text_handler_routes_through_orchestrator(monkeypatch, tmp_path):
 
     captured = {}
 
-    async def fake_run_turn(text, **kwargs):
+    async def fake_run_turn_stream(text, **kwargs):
         captured.update(kwargs)
         prefix = kwargs.get("context_prefix", "")
         composed = f"{prefix}\n\n{text}" if prefix else text
-        return {
-            "content": f"answer to: {composed}",
-            "tool_calls": ["get_class_routine"],
-            "agent_id": kwargs.get("agent_id", "main"),
-        }
+        yield {"type": "agent", "agent_id": kwargs.get("agent_id", "main"), "name": "main", "status": "active"}
+        yield {"type": "tool", "name": "get_class_routine", "status": "active"}
+        yield {"type": "content", "content": f"answer to: {composed}"}
 
-    monkeypatch.setattr("app.integrations.telegram.bot.run_turn", fake_run_turn)
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr("app.integrations.telegram.bot.run_turn_stream", fake_run_turn_stream)
     monkeypatch.setattr(
         "app.integrations.telegram.bot.memory_service.process_turn_memory",
-        pytest.importorskip("unittest").mock.AsyncMock(),
+        AsyncMock(),
     )
 
     update = _FakeUpdate("what is my cgpa?")
@@ -96,8 +96,8 @@ async def test_text_handler_routes_through_orchestrator(monkeypatch, tmp_path):
     await telegram_bot._on_text(update, ctx)
 
     assert update.message.replies
-    assert "answer to:" in update.message.replies[0]
-    assert "test@diu.edu.bd" in update.message.replies[0]
+    assert any("answer to:" in r for r in update.message.replies)
+    assert any("test@diu.edu.bd" in r for r in update.message.replies)
     assert captured.get("metadata", {}).get("channel") == "telegram"
     assert captured.get("metadata", {}).get("telegram_chat_id") == 4242
     assert "MCP" in captured.get("metadata", {}).get("selected_tools", [])

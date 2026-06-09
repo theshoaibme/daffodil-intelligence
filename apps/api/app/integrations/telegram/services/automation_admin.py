@@ -99,8 +99,8 @@ def create_hook_from_text(user_id: int, args: list) -> Tuple[bool, str]:
         return False, f"Action must be one of: {', '.join(_HOOK_ACTIONS)}.\n\n{_hook_usage()}"
 
     rest = " ".join(args[2:])
-    segments = [s.strip() for s in rest.split("|")]
-    text = segments[0] if segments and segments[0] else ""
+    segments = [s.strip() for s in rest.split("|") if s.strip()]
+    text = segments[0] if segments else ""
     extra = segments[1] if len(segments) > 1 else ""
 
     if not text:

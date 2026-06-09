@@ -15,7 +15,7 @@ from typing import Any, List, Optional
 from ...core.config import get_settings
 from ...prompts.manager import GREETING_EN
 from ...memory import memory_service
-from ...runtime.pipeline import run_turn
+from ...runtime.pipeline import run_turn, run_turn_stream
 from ...memory import memory_service
 from .profiles import (
     profile_store,
@@ -635,6 +635,17 @@ class TelegramBot:
             title="Login successful",
             telegram_id=uid,
         )
+        await self._fire_login_hooks(uid, acct)
+
+    async def _fire_login_hooks(self, uid: int, account) -> None:
+        try:
+            from ...automation.scheduler_logic import trigger_event_hooks
+            from .web_auth import resolve_runtime_user_id
+
+            owner = resolve_runtime_user_id(uid, account)
+            await trigger_event_hooks("on_login", owner, telegram_chat_id=uid)
+        except Exception as e:
+            logger.debug("on_login hooks skipped: %s", e)
 
     async def _cmd_login(self, update: "Update", ctx: "ContextTypes.DEFAULT_TYPE"):
         uid = update.effective_user.id
@@ -818,6 +829,7 @@ class TelegramBot:
             title="Registration complete",
             telegram_id=uid,
         )
+        await self._fire_login_hooks(uid, account)
 
     async def _apply_registration_optional_field(
         self,
@@ -1232,19 +1244,79 @@ class TelegramBot:
             agent_id=agent_id,
             chat_id=chat_id,
         )
-        result = await run_turn(
-            text,
-            user_id=runtime_user_id,
-            chat_id=chat_id,
-            agent_id=agent_id,
-            context_prefix=prefix,
-            attachments=attachments,
-            model_id=model_id,
-            metadata=metadata,
-        )
-        content = (result.get("content") or "").strip()
-        tool_calls = result.get("tool_calls") or []
-        if tool_calls:
+
+        try:
+            from ...automation.scheduler_logic import trigger_event_hooks
+
+            await trigger_event_hooks(
+                "on_keyword", runtime_user_id, telegram_chat_id=uid, keyword_text=text
+            )
+        except Exception as hook_err:
+            logger.debug("on_keyword hooks skipped: %s", hook_err)
+
+        content_parts: List[str] = []
+        tool_calls: List[str] = []
+        resolved_agent = agent_id
+        flow_msg = None
+        had_stream = False
+        try:
+            async for event in run_turn_stream(
+                text,
+                user_id=runtime_user_id,
+                chat_id=chat_id,
+                agent_id=agent_id,
+                context_prefix=prefix,
+                attachments=attachments,
+                model_id=model_id,
+                metadata=metadata,
+            ):
+                if not isinstance(event, dict):
+                    continue
+                etype = event.get("type")
+                if etype == "content":
+                    had_stream = True
+                    content_parts.append(event.get("content") or "")
+                elif etype == "agent":
+                    resolved_agent = event.get("agent_id") or resolved_agent
+                elif etype == "tool":
+                    name = event.get("name")
+                    if event.get("status") == "active" and name and name not in tool_calls:
+                        tool_calls.append(name)
+                        flow_msg = await self._update_flow_message(
+                            update, flow_msg, resolved_agent, tool_calls
+                        )
+                elif etype == "subagent":
+                    flow_msg = await self._update_flow_message(
+                        update, flow_msg, resolved_agent, tool_calls, subagent=True
+                    )
+        except Exception as stream_err:
+            logger.warning("Telegram stream failed, falling back: %s", stream_err)
+
+        content = "".join(content_parts).strip()
+        if not had_stream or not content:
+            result = await run_turn(
+                text,
+                user_id=runtime_user_id,
+                chat_id=chat_id,
+                agent_id=agent_id,
+                context_prefix=prefix,
+                attachments=attachments,
+                model_id=model_id,
+                metadata=metadata,
+            )
+            content = (result.get("content") or "").strip()
+            tool_calls = result.get("tool_calls") or tool_calls
+            resolved_agent = result.get("agent_id") or resolved_agent
+
+        if flow_msg is not None:
+            try:
+                await flow_msg.edit_text(
+                    self._render_flow_text(resolved_agent, tool_calls, done=True),
+                    parse_mode="Markdown",
+                )
+            except Exception:
+                pass
+        elif tool_calls:
             try:
                 await update.message.reply_text(
                     f"_Used tools: {', '.join(tool_calls)}_",
@@ -1252,6 +1324,7 @@ class TelegramBot:
                 )
             except Exception:
                 pass
+
         if not content:
             content = default_authenticated_message()
         for chunk in _chunk(content, 4000):
@@ -1259,7 +1332,7 @@ class TelegramBot:
         try:
             await memory_service.process_turn_memory(
                 user_id=runtime_user_id,
-                agent_id=result.get("agent_id") or agent_id,
+                agent_id=resolved_agent,
                 chat_id=chat_id,
                 user_msg=text,
                 assistant_msg=content,
@@ -1267,6 +1340,34 @@ class TelegramBot:
             )
         except Exception as mem_err:
             logger.warning("Telegram turn memory failed: %s", mem_err)
+
+    @staticmethod
+    def _render_flow_text(agent_id: str, tool_calls: List[str], *, done: bool = False, subagent: bool = False) -> str:
+        head = "✅ *Flow*" if done else "⚙️ *Working…*"
+        lines = [head, f"🤖 agent: `{agent_id}`"]
+        if tool_calls:
+            lines.append("🔧 tools: " + ", ".join(f"`{t}`" for t in tool_calls))
+        if subagent:
+            lines.append("🧩 sub-agent delegating…")
+        return "\n".join(lines)
+
+    async def _update_flow_message(
+        self,
+        update: "Update",
+        flow_msg,
+        agent_id: str,
+        tool_calls: List[str],
+        *,
+        subagent: bool = False,
+    ):
+        text = self._render_flow_text(agent_id, tool_calls, subagent=subagent)
+        try:
+            if flow_msg is None:
+                return await update.message.reply_text(text, parse_mode="Markdown")
+            await flow_msg.edit_text(text, parse_mode="Markdown")
+            return flow_msg
+        except Exception:
+            return flow_msg
 
     async def _download(self, media, ctx: "ContextTypes.DEFAULT_TYPE") -> Optional[bytes]:
         try:

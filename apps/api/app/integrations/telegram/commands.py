@@ -49,6 +49,7 @@ AUTHENTICATED_COMMANDS: List[tuple[str, str]] = [
     ("loop", "Recurring prompt"),
     ("createhook", "Event trigger"),
     ("reminders", "Your reminders"),
+    ("automation", "Workflow skills & agents"),
     ("copycat", "Desktop macro record & replay"),
     # Runtime & observability
     ("tools", "Available tools"),
@@ -97,6 +98,7 @@ def help_text(*, authenticated: bool) -> str:
             "/loop \\<minutes\\> | \\<prompt\\> — recurring\n"
             "/createhook \\<event\\> \\<action\\> | \\<text\\>\n"
             "/reminders — your reminders\n"
+            "/automation — workflow skills & agents\n"
             "/copycat — desktop macros\n\n"
             "*Runtime*\n"
             "/tools — available tools\n"
@@ -105,6 +107,7 @@ def help_text(*, authenticated: bool) -> str:
             "/logs — recent agent runs\n"
             "/shell \\<cmd\\> — admin only\n\n"
             "*Account*\n"
+            "/start — welcome back\n"
             "/profile · /logout · /help\n\n"
             "_Tip: tap / below the message field to see these commands._"
         )

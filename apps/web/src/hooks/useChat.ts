@@ -4,6 +4,7 @@ import {
   sendMessage,
 } from "../lib/api";
 import type { StreamEvent } from "../lib/api";
+import { emitFlow, getFlow, resetFlow } from "../lib/flowBus";
 import type { ChatContextUsage } from "../lib/chatContext";
 
 function humanizeName(name: string): string {
@@ -86,6 +87,7 @@ export function useChat(options?: UseChatOptions) {
   const loadSession = useCallback((nextChatId: number | null, nextMessages: ChatMessage[]) => {
     sendGenerationRef.current += 1;
     stopThinkingTimer();
+    resetFlow();
     thinkingStartRef.current = null;
     setChatId(nextChatId);
     setMessages(nextMessages);
@@ -147,6 +149,7 @@ export function useChat(options?: UseChatOptions) {
       setThinkingSteps([]);
       setThinkingText("");
       setThinkingMs(0);
+      resetFlow();
       thinkingStartRef.current = Date.now();
       stopThinkingTimer();
       thinkingTimerRef.current = setInterval(() => {
@@ -210,6 +213,14 @@ export function useChat(options?: UseChatOptions) {
                 normalizeStatus(event.status)
               )
             );
+            if (normalizeStatus(event.status) === "active") {
+              emitFlow({
+                modelActive: true,
+                activeTools: Array.from(
+                  new Set([...getFlow().activeTools, event.name!])
+                ),
+              });
+            }
           } else if ((event.type === "agent" || event.type === "subagent") && event.name) {
             const label = event.type === "subagent" ? "Delegating to" : "Agent";
             setThinkingSteps((prev) =>
@@ -220,6 +231,8 @@ export function useChat(options?: UseChatOptions) {
                 normalizeStatus(event.status)
               )
             );
+            const id = event.agent_id ?? event.name!;
+            emitFlow({ modelActive: true, activeAgentIds: [id] });
           }
         }
       );
@@ -252,10 +265,12 @@ export function useChat(options?: UseChatOptions) {
 
       setIsStreaming(false);
       setCurrentStreamingContent("");
-      
+      resetFlow();
+
       return response;
     } catch (err) {
       stopThinkingTimer();
+      resetFlow();
       if (isSendStale(generation)) return;
       setError(err instanceof Error ? err.message : "Failed to send message");
       setIsStreaming(false);
