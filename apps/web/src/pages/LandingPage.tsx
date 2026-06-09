@@ -213,41 +213,6 @@ function NavDropdown({
 export function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  /* Water ripple effect */
-  const handleWaterRipple = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const rippleContainer = document.createElement("div");
-    rippleContainer.className = "absolute pointer-events-none z-50 overflow-visible";
-    rippleContainer.style.left = `${x}px`;
-    rippleContainer.style.top = `${y}px`;
-    e.currentTarget.appendChild(rippleContainer);
-
-    const waves = 3;
-    for (let i = 0; i < waves; i++) {
-      const wave = document.createElement("div");
-      wave.className =
-        "absolute rounded-full border border-[#4259ff]/30 bg-[#4259ff]/5 -translate-x-1/2 -translate-y-1/2 opacity-70 transition-all duration-300 ease-out";
-      wave.style.width = "0px";
-      wave.style.height = "0px";
-
-      setTimeout(() => {
-        rippleContainer.appendChild(wave);
-        requestAnimationFrame(() => {
-          wave.style.width = `${120 + i * 40}px`;
-          wave.style.height = `${120 + i * 40}px`;
-          wave.style.opacity = "0";
-        });
-      }, i * 50);
-    }
-
-    setTimeout(() => {
-      rippleContainer.remove();
-    }, waves * 50 + 300);
-  };
-
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
     setMobileMenuOpen(false);
@@ -255,7 +220,6 @@ export function LandingPage() {
 
   return (
     <div
-      onMouseDown={handleWaterRipple}
       className="min-h-screen bg-white text-[#1a1b24] font-sans flex flex-col relative overflow-hidden antialiased cursor-default select-none"
     >
       {/* ─── Background Gradient Glows ─── */}
