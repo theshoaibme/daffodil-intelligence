@@ -11,7 +11,7 @@ def test_daemon_module_compiles():
     py_compile.compile(str(daemon_py), doraise=True)
 
 
-def test_package_import_lazy_loads_display_modules():
+def test_package_import_defers_display_modules():
     sys.modules.pop("daffodil_kit", None)
     sys.modules.pop("daffodil_kit.cli", None)
     sys.modules.pop("daffodil_kit.daemon", None)
@@ -26,7 +26,7 @@ def test_package_import_lazy_loads_display_modules():
     assert "daffodil_kit.screen" not in sys.modules
 
 
-def test_cli_import_lazy_loads_display_modules():
+def test_cli_import_defers_display_modules():
     sys.modules.pop("daffodil_kit.cli", None)
     sys.modules.pop("daffodil_kit.daemon", None)
     sys.modules.pop("daffodil_kit.keyboard", None)
