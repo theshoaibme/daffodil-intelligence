@@ -1,5 +1,7 @@
 """Daffodil Kit — local desktop daemon for screen, input, and file control."""
 
+import importlib
+
 __version__ = "0.1.0"
 __all__ = [
     "ScreenCapture",
@@ -21,8 +23,14 @@ _EXPORTS = {
 
 
 def __getattr__(name: str):
-    if name not in _EXPORTS:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    module_name, attr_name = _EXPORTS[name]
-    module = __import__(f"{__name__}.{module_name}", fromlist=[attr_name])
-    return getattr(module, attr_name)
+    if name in _EXPORTS:
+        module_name, attr_name = _EXPORTS[name]
+        module = importlib.import_module(f"{__name__}.{module_name}")
+        return getattr(module, attr_name)
+
+    try:
+        return importlib.import_module(f"{__name__}.{name}")
+    except ModuleNotFoundError as exc:
+        if getattr(exc, "name", None) == f"{__name__}.{name}":
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+        raise
