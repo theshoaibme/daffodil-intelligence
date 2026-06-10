@@ -227,7 +227,9 @@ export function Sidebar({
                   ))}
                 </div>
               ) : (
-                <p className="px-2 text-sm text-on-surface-variant">No chats match your search.</p>
+                <p className="px-2 text-sm text-on-surface-variant">
+                  {searchQuery.trim() ? "No chats match your search." : "No chats yet."}
+                </p>
               )}
             </div>
           </div>

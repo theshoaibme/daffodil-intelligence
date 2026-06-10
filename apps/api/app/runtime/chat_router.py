@@ -6,6 +6,7 @@ import re
 from typing import Any, List, Optional
 
 from ..core.config import get_settings
+from ..core.hf_models import is_hf_model
 from .agent_factory import AgentPersona
 
 _SECTION_CODE = re.compile(r"\b(\d{2}_[A-Za-z0-9]+|6[Cc]\d+)\b")
@@ -31,6 +32,10 @@ _TOOL_KEYWORDS = (
     "job",
     "invoke_agent",
     "get_class_routine",
+    "deep_research",
+    "google_web_search",
+    "search_papers",
+    "research",
 )
 
 _MAIN_AGENTS = frozenset({"main", "supervisor", "default", ""})
@@ -55,6 +60,21 @@ def message_needs_tools(message: str) -> bool:
         return True
     lower = text.lower()
     return any(k in lower for k in _TOOL_KEYWORDS)
+
+
+def should_use_hf_chat(
+    *,
+    model_id: str,
+    attachments: bool = False,
+    include_tools: Optional[List[str]] = None,
+) -> bool:
+    """True when a turn should use Hugging Face Inference (e.g. GLM-5.1)."""
+    settings = get_settings()
+    if not settings.HUGGINGFACE_ENABLED or not settings.HUGGINGFACE_API_KEY:
+        return False
+    if attachments or include_tools:
+        return False
+    return is_hf_model(model_id)
 
 
 def groq_model_for_routing(routing: str) -> str:

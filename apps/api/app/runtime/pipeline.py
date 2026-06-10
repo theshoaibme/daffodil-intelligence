@@ -14,8 +14,8 @@ from ..core.model_router import resolve_model_for_turn
 from ..memory import memory_service
 from ..prompts.modes import build_mode_system_prompt, mode_status_messages
 from ..skills.resolver import resolve_runtime_config
-from . import groq_chat, orchestrator
-from .chat_router import groq_model_for_routing, should_use_fast_groq
+from . import groq_chat, hf_chat, orchestrator
+from .chat_router import groq_model_for_routing, should_use_fast_groq, should_use_hf_chat
 from .intent_router import route_message
 from .stream_signals import stream_turn_preamble
 from .tool_context import clear_turn_context, set_turn_context
@@ -128,6 +128,11 @@ async def _run_turn_inner(
     prompt = _compose_message(message, context_prefix)
 
     meta = {**(metadata or {}), "_message": message}
+    use_hf = should_use_hf_chat(
+        model_id=resolved_model,
+        attachments=bool(attachments),
+        include_tools=cfg.tool_names,
+    )
     use_fast_groq = should_use_fast_groq(
         attachments=bool(attachments),
         routing=routing,
@@ -136,20 +141,27 @@ async def _run_turn_inner(
         agent_id=cfg.agent_id,
         persona=cfg.persona,
         include_tools=cfg.tool_names,
-    )
+    ) and not use_hf
     groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
     active_model = groq_model if use_fast_groq else resolved_model
-    active_routing = "groq_fast" if use_fast_groq else routing
-    engine = "groq" if use_fast_groq else "antigravity"
+    active_routing = "groq_fast" if use_fast_groq else ("hf_glm" if use_hf else routing)
+    engine = "huggingface" if use_hf else ("groq" if use_fast_groq else "antigravity")
     extra_system = _apply_mode_system(
         extra_system,
         metadata,
         routing=active_routing,
-        model_id=active_model,
+        model_id=active_model if use_fast_groq else resolved_model,
         engine=engine,
     )
 
-    if use_fast_groq and groq_chat.is_available():
+    if use_hf and hf_chat.is_available():
+        result = await hf_chat.chat(
+            prompt,
+            extra_system=extra_system or None,
+            model=resolved_model,
+        )
+        active_model = resolved_model
+    elif use_fast_groq and groq_chat.is_available():
         result = await groq_chat.chat(
             prompt,
             extra_system=extra_system or None,
@@ -244,6 +256,11 @@ async def _run_turn_stream_inner(
     prompt = _compose_message(message, context_prefix)
 
     meta = {**(metadata or {}), "_message": message}
+    use_hf = should_use_hf_chat(
+        model_id=resolved_model,
+        attachments=bool(attachments),
+        include_tools=cfg.tool_names,
+    )
     use_fast_groq = should_use_fast_groq(
         attachments=bool(attachments),
         routing=routing,
@@ -252,22 +269,23 @@ async def _run_turn_stream_inner(
         agent_id=cfg.agent_id,
         persona=cfg.persona,
         include_tools=cfg.tool_names,
-    )
+    ) and not use_hf
     groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
     active_model = groq_model if use_fast_groq else resolved_model
-    active_routing = "groq_fast" if use_fast_groq else routing
-    engine = "groq" if use_fast_groq else "antigravity"
+    active_routing = "groq_fast" if use_fast_groq else ("hf_glm" if use_hf else routing)
+    engine = "huggingface" if use_hf else ("groq" if use_fast_groq else "antigravity")
+    display_model = resolved_model if use_hf else active_model
     extra_system = _apply_mode_system(
         extra_system,
         metadata,
         routing=active_routing,
-        model_id=active_model,
+        model_id=display_model,
         engine=engine,
     )
 
     yield {
         "type": "model",
-        "model_id": active_model,
+        "model_id": display_model,
         "model_mode": "auto" if was_auto else "manual",
         "model_routing": active_routing,
     }
@@ -276,17 +294,17 @@ async def _run_turn_stream_inner(
         user_id=user_id,
         chat_id=chat_id,
         agent_id=cfg.agent_id,
-        model=active_model or "auto",
+        model=display_model or "auto",
     )
     trace_recorder.add_tokens(turn_id, estimate_tokens(prompt) + estimate_tokens(extra_system or ""))
-    trace_recorder.event(turn_id, type="model", name=active_model or "auto", detail=active_routing or "")
+    trace_recorder.event(turn_id, type="model", name=display_model or "auto", detail=active_routing or "")
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
     yield {"type": "agent", "agent_id": cfg.agent_id, "name": cfg.agent_id, "status": "active"}
 
     status_lines = mode_status_messages(
         metadata,
         routing=active_routing,
-        model_id=active_model,
+        model_id=display_model,
         engine=engine,
     )
     async for signal in stream_turn_preamble(
@@ -303,7 +321,17 @@ async def _run_turn_stream_inner(
         yield signal
 
     try:
-        if use_fast_groq and groq_chat.is_available():
+        if use_hf and hf_chat.is_available():
+            async for event in hf_chat.stream_chat(
+                prompt,
+                extra_system=extra_system or None,
+                model=resolved_model,
+            ):
+                etype = event.get("type") if isinstance(event, dict) else None
+                if etype == "content":
+                    trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
+                yield event
+        elif use_fast_groq and groq_chat.is_available():
             async for event in groq_chat.stream_chat(
                 prompt,
                 extra_system=extra_system or None,

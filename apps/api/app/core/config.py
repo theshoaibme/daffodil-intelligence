@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_FAST_MODEL: str = "llama-3.1-8b-instant"
     GROQ_FAST_CHAT: bool = True
+    HUGGINGFACE_API_KEY: str = ""
+    HUGGINGFACE_BASE_URL: str = "https://router.huggingface.co/v1"
+    HUGGINGFACE_MODEL: str = "zai-org/GLM-5.1"
+    HUGGINGFACE_ENABLED: bool = True
+    HUGGINGFACE_MAX_TOKENS: int = 4096
+    HUGGINGFACE_TIMEOUT_SEC: float = 180.0
     GEMINI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
 
@@ -62,11 +68,20 @@ class Settings(BaseSettings):
     ANTIGRAVITY_ENABLE_SUBAGENTS: bool = True
     CONTEXT_WINDOW_TOKENS: int = 128_000
 
+    # === Web search / research ===
+    GOOGLE_SEARCH_API_KEY: str = ""
+    GOOGLE_CSE_ID: str = ""
+    SERPER_API_KEY: str = ""
+    WORKSPACE_ROOT: str = ""
+
     # === MCP ===
     MCP_SERVER_PORT: int = 8001
     MCP_TRANSPORT: str = "stdio"  # 'stdio' or 'http'
     MCP_ENABLED: bool = True
     MCP_EXTERNAL_SERVERS: str = ""  # comma-separated name=command pairs for stdio servers
+
+    # Disable Antigravity builtins that overlap Daffodil registry tools
+    ANTIGRAVITY_DISABLE_BUILTIN_OVERLAPS: bool = True
 
     # === Telegram ===
     TELEGRAM_ENABLED: bool = False

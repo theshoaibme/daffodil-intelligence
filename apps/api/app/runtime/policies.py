@@ -31,8 +31,16 @@ except Exception as e:  # pragma: no cover - import guard
     logger.warning(f"Antigravity policy module unavailable: {e}")
 
 
-# Tools that may mutate the host or the world.
-DESTRUCTIVE_TOOLS = ["run_shell_command", "run_python", "write_file", "delete_file"]
+# Tools that may mutate the host or the world (Daffodil + Antigravity builtin names).
+DESTRUCTIVE_TOOLS = [
+    "run_shell_command",
+    "run_command",
+    "run_python",
+    "write_file",
+    "create_file",
+    "edit_file",
+    "delete_file",
+]
 # Tools that drive the physical desktop.
 COMPUTER_CONTROL_TOOLS = [
     "mouse_move",

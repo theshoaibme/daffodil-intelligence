@@ -9,10 +9,11 @@ from app.core.google_oauth_urls import (
 from app.integrations.telegram.tokens import google_login_url
 
 
-def test_web_redirect_uri_uses_frontend_proxy_in_dev():
+def test_web_redirect_uri_matches_telegram_callback_in_dev():
     uri = web_google_oauth_redirect_uri()
-    assert uri.endswith("/api/auth/oauth/google/callback")
-    assert "localhost:3000" in uri or "127.0.0.1:3000" in uri
+    assert uri == telegram_google_oauth_redirect_uri()
+    assert uri.endswith("/api/auth/telegram/google/callback")
+    assert ":8000" in uri
 
 
 def test_telegram_redirect_uri_uses_api_host_in_dev():

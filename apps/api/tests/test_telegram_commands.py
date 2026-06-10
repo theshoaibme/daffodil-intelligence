@@ -16,6 +16,7 @@ from app.prompts.manager import GREETING_EN
 def test_guest_command_labels():
     assert "register" in GUEST_COMMAND_LABELS
     assert "login" in GUEST_COMMAND_LABELS
+    assert "skip" not in GUEST_COMMAND_LABELS
     assert "record" not in GUEST_COMMAND_LABELS
 
 

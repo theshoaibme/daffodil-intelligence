@@ -249,16 +249,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, disabled 
 
   return (
     <form onSubmit={handleSendOtp} className="flex flex-col gap-4 w-full">
-      <p className="text-sm text-on-surface-variant text-center leading-relaxed">
-        Send your email address (required). We will send a one-time verification code — registration
-        continues only after you enter the correct OTP.
-      </p>
-
       <Input
         label="Email"
         type="email"
         autoComplete="email"
-        placeholder="you@daffodil.university"
+        placeholder="Enter email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required

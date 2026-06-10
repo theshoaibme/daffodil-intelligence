@@ -18,6 +18,7 @@ from app.models import hub  # noqa: F401
 from app.models import memory  # noqa: F401
 from app.models import kit  # noqa: F401
 from app.models import user  # noqa: F401
+from app.models import telegram  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

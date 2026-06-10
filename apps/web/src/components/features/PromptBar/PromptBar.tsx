@@ -81,7 +81,7 @@ export function PromptBar({
           }
         }}
         placeholder="What would you like to change or create?"
-        className="w-full bg-transparent border-none outline-none resize-none text-base text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
+        className="w-full bg-transparent border-none outline-none resize-none text-sm text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
       />
 
       <div className="flex items-center justify-between px-0.5">

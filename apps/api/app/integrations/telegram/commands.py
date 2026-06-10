@@ -22,7 +22,6 @@ GUEST_COMMANDS: List[tuple[str, str]] = [
     ("start", "Welcome & home"),
     ("register", "Create account (Google or email)"),
     ("login", "Sign in (Google or email)"),
-    ("skip", "Skip optional registration fields"),
     ("help", "Commands & how to use the bot"),
 ]
 
@@ -117,8 +116,9 @@ def help_text(*, authenticated: bool) -> str:
         "/start — welcome & menu\n"
         "/register — Google or email OTP, then profile\n"
         "/login — Google or email, name & password\n"
-        "/skip — skip phone, student ID, or department\n"
         "/help — this message\n\n"
+        "_During registration you can reply *skip* or send /skip for optional fields "
+        "(phone, student ID, department)._\n\n"
         "You can also tap *Register* or *Login* on the keyboard.\n\n"
         "_After sign-in you unlock chat, agents, copycat, and automation._"
     )

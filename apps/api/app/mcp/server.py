@@ -71,7 +71,15 @@ def _register_tools_with_mcp(mcp):
                 return tool_executor
 
             executor = make_executor(tool_name)
-            mcp.tool(name=tool_name, description=tool_description)(executor)
+            input_schema = tool_schema.get("inputSchema") or {
+                "type": "object",
+                "properties": {},
+            }
+            mcp.tool(
+                name=tool_name,
+                description=tool_description,
+                input_schema=input_schema,
+            )(executor)
 
         logger.info(f"MCP server registered {registry.count} tools")
     except Exception as e:

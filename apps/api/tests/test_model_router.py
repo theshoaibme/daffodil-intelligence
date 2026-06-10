@@ -54,7 +54,12 @@ def test_auto_picks_pro_for_reasoning():
     assert resolved == "gemini-2.5-pro"
 
 
-def test_auto_picks_flash_for_code():
+def test_auto_picks_flash_for_code(monkeypatch):
+    monkeypatch.setenv("HUGGINGFACE_API_KEY", "")
+    monkeypatch.setenv("HUGGINGFACE_ENABLED", "false")
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
     resolved, was_auto, reason = resolve_model_for_turn(
         model_id=AUTO_MODEL_ID,
         message="Write a python function to sort a list.",
@@ -62,3 +67,28 @@ def test_auto_picks_flash_for_code():
     assert was_auto is True
     assert reason == "code"
     assert resolved == "gemini-2.5-flash"
+
+
+def test_auto_picks_glm_for_code_when_hf_enabled(monkeypatch):
+    monkeypatch.setenv("HUGGINGFACE_API_KEY", "hf-test")
+    monkeypatch.setenv("HUGGINGFACE_ENABLED", "true")
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    resolved, was_auto, reason = resolve_model_for_turn(
+        model_id=AUTO_MODEL_ID,
+        message="Write a python function to sort a list.",
+    )
+    assert was_auto is True
+    assert reason == "code_hf"
+    assert resolved == "glm-5.1"
+
+
+def test_manual_glm_model():
+    resolved, was_auto, reason = resolve_model_for_turn(
+        model_id="glm-5.1",
+        message="hello",
+    )
+    assert resolved == "glm-5.1"
+    assert was_auto is False
+    assert reason == "manual_hf"

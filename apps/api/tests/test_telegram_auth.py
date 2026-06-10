@@ -268,6 +268,7 @@ async def test_login_shows_google_and_email_menu_after_logout(tmp_path):
     assert len(FakeUpdate.message.replies) == 1
     reply = FakeUpdate.message.replies[0]
     assert "Sign in to Daffodil Intelligence" in reply["text"]
+    assert "google/start?token=" not in reply["text"]
     markup = reply["reply_markup"]
     labels = [btn.text for row in markup.inline_keyboard for btn in row]
     assert "Email & password" in labels
@@ -315,13 +316,73 @@ async def test_register_shows_google_and_email_menu(tmp_path):
     assert len(FakeUpdate.message.replies) == 1
     reply = FakeUpdate.message.replies[0]
     assert "Register for Daffodil Intelligence" in reply["text"]
+    assert "google/start?token=" not in reply["text"]
     labels = [btn.text for row in reply["reply_markup"].inline_keyboard for btn in row]
     assert "Email & password" in labels
     assert "Register with Google" in labels
 
 
+async def test_google_callback_sends_link_in_chat_on_localhost(tmp_path, monkeypatch):
+    from app.integrations.telegram import bot as bot_mod
+    from app.integrations.telegram import profiles as prof_mod
+
+    prof_store = prof_mod.TelegramProfileStore(str(tmp_path / "profiles.json"))
+    bot = bot_mod.TelegramBot()
+
+    class FakeMessage:
+        def __init__(self):
+            self.replies = []
+
+        async def reply_text(self, text, **kwargs):
+            self.replies.append({"text": text, **kwargs})
+
+    class FakeQuery:
+        def __init__(self):
+            self.data = "auth:google"
+            self.message = FakeMessage()
+
+        async def answer(self, **kwargs):
+            return None
+
+        async def edit_message_text(self, *args, **kwargs):
+            pass
+
+    class FakeUser:
+        id = 777001
+
+    query = FakeQuery()
+    update = type("FakeUpdate", (), {"callback_query": query, "effective_user": FakeUser()})()
+
+    profile = prof_store.get(777001)
+    profile.mode = "login"
+    prof_store.save(profile)
+
+    import app.integrations.telegram.bot as bot_pkg
+
+    orig_prof = bot_pkg.profile_store
+    bot_pkg.profile_store = prof_store
+    try:
+        await bot._on_auth_callback(update, None)
+    finally:
+        bot_pkg.profile_store = orig_prof
+
+    assert len(query.message.replies) == 1
+    reply = query.message.replies[0]
+    assert "google/start?token=" not in reply["text"]
+    assert "Link" in reply["text"]
+    markup = reply["reply_markup"]
+    link_btn = markup.inline_keyboard[0][0]
+    assert link_btn.text == "Link"
+    assert link_btn.web_app is not None or link_btn.url
+
+
 def test_telegram_inline_url_rejects_localhost():
-    from app.integrations.telegram.tokens import google_login_url, is_telegram_inline_url
+    from app.integrations.telegram.keyboards import google_auth_button, google_open_link_button
+    from app.integrations.telegram.tokens import (
+        google_login_url,
+        google_oauth_uses_inline_url,
+        is_telegram_inline_url,
+    )
 
     assert not is_telegram_inline_url("http://localhost:8000/api/auth/telegram/google/start")
     assert not is_telegram_inline_url("http://127.0.0.1:3000/foo")
@@ -329,6 +390,13 @@ def test_telegram_inline_url_rejects_localhost():
     url = google_login_url(12345)
     assert "google/start?token=" in url
     assert "google:12345:" in url
+    assert not google_oauth_uses_inline_url()
+    btn = google_auth_button(12345)
+    assert btn.text == "Login with Google"
+    assert btn.web_app is not None or btn.url
+    link_btn = google_open_link_button(12345)
+    assert link_btn.text == "Link"
+    assert link_btn.web_app is not None or link_btn.url
 
 
 def test_google_callback_redirects_to_frontend():

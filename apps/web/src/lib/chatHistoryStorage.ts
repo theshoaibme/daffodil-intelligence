@@ -12,22 +12,11 @@ export interface ChatHistoryEntry {
   messages: Array<Omit<ChatMessage, "timestamp"> & { timestamp: string }>;
 }
 
-const DEFAULT_HISTORY: ChatHistoryEntry[] = [
-  {
-    id: "seed-thesis-hub",
-    title: "DIU ThesisHub",
-    updatedAt: new Date("2026-04-19").toISOString(),
-    chatId: null,
-    messages: [],
-  },
-  {
-    id: "seed-uniproject-hub",
-    title: "UniProject Hub",
-    updatedAt: new Date("2026-04-18").toISOString(),
-    chatId: null,
-    messages: [],
-  },
-];
+const SEED_HISTORY_IDS = new Set(["seed-thesis-hub", "seed-uniproject-hub"]);
+
+function stripSeedHistory(entries: ChatHistoryEntry[]): ChatHistoryEntry[] {
+  return entries.filter((entry) => !SEED_HISTORY_IDS.has(entry.id));
+}
 
 export function generateChatSessionId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -83,14 +72,14 @@ function migrateLegacySession(history: ChatHistoryEntry[]): ChatHistoryEntry[] {
 export function loadChatHistory(): ChatHistoryEntry[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
-    const parsed = raw ? (JSON.parse(raw) as ChatHistoryEntry[]) : DEFAULT_HISTORY;
-    const withLegacy = migrateLegacySession(parsed.length ? parsed : DEFAULT_HISTORY);
+    const parsed = raw ? stripSeedHistory(JSON.parse(raw) as ChatHistoryEntry[]) : [];
+    const withLegacy = migrateLegacySession(parsed);
     if (!raw || withLegacy.length !== parsed.length) {
       saveChatHistory(withLegacy);
     }
     return withLegacy;
   } catch {
-    return DEFAULT_HISTORY;
+    return [];
   }
 }
 
