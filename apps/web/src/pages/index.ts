@@ -10,3 +10,4 @@ export * from "./LoginPage";
 export * from "./ModelManagementPage";
 export * from "./RegisterPage";
 export * from "./SkillsPage";
+export * from "./CopycatAuthPage";

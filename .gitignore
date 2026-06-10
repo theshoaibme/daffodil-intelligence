@@ -57,3 +57,11 @@ packages/daffodil-kit/coverage.xml
 
 # CI / release artifacts at repo root
 dist/copycat-kit/
+
+# CopyCat Desktop App release builds and outputs
+apps/copycat/release-builds/
+release-builds/
+apps/copycat/dist/
+apps/web/dist/
+.turbo/
+**/node_modules/

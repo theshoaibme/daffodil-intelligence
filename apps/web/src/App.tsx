@@ -56,6 +56,7 @@ import {
   LandingPage,
   TermsPage,
   PrivacyPage,
+  CopycatAuthPage,
 } from "@pages";
 import { ProtectedRoute } from "@auth";
 
@@ -109,6 +110,7 @@ export default function App() {
         <Route path={ROUTES.computer} element={<ComputerView />} />
         <Route path={ROUTES.guidance} element={<GuidancePage />} />
         <Route path={ROUTES.account} element={<AccountPage />} />
+        <Route path={ROUTES.copycat} element={<CopycatAuthPage />} />
       </Route>
     </Routes>
   );
