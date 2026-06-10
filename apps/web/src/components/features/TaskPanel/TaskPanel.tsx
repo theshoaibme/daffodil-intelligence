@@ -122,8 +122,8 @@ export function LogItem({
         <KindIcon kind={kind} />
       </div>
       <span
-        className={`min-w-0 flex-1 font-medium leading-snug truncate ${
-          compact ? "text-xs" : "text-sm break-words"
+        className={`min-w-0 flex-1 truncate whitespace-nowrap font-medium leading-snug ${
+          compact ? "text-xs" : "text-sm"
         }`}
       >
         {text}

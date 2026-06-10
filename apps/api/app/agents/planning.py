@@ -287,10 +287,22 @@ Respond in the same language as the original goal (English or Bengali).
 
     async def _execute_plan(self, plan: ExecutionPlan, context: Optional[dict]) -> str:
         """Execute all plan steps, respecting dependencies, running parallel where possible."""
+        from ..runtime.task_events import emit_task, new_task_id
+        from ..runtime.task_titles import short_title
         from .registry import AGENT_MAP
 
         plan.status = "running"
         results: Dict[str, str] = {}
+
+        plan_task = emit_task(
+            kind="plan",
+            name=f"plan-{plan.plan_id}",
+            title=short_title(plan.goal),
+            status="active",
+            agent_id="planning",
+            depth=1,
+        )
+        plan_task_id = plan_task["task_id"]
 
         # Execute in waves (steps with same dependency level run in parallel)
         max_waves = 10
@@ -303,12 +315,26 @@ Respond in the same language as the original goal (English or Bengali).
                 logger.warning(f"Plan {plan.plan_id}: no ready steps but plan not complete")
                 break
 
-            # Run all ready steps in parallel
-            tasks = []
+            wave_group = new_task_id("wave")
+            step_task_ids: Dict[str, str] = {}
             for step in ready:
                 step.status = "running"
                 step.started_at = time.time()
+                step_event = emit_task(
+                    parent_id=plan_task_id,
+                    kind="plan",
+                    name=step.step_id,
+                    title=short_title(step.description),
+                    status="active",
+                    parallel_group=wave_group,
+                    agent_id=step.agent_type,
+                    depth=2,
+                )
+                step_task_ids[step.step_id] = step_event["task_id"]
 
+            # Run all ready steps in parallel
+            tasks = []
+            for step in ready:
                 # Get the result template, filling in results from dependencies
                 instruction = step.input_template
                 for dep_id in step.depends_on:
@@ -318,16 +344,42 @@ Respond in the same language as the original goal (English or Bengali).
                 agent_type = step.agent_type
                 agent = AGENT_MAP.get(agent_type) or AGENT_MAP.get("general")
                 task = asyncio.create_task(
-                    self._execute_step(step, agent, instruction, context)
+                    self._execute_step(
+                        step,
+                        agent,
+                        instruction,
+                        context,
+                        step_task_id=step_task_ids[step.step_id],
+                    )
                 )
                 tasks.append(task)
 
             await asyncio.gather(*tasks)
 
-            # Collect results
             for step in ready:
+                emit_task(
+                    task_id=step_task_ids[step.step_id],
+                    parent_id=plan_task_id,
+                    kind="plan",
+                    name=step.step_id,
+                    title=short_title(step.description),
+                    status="success" if step.status == "done" else "error",
+                    parallel_group=wave_group,
+                    agent_id=step.agent_type,
+                    depth=2,
+                )
                 if step.result:
                     results[step.step_id] = step.result
+
+        emit_task(
+            task_id=plan_task_id,
+            kind="plan",
+            name=f"plan-{plan.plan_id}",
+            title=short_title(plan.goal),
+            status="success",
+            agent_id="planning",
+            depth=1,
+        )
 
         # Synthesize final response
         plan.status = "completed"
@@ -355,10 +407,25 @@ Respond in the same language as the original goal (English or Bengali).
         agent,
         instruction: str,
         context: Optional[dict],
+        *,
+        step_task_id: Optional[str] = None,
     ):
         """Execute a single plan step."""
+        from ..tools.automation.agents import _STREAMING_AGENTS, _stream_agent_turn
+
+        ctx = context or {}
+        uid = int(ctx.get("user_id") or 0)
         try:
-            result = await agent.process(instruction, context)
+            agent_key = step.agent_type.strip().lower()
+            if agent_key in _STREAMING_AGENTS and uid:
+                result = await _stream_agent_turn(
+                    key=agent_key,
+                    message=instruction,
+                    uid=uid,
+                    metadata=ctx if isinstance(ctx, dict) else None,
+                )
+            else:
+                result = await agent.process(instruction, context)
             step.result = result
             step.status = "done"
         except Exception as e:

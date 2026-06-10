@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import threading
 import uuid
 from contextvars import ContextVar
 from typing import Any, Dict, List, Optional
 
-_nested_events: ContextVar[List[Dict[str, Any]]] = ContextVar(
-    "nested_task_events", default=[]
+from .task_titles import short_title as make_short_title
+
+_nested_events: ContextVar[Optional[List[Dict[str, Any]]]] = ContextVar(
+    "nested_task_events", default=None
 )
+_nested_events_lock = threading.Lock()
 _pending_tool_events: List[Dict[str, Any]] = []
 _pending_ui_events: List[Dict[str, Any]] = []
 _turn_root_id: ContextVar[Optional[str]] = ContextVar("turn_root_task_id", default=None)
@@ -38,19 +42,22 @@ def emit_task(
     kind: str = "agent",
     name: str,
     title: Optional[str] = None,
+    short_title: Optional[str] = None,
     status: str = "active",
     agent_id: Optional[str] = None,
     parallel_group: Optional[str] = None,
     depth: int = 0,
 ) -> Dict[str, Any]:
     """Build a task SSE event and queue it for nested/tool forwarding."""
+    resolved_title = title or name.replace("_", " ").title()
     event = {
         "type": "task",
         "task_id": task_id or new_task_id(kind),
         "parent_id": parent_id or turn_root_id(),
         "kind": kind,
         "name": name,
-        "title": title or name.replace("_", " ").title(),
+        "title": resolved_title,
+        "short_title": short_title or make_short_title(resolved_title),
         "status": status,
         "agent_id": agent_id or (name if kind == "agent" else None),
         "parallel_group": parallel_group,
@@ -61,9 +68,12 @@ def emit_task(
 
 
 def append_nested_event(event: Dict[str, Any]) -> None:
-    bucket = list(_nested_events.get() or [])
-    bucket.append(event)
-    _nested_events.set(bucket)
+    with _nested_events_lock:
+        bucket = _nested_events.get()
+        if bucket is None:
+            bucket = []
+            _nested_events.set(bucket)
+        bucket.append(event)
 
 
 def take_nested_events() -> List[Dict[str, Any]]:

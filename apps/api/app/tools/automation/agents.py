@@ -36,12 +36,13 @@ async def _stream_agent_turn(
 ) -> str:
     """Run a nested agent turn and emit task/agent/tool events for simulation."""
     from ...runtime.pipeline import run_turn_stream
-    from ...runtime.task_events import append_nested_event, emit_task, new_task_id
+    from ...runtime.task_events import append_nested_event, emit_task
+    from ...runtime.task_titles import short_title
 
     parent_task = emit_task(
         kind="agent",
         name=key,
-        title=f"Agent: {key.replace('_', ' ').title()}",
+        title=short_title(f"Agent: {key.replace('_', ' ').title()}"),
         status="active",
         agent_id=key,
         depth=1,
@@ -49,17 +50,21 @@ async def _stream_agent_turn(
     task_id = parent_task["task_id"]
     content_parts: List[str] = []
 
+    nested_meta = {**(metadata or {}), "_nested_turn": True}
     async for event in run_turn_stream(
         message,
         user_id=uid,
         chat_id=f"invoke-{uid}-{key}",
         agent_id=key,
-        metadata=metadata,
+        metadata=nested_meta,
     ):
         etype = event.get("type")
         if etype == "content":
             content_parts.append(event.get("content") or "")
         elif etype in ("tool", "subagent", "memory", "agent", "task", "ui"):
+            if etype == "task":
+                if event.get("kind") == "agent" and int(event.get("depth") or 0) == 0:
+                    continue
             child = dict(event)
             child["parent_id"] = task_id
             child["depth"] = int(child.get("depth") or 0) + 2
@@ -81,7 +86,7 @@ async def _stream_agent_turn(
         parent_id=parent_task.get("parent_id"),
         kind="agent",
         name=key,
-        title=f"Agent: {key.replace('_', ' ').title()}",
+        title=short_title(f"Agent: {key.replace('_', ' ').title()}"),
         status="success",
         agent_id=key,
         depth=1,
@@ -291,6 +296,7 @@ class ParallelInvokeAgentsTool(BaseTool):
         self, agent_types: str, message: str, user_id: str = None, **kwargs
     ) -> ToolResult:
         from ...runtime.task_events import emit_task, new_task_id
+        from ...runtime.task_titles import short_title
 
         uid = int(user_id) if user_id else get_user_id()
         keys = _parse_agent_types(agent_types)
@@ -298,22 +304,24 @@ class ParallelInvokeAgentsTool(BaseTool):
             return self.fail("agent_types is required (e.g. routine,research)")
 
         group_id = new_task_id("parallel")
+        parallel_title = short_title(f"Parallel: {', '.join(keys)}")
         emit_task(
             task_id=group_id,
             kind="plan",
             name="parallel_invoke",
-            title=f"Parallel: {', '.join(keys)}",
+            title=parallel_title,
             status="active",
             parallel_group=group_id,
             depth=1,
         )
 
         async def _run_one(agent_key: str) -> Dict[str, Any]:
+            agent_title = short_title(f"Parallel {agent_key}")
             emit_task(
                 parent_id=group_id,
                 kind="agent",
                 name=agent_key,
-                title=f"Parallel {agent_key}",
+                title=agent_title,
                 status="active",
                 agent_id=agent_key,
                 parallel_group=group_id,
@@ -332,7 +340,7 @@ class ParallelInvokeAgentsTool(BaseTool):
                     parent_id=group_id,
                     kind="agent",
                     name=agent_key,
-                    title=f"Parallel {agent_key}",
+                    title=agent_title,
                     status="success",
                     agent_id=agent_key,
                     parallel_group=group_id,
@@ -344,7 +352,7 @@ class ParallelInvokeAgentsTool(BaseTool):
                     parent_id=group_id,
                     kind="agent",
                     name=agent_key,
-                    title=f"Parallel {agent_key}",
+                    title=agent_title,
                     status="error",
                     agent_id=agent_key,
                     parallel_group=group_id,
@@ -357,7 +365,7 @@ class ParallelInvokeAgentsTool(BaseTool):
             task_id=group_id,
             kind="plan",
             name="parallel_invoke",
-            title=f"Parallel: {', '.join(keys)}",
+            title=parallel_title,
             status="success",
             parallel_group=group_id,
             depth=1,

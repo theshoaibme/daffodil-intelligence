@@ -47,6 +47,12 @@ _TOOL_KEYWORDS = (
 _MAIN_AGENTS = frozenset({"main", "supervisor", "default", ""})
 # Modes that require Antigravity tool-calling (MCP alone is a hint only).
 _TOOL_MODES = frozenset({"Planning", "Research", "Agent"})
+
+
+def should_force_full_runtime(metadata: dict | None) -> bool:
+    """True when UI modes require Antigravity tool-calling."""
+    selected = (metadata or {}).get("selected_tools") or []
+    return any(mode in _TOOL_MODES for mode in selected)
 _FULL_RUNTIME_ROUTINGS = frozenset({
     "attachments",
     "code",
@@ -87,7 +93,7 @@ def should_use_hf_chat(
     if message_needs_tools(meta.get("_message", "")):
         return False
     selected = meta.get("selected_tools") or []
-    if any(mode in _TOOL_MODES for mode in selected):
+    if should_force_full_runtime(meta):
         return False
     if settings.MCP_ENABLED and (meta.get("mcp_servers") or "MCP" in selected):
         return False
@@ -134,7 +140,7 @@ def should_use_fast_groq(
     selected = meta.get("selected_tools") or []
     if settings.MCP_ENABLED and ("MCP" in selected or meta.get("mcp_servers")):
         return False
-    if any(mode in _TOOL_MODES for mode in selected):
+    if should_force_full_runtime(meta):
         return False
 
     aid = (agent_id or "").strip().lower()

@@ -10,6 +10,7 @@ export interface AgentTaskNode {
   id: string;
   parentId?: string;
   title: string;
+  shortTitle?: string;
   name?: string;
   kind: "agent" | "tool" | "plan" | "memory" | "status" | "model";
   status: TaskStatus;
@@ -25,6 +26,7 @@ export interface TaskStreamEvent {
   kind?: string;
   name?: string;
   title?: string;
+  short_title?: string;
   status?: string;
   agent_id?: string;
   parallel_group?: string;
@@ -115,6 +117,7 @@ export function reduceAgentTasks(
       id: event.task_id,
       parentId: event.parent_id,
       title: event.title || humanize(event.name || "Task"),
+      shortTitle: event.short_title,
       name: event.name,
       kind: (event.kind as AgentTaskNode["kind"]) || "tool",
       status: normalizeStatus(event.status),
@@ -260,11 +263,24 @@ export function isPanelVisibleTask(task: AgentTaskNode): boolean {
   return true;
 }
 
+const SHORT_TITLE_MAX_LEN = 48;
+
+/** Prefer backend `short_title`; otherwise strip prefixes and truncate. */
+export function shortTitle(title: string, backendShortTitle?: string): string {
+  const trimmed = backendShortTitle?.trim();
+  if (trimmed) return trimmed;
+
+  let text = title
+    .replace(/^Tool:\s*/i, "")
+    .replace(/^Agent:\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length <= SHORT_TITLE_MAX_LEN) return text;
+  return `${text.slice(0, SHORT_TITLE_MAX_LEN - 1).trimEnd()}…`;
+}
+
 function panelTaskText(task: AgentTaskNode): string {
-  let text = task.title;
-  if (task.kind === "tool") {
-    text = text.replace(/^Tool:\s*/i, "");
-  }
+  const text = shortTitle(task.title, task.shortTitle);
   if (task.parallelGroup) {
     return `⇉ ${text}`;
   }
@@ -275,16 +291,30 @@ function panelTaskText(task: AgentTaskNode): string {
 export function tasksToPanelItems(tasks: AgentTaskNode[]): TaskPanelItem[] {
   const visible = orderTasksTree(tasks).filter(isPanelVisibleTask);
   const minDepth = visible.reduce((min, t) => Math.min(min, t.depth), Number.POSITIVE_INFINITY);
+  let topLevelIndex = 0;
 
-  return visible.map((t) => ({
-    id: t.id,
-    text: panelTaskText(t),
-    active: t.status === "active",
-    depth: Number.isFinite(minDepth) ? Math.max(0, t.depth - minDepth) : t.depth,
-    parallelGroup: t.parallelGroup,
-    kind: t.kind,
-    status: t.status,
-  }));
+  return visible.map((t) => {
+    const isTopLevel = t.depth === minDepth;
+    let text: string;
+    if (isTopLevel) {
+      topLevelIndex += 1;
+      const short = shortTitle(t.title, t.shortTitle);
+      const body = t.parallelGroup ? `⇉ ${short}` : short;
+      text = `Task ${topLevelIndex}: ${body}`;
+    } else {
+      text = panelTaskText(t);
+    }
+
+    return {
+      id: t.id,
+      text,
+      active: t.status === "active",
+      depth: Number.isFinite(minDepth) ? Math.max(0, t.depth - minDepth) : t.depth,
+      parallelGroup: t.parallelGroup,
+      kind: t.kind,
+      status: t.status,
+    };
+  });
 }
 
 export function activeAgentsFromTasks(tasks: AgentTaskNode[]): string[] {

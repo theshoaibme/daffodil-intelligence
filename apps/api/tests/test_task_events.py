@@ -1,7 +1,42 @@
 """Task graph event helpers."""
 
 from app.runtime.task_events import emit_task, reset_turn_tasks, take_nested_events
+from app.runtime.task_titles import short_title
 from app.tools.automation.agents import _parse_agent_types
+
+
+def test_short_title_strips_prefix_and_truncates():
+    assert short_title("Agent: Research quantum computing trends") == "Research quantum computing trends"
+    assert short_title("Tool: Google Web Search") == "Google Web Search"
+    long_text = "A" * 60
+    assert short_title(long_text).endswith("...")
+    assert len(short_title(long_text)) == 48
+
+
+def test_emit_task_includes_short_title_from_title():
+    reset_turn_tasks()
+    event = emit_task(
+        kind="agent",
+        name="main",
+        title="Orchestrator (main)",
+        status="active",
+        depth=0,
+    )
+    assert event["short_title"] == "Orchestrator (main)"
+
+
+def test_emit_task_includes_explicit_short_title():
+    reset_turn_tasks()
+    event = emit_task(
+        kind="tool",
+        name="deep_research",
+        title="Tool: Deep research on async Python patterns",
+        short_title="Deep research",
+        status="active",
+        depth=1,
+    )
+    assert event["short_title"] == "Deep research"
+    assert take_nested_events()[-1]["short_title"] == "Deep research"
 
 
 def test_emit_task_nested():

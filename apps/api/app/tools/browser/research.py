@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import Any
 
@@ -58,51 +59,47 @@ class DeepResearchTool(BaseTool):
             searches: list[dict[str, Any]] = []
             pages: list[dict[str, Any]] = []
             seen_urls: set[str] = set()
+            url_lock = asyncio.Lock()
 
             from ...runtime.task_events import emit_task, new_task_id
+            from ...runtime.task_titles import short_title
 
+            group_id = new_task_id("research")
             research_task = emit_task(
                 kind="tool",
                 name="deep_research",
-                title="Deep research",
+                title=short_title("Deep research"),
                 status="active",
                 agent_id="research",
                 depth=1,
             )
             parent_id = research_task["task_id"]
 
-            for subq in subqueries:
+            async def run_subquery(subq: str) -> dict[str, Any]:
                 sub_task = emit_task(
                     parent_id=parent_id,
                     kind="plan",
                     name="subquery",
-                    title=f"Search: {subq[:80]}",
+                    title=short_title(f"Search {subq}"),
                     status="active",
-                    parallel_group=new_task_id("rq"),
+                    parallel_group=group_id,
                     agent_id="research",
                     depth=2,
                 )
                 search_payload = await web_search(subq, max_results=max_sources)
-                searches.append(search_payload)
-                emit_task(
-                    task_id=sub_task["task_id"],
-                    parent_id=parent_id,
-                    kind="plan",
-                    name="subquery",
-                    title=f"Search: {subq[:80]}",
-                    status="success",
-                    agent_id="research",
-                    depth=2,
-                )
+                sub_pages: list[dict[str, Any]] = []
 
                 for hit in search_payload.get("results") or []:
                     url = (hit.get("url") or "").strip()
-                    if not url or url in seen_urls:
+                    if not url:
                         continue
-                    seen_urls.add(url)
+                    async with url_lock:
+                        if url in seen_urls:
+                            continue
+                        seen_urls.add(url)
                     fetched = await fetcher.execute(url=url, max_chars=4000)
                     if fetched.success:
-                        pages.append(
+                        sub_pages.append(
                             {
                                 "url": url,
                                 "title": hit.get("title", ""),
@@ -111,14 +108,32 @@ class DeepResearchTool(BaseTool):
                                 "status_code": fetched.data.get("status_code"),
                             }
                         )
-                    if len(pages) >= max_sources * len(subqueries):
+                    if len(sub_pages) >= max_sources:
                         break
+
+                emit_task(
+                    task_id=sub_task["task_id"],
+                    parent_id=parent_id,
+                    kind="plan",
+                    name="subquery",
+                    title=short_title(f"Search {subq}"),
+                    status="success",
+                    parallel_group=group_id,
+                    agent_id="research",
+                    depth=2,
+                )
+                return {"search": search_payload, "pages": sub_pages}
+
+            sub_results = await asyncio.gather(*(run_subquery(q) for q in subqueries))
+            for item in sub_results:
+                searches.append(item["search"])
+                pages.extend(item["pages"])
 
             emit_task(
                 task_id=parent_id,
                 kind="tool",
                 name="deep_research",
-                title="Deep research",
+                title=short_title("Deep research"),
                 status="success",
                 agent_id="research",
                 depth=1,
@@ -130,6 +145,7 @@ class DeepResearchTool(BaseTool):
                     "searches": searches,
                     "pages": pages,
                     "source_count": len(pages),
+                    "parallel_group": group_id,
                 }
             )
         except Exception as e:

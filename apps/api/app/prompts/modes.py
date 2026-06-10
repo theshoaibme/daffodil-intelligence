@@ -6,11 +6,13 @@ from typing import Optional
 
 _MODE_INSTRUCTIONS: dict[str, str] = {
     "Planning": """MODE: PLANNING
+- For goals with two or more steps, call invoke_agent(agent_type="planning", message=...) instead of writing an inline plan only.
 - Break goals into numbered, actionable steps.
 - State assumptions and dependencies clearly.
 - Prefer structured plans over long prose.
 - End with a short "Next actions" list when appropriate.""",
     "Research": """MODE: RESEARCH
+- Call deep_research(query) or invoke_agent(agent_type="research", message=...) before concluding; do not answer from memory alone.
 - Gather accurate information before concluding.
 - Prefer tools and sources over guessing.
 - Summarize findings with bullet points.
@@ -22,6 +24,7 @@ _MODE_INSTRUCTIONS: dict[str, str] = {
 - MCP tool output renders in UI blocks; reply with one short sentence naming the action taken.""",
     "Agent": """MODE: MULTI-AGENT
 - Coordinate specialized agents when the task spans domains.
+- Use parallel_invoke_agents when multiple domains overlap on the same message.
 - Class schedules: invoke_agent(agent_type="routine", message=...) or get_class_routine — data/routines CSV/PDF only.
 - Delegate specialists with invoke_agent(agent_type=...) or parallel_invoke_agents(agent_types="routine,research", message=...) when domains overlap.
 - Deep web research: deep_research(query). Academic papers: invoke_agent(agent_type="research").
@@ -31,6 +34,7 @@ _MODE_INSTRUCTIONS: dict[str, str] = {
 _CHAT_DEFAULT = """MODE: CHAT
 - Answer directly and concisely unless the user asks for detail.
 - Be accurate; say when you are unsure.
+- No task tree is expected for simple chat; answer directly without invoking agents unless tools are clearly needed.
 - Tool results render as structured UI blocks (tables, cards). Keep text to 1–2 sentences; do not duplicate table rows in prose.
 - Use present_ui only when structured output cannot be produced by other tools."""
 

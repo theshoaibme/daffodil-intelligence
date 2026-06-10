@@ -15,7 +15,13 @@ from ..memory import memory_service
 from ..prompts.modes import build_mode_system_prompt, mode_status_messages
 from ..skills.resolver import resolve_runtime_config
 from . import groq_chat, hf_chat, orchestrator
-from .chat_router import groq_model_for_routing, should_use_fast_groq, should_use_hf_chat
+from .chat_router import (
+    groq_model_for_routing,
+    should_force_full_runtime,
+    should_use_fast_groq,
+    should_use_hf_chat,
+)
+from .task_policy import classify_turn, should_emit_task_tree
 from .intent_router import route_message
 from .routine_turn import run_routine_fast_path, should_use_routine_fast_path, stream_routine_fast_path
 from .stream_signals import stream_turn_preamble
@@ -223,6 +229,9 @@ async def _run_turn_inner(
         persona=cfg.persona,
         include_tools=cfg.tool_names,
     ) and not use_hf
+    if should_force_full_runtime(meta):
+        use_hf = False
+        use_fast_groq = False
     groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
     active_model = groq_model if use_fast_groq else resolved_model
     active_routing = "groq_fast" if use_fast_groq else ("hf_glm" if use_hf else routing)
@@ -359,6 +368,9 @@ async def _run_turn_stream_inner(
         persona=cfg.persona,
         include_tools=cfg.tool_names,
     ) and not use_hf
+    if should_force_full_runtime(meta):
+        use_hf = False
+        use_fast_groq = False
     groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
     active_model = groq_model if use_fast_groq else resolved_model
     active_routing = "groq_fast" if use_fast_groq else ("hf_glm" if use_hf else routing)
@@ -371,6 +383,16 @@ async def _run_turn_stream_inner(
         model_id=display_model,
         engine=engine,
     )
+
+    is_nested = bool(meta.get("_nested_turn"))
+    complexity = classify_turn(
+        message,
+        meta,
+        routing,
+        use_fast_groq,
+        use_hf,
+    )
+    emit_tasks = should_emit_task_tree(complexity) and not is_nested
 
     yield {
         "type": "model",
@@ -389,16 +411,17 @@ async def _run_turn_stream_inner(
     trace_recorder.event(turn_id, type="model", name=display_model or "auto", detail=active_routing or "")
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
 
-    reset_turn_tasks()
-    root_task = emit_task(
-        kind="agent",
-        name=cfg.agent_id or "main",
-        title=f"Orchestrator ({cfg.agent_id or 'main'})",
-        status="active",
-        agent_id=cfg.agent_id or "main",
-        depth=0,
-    )
-    yield root_task
+    if emit_tasks:
+        reset_turn_tasks()
+        root_task = emit_task(
+            kind="agent",
+            name=cfg.agent_id or "main",
+            title=f"Orchestrator ({cfg.agent_id or 'main'})",
+            status="active",
+            agent_id=cfg.agent_id or "main",
+            depth=0,
+        )
+        yield root_task
 
     if recall_block:
         trace_recorder.event(turn_id, type="memory", name="recall_notes", status="active")
@@ -493,15 +516,17 @@ async def _run_turn_stream_inner(
                 yield event
 
         trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="success")
-        yield emit_task(
-            task_id=turn_root_id(),
-            kind="agent",
-            name=cfg.agent_id or "main",
-            title=f"Orchestrator ({cfg.agent_id or 'main'})",
-            status="success",
-            agent_id=cfg.agent_id or "main",
-            depth=0,
-        )
+        if emit_tasks:
+            yield emit_task(
+                task_id=turn_root_id(),
+                kind="agent",
+                name=cfg.agent_id or "main",
+                title=f"Orchestrator ({cfg.agent_id or 'main'})",
+                status="success",
+                agent_id=cfg.agent_id or "main",
+                depth=0,
+            )
     finally:
-        reset_turn_tasks()
+        if emit_tasks:
+            reset_turn_tasks()
         trace_recorder.end_turn(turn_id)
