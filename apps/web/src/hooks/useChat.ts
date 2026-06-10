@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   createChat,
   sendMessage,
@@ -7,13 +7,12 @@ import type { StreamEvent } from "../lib/api";
 import {
   activeAgentsFromTasks,
   activeToolsFromTasks,
-  agentForTool,
   memoryActiveFromTasks,
   reduceAgentTasks,
   tasksToPanelItems,
   type AgentTaskNode,
 } from "../lib/agentTasks";
-import { emitFlow, getFlow, resetFlow } from "../lib/flowBus";
+import { emitFlow, getFlow, resetFlow, setFlow } from "../lib/flowBus";
 import type { ChatContextUsage } from "../lib/chatContext";
 import { coerceUiBlock, mergeUiBlocks } from "../lib/uiBlocks/coerce";
 import type { UiBlock } from "../lib/uiBlocks/types";
@@ -21,19 +20,29 @@ import type { UiBlock } from "../lib/uiBlocks/types";
 function syncFlowFromTasks(tasks: AgentTaskNode[], inputId: string | null) {
   const activeAgents = activeAgentsFromTasks(tasks);
   const withoutMain = activeAgents.filter((id) => id !== "main");
-  emitFlow({
+  const modelTask = tasks.find((t) => t.kind === "model");
+  const modelLabel = modelTask?.title?.replace(/^Model:\s*/i, "").trim();
+  setFlow({
     modelActive: tasks.some((t) => t.status === "active"),
     activeAgentIds: withoutMain.length > 0 ? withoutMain : activeAgents,
     activeTools: activeToolsFromTasks(tasks),
     memoryActive: memoryActiveFromTasks(tasks),
     activeInputId: inputId,
+    activeModelId: modelLabel || undefined,
   });
 }
 
-function normalizeStatus(status?: string): ThinkingStep["status"] {
-  if (status === "success" || status === "done" || status === "completed") return "success";
-  if (status === "active" || status === "running" || status === "start") return "active";
-  return "active";
+function finalizeAgentTasks(tasks: AgentTaskNode[]): AgentTaskNode[] {
+  return tasks.map((t) =>
+    t.status === "active" ? { ...t, status: "success" as const } : t
+  );
+}
+
+function pruneLegacyTasks(tasks: AgentTaskNode[]): AgentTaskNode[] {
+  if (!tasks.some((t) => t.id.startsWith("task-") || t.id.startsWith("root-"))) {
+    return tasks;
+  }
+  return tasks.filter((t) => !t.id.startsWith("agent:") && !t.id.startsWith("tool:"));
 }
 
 export interface ChatMessage {
@@ -88,6 +97,17 @@ export function useChat(options?: UseChatOptions) {
   const sendGenerationRef = useRef(0);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const thinkingStartRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const panel = tasksToPanelItems(agentTasks);
+    setThinkingSteps(
+      panel.map((p) => ({
+        id: p.id,
+        title: p.text,
+        status: p.active ? ("active" as const) : ("success" as const),
+      }))
+    );
+  }, [agentTasks]);
 
   const stopThinkingTimer = useCallback(() => {
     if (thinkingTimerRef.current) {
@@ -206,15 +226,6 @@ export function useChat(options?: UseChatOptions) {
         content,
         (chunk) => {
           if (isSendStale(generation)) return;
-          if (thinkingTimerRef.current) {
-            stopThinkingTimer();
-            if (thinkingStartRef.current != null) {
-              setThinkingMs(Date.now() - thinkingStartRef.current);
-            }
-            setThinkingSteps((prev) =>
-              prev.map((s) => (s.status === "active" ? { ...s, status: "success" } : s))
-            );
-          }
           fullContent += chunk;
           setCurrentStreamingContent(fullContent);
 
@@ -267,28 +278,10 @@ export function useChat(options?: UseChatOptions) {
             event.type === "status"
           ) {
             setAgentTasks((prev) => {
-              const next = reduceAgentTasks(prev, event);
+              const reduced = reduceAgentTasks(prev, event);
+              const next = pruneLegacyTasks(reduced);
               syncFlowFromTasks(next, inputId);
-              const panel = tasksToPanelItems(next);
-              setThinkingSteps(
-                panel.map((p) => ({
-                  id: p.id,
-                  title: p.text,
-                  status: p.active ? "active" : "success",
-                }))
-              );
               return next;
-            });
-          }
-
-          if (event.type === "tool" && event.name && normalizeStatus(event.status) === "active") {
-            const extra = agentForTool(event.name, event.agent_id).filter((id) => id !== "main");
-            const flow = getFlow();
-            emitFlow({
-              modelActive: true,
-              activeAgentIds: Array.from(new Set([...flow.activeAgentIds, ...extra])),
-              activeTools: Array.from(new Set([...flow.activeTools, event.name!])),
-              activeInputId: inputId,
             });
           }
         }
@@ -303,9 +296,7 @@ export function useChat(options?: UseChatOptions) {
         }
       }
 
-      setThinkingSteps(prev => 
-        prev.map(s => ({ ...s, status: "success" }))
-      );
+      setAgentTasks((prev) => finalizeAgentTasks(prev));
 
       setMessages(prev =>
         prev.map((m) => {
@@ -357,6 +348,7 @@ export function useChat(options?: UseChatOptions) {
       stopThinkingTimer();
       resetFlow();
       thinkingStartRef.current = null;
+      setAgentTasks([]);
       setThinkingSteps([]);
       setThinkingText("");
       setThinkingMs(null);

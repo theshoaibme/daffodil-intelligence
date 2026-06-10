@@ -16,6 +16,8 @@ def test_manual_model_bypasses_auto():
 
 def test_auto_defaults_for_simple_message(monkeypatch):
     monkeypatch.setenv("GROQ_FAST_CHAT", "false")
+    monkeypatch.setenv("HUGGINGFACE_API_KEY", "")
+    monkeypatch.setenv("HUGGINGFACE_ENABLED", "false")
     from app.core.config import get_settings
 
     get_settings.cache_clear()
@@ -28,10 +30,29 @@ def test_auto_defaults_for_simple_message(monkeypatch):
     assert resolved == get_settings().ANTIGRAVITY_MODEL
 
 
-def test_auto_defaults_to_groq_fast_when_enabled(monkeypatch):
+def test_auto_defaults_to_glm_when_hf_enabled(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_FAST_CHAT", "true")
+    monkeypatch.setenv("HUGGINGFACE_API_KEY", "hf-test")
+    monkeypatch.setenv("HUGGINGFACE_ENABLED", "true")
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    resolved, was_auto, reason = resolve_model_for_turn(
+        model_id=AUTO_MODEL_ID,
+        message="Tell me about the weather today.",
+    )
+    assert was_auto is True
+    assert reason == "default"
+    assert resolved == "glm-5.1"
+
+
+def test_auto_defaults_to_groq_fast_when_hf_disabled(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "test-key")
     monkeypatch.setenv("GROQ_FAST_CHAT", "true")
     monkeypatch.setenv("GROQ_FAST_MODEL", "llama-3.1-8b-instant")
+    monkeypatch.setenv("HUGGINGFACE_API_KEY", "")
+    monkeypatch.setenv("HUGGINGFACE_ENABLED", "false")
     from app.core.config import get_settings
 
     get_settings.cache_clear()

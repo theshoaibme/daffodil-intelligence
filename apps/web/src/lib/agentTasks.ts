@@ -111,7 +111,7 @@ export function reduceAgentTasks(
   event: TaskStreamEvent
 ): AgentTaskNode[] {
   if (event.type === "task" && event.task_id) {
-    return upsertTask(tasks, {
+    const next = upsertTask(tasks, {
       id: event.task_id,
       parentId: event.parent_id,
       title: event.title || humanize(event.name || "Task"),
@@ -122,6 +122,7 @@ export function reduceAgentTasks(
       parallelGroup: event.parallel_group,
       agentId: event.agent_id || (event.kind === "agent" ? event.name : undefined),
     });
+    return next.filter((t) => !t.id.startsWith("agent:") && !t.id.startsWith("tool:"));
   }
 
   if (event.type === "agent" || event.type === "subagent") {
@@ -210,8 +211,9 @@ export function reduceAgentTasks(
   }
 
   if (event.type === "status" && event.content) {
+    const slug = event.content.slice(0, 48).replace(/\s+/g, "-").toLowerCase();
     return upsertTask(tasks, {
-      id: `status:${tasks.length}`,
+      id: `status:${slug}`,
       parentId: "root",
       title: event.content,
       kind: "status",
@@ -233,13 +235,48 @@ export interface TaskPanelItem {
   status?: TaskStatus;
 }
 
+const PANEL_HIDDEN_KINDS = new Set<AgentTaskNode["kind"]>(["model", "memory", "status"]);
+
+/** True when a task row should appear in the Task manager UI (not trace/metadata). */
+export function isPanelVisibleTask(task: AgentTaskNode): boolean {
+  if (PANEL_HIDDEN_KINDS.has(task.kind)) return false;
+
+  if (task.kind === "agent") {
+    const title = task.title.toLowerCase();
+    if (title.startsWith("orchestrator")) return false;
+    const agentId = (task.agentId || task.name || "").toLowerCase();
+    if (task.depth === 0 && (agentId === "main" || agentId === "supervisor" || agentId === "default")) {
+      return false;
+    }
+    if (task.id.startsWith("agent:") && task.id.endsWith(":agent") && task.depth === 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function panelTaskText(task: AgentTaskNode): string {
+  let text = task.title;
+  if (task.kind === "tool") {
+    text = text.replace(/^Tool:\s*/i, "");
+  }
+  if (task.parallelGroup) {
+    return `⇉ ${text}`;
+  }
+  return text;
+}
+
 /** Flat list for TaskPanel — parent → child order, indentation via depth only. */
 export function tasksToPanelItems(tasks: AgentTaskNode[]): TaskPanelItem[] {
-  return orderTasksTree(tasks).map((t) => ({
+  const visible = orderTasksTree(tasks).filter(isPanelVisibleTask);
+  const minDepth = visible.reduce((min, t) => Math.min(min, t.depth), Number.POSITIVE_INFINITY);
+
+  return visible.map((t) => ({
     id: t.id,
-    text: t.parallelGroup ? `⇉ ${t.title}` : t.title,
+    text: panelTaskText(t),
     active: t.status === "active",
-    depth: t.depth,
+    depth: Number.isFinite(minDepth) ? Math.max(0, t.depth - minDepth) : t.depth,
     parallelGroup: t.parallelGroup,
     kind: t.kind,
     status: t.status,

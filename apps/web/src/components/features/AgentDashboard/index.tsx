@@ -146,6 +146,7 @@ export default function AgentDashboard({
           saveSignal={saveSignal}
           graphReady={!loading}
           belowHeader={fillParent}
+          simulationOnly={embedded}
         />
       </div>
 

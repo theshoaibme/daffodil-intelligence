@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { Network } from "lucide-react";
 import { AgentSelector } from "./AgentSelector";
 import { McpConfigureDialog } from "./McpConfigureDialog";
 import { ModelSelector } from "./ModelSelector";
@@ -7,7 +8,7 @@ import { ContextUseRing } from "./ContextUseRing";
 import { FileAttachmentButton, MicButton, SendButton, StopButton } from "./ActionButtons";
 import {
   AGENT_MODE_PLACEHOLDERS,
-  AUTO_MODEL_ID,
+  GLM_5_1_MODEL_ID,
   BOTTOM_BAR_LAYOUT_ID,
   enterOrSkip,
   modeSpring,
@@ -32,6 +33,8 @@ interface PromptBarProps {
   uiReady?: boolean;
   selectedAgentMode: AgentMode;
   onSelectAgentMode: (mode: AgentMode) => void;
+  agentVisualizeOpen?: boolean;
+  onToggleAgentVisualize?: () => void;
   /** When true, omit viewport-fixed wrapper — parent positions the bar in the main column. */
   embedded?: boolean;
 }
@@ -50,11 +53,13 @@ export function PromptBar({
   uiReady = true,
   selectedAgentMode,
   onSelectAgentMode,
+  agentVisualizeOpen = false,
+  onToggleAgentVisualize,
   embedded = false,
 }: PromptBarProps) {
   const [selectedModelId, setSelectedModelId] = useLocalStorageState(
     "di-dashboard-selected-model",
-    AUTO_MODEL_ID
+    GLM_5_1_MODEL_ID
   );
 
   const submit = () => handleSend(selectedModelId);
@@ -110,6 +115,21 @@ export function PromptBar({
             onConfigureMcp={() => setMcpDialogOpen(true)}
           />
           <ModelSelector selectedModelId={selectedModelId} onChange={setSelectedModelId} />
+          {selectedAgentMode === "Agent" && onToggleAgentVisualize && (
+            <button
+              type="button"
+              onClick={onToggleAgentVisualize}
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer outline-none ${
+                agentVisualizeOpen
+                  ? "border-primary/40 text-primary bg-primary/5"
+                  : "border-outline-variant/40 text-on-surface-variant hover:text-on-surface hover:border-outline-variant/60 bg-transparent"
+              }`}
+              aria-pressed={agentVisualizeOpen}
+            >
+              <Network size={12} strokeWidth={2} />
+              Visualize
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5">

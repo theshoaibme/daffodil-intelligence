@@ -38,8 +38,14 @@ export function emitFlow(partial: Partial<FlowState>): void {
   listeners.forEach((fn) => fn(state));
 }
 
+/** Replace entire flow state (avoids stale keys from partial merges). */
+export function setFlow(next: FlowState): void {
+  state = { ...next };
+  listeners.forEach((fn) => fn(state));
+}
+
 export function resetFlow(): void {
-  state = EMPTY;
+  state = { ...EMPTY };
   listeners.forEach((fn) => fn(state));
 }
 

@@ -59,6 +59,8 @@ export interface SimulationOverlay {
   engine?: string;
   memoryActive?: boolean;
   activeTools?: string[];
+  /** When true, ignore hub poll agent.status (SSE flow bus only). */
+  simulationOnly?: boolean;
 }
 
 export function buildAgentGraph(
@@ -74,6 +76,7 @@ export function buildAgentGraph(
     engine,
     memoryActive = false,
     activeTools = [],
+    simulationOnly = false,
   } = simulation;
   const activeSet = new Set(activeAgentIds);
   const orchestratorActive = modelActive || activeSet.size > 0 || memoryActive || activeTools.length > 0;
@@ -153,10 +156,7 @@ export function buildAgentGraph(
       data: {
         label: input.label,
         integration: input.integration,
-        working:
-          orchestratorActive &&
-          (activeInputId === input.id ||
-            (!activeInputId && input.id === "input-chat")),
+        working: orchestratorActive && activeInputId === input.id,
       },
       draggable: true,
     });
@@ -232,8 +232,8 @@ export function buildAgentGraph(
       const isActive =
         activeSet.has(agent.id) ||
         isAgentActiveFromTools(agent.id, activeTools) ||
-        agent.status === "executing" ||
-        agent.status === "thinking";
+        (!simulationOnly &&
+          (agent.status === "executing" || agent.status === "thinking"));
 
       nodes.push({
         id: agent.id,

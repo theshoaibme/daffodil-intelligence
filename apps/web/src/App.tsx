@@ -190,6 +190,8 @@ function ChatDashboard() {
     setSelectedAgentMode(mode);
     if (mode !== "Agent") {
       setAgentSimulationOpen(false);
+    } else {
+      setAgentSimulationOpen(true);
     }
   };
 
@@ -301,6 +303,7 @@ function ChatDashboard() {
 
     handledAgentsParam.current = true;
     setSelectedAgentMode("Agent");
+    setAgentSimulationOpen(true);
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -343,6 +346,7 @@ function ChatDashboard() {
   };
 
   const hasMessages = messages.length > 0;
+  const showResponsePanel = hasMessages && !copycatMode;
 
   useEffect(() => {
     if (agentModeActive && isStreaming) {
@@ -351,21 +355,19 @@ function ChatDashboard() {
   }, [agentModeActive, isStreaming]);
 
   const showAgentDashboard = agentModeActive && agentSimulationOpen;
-  /** Agent flow visualization in the center — hidden when the user opens full-view chat. */
-  const showAgentDashboardView = showAgentDashboard && preferSidePanel;
+  const showMainConversation = showResponsePanel && !preferSidePanel;
+  /** Agent + chat split in center — stays mounted after stream ends (no layout swap). */
+  const showSplitAgentAndChat = showAgentDashboard && showMainConversation;
+  /** Full agent canvas when side panel chat or no messages yet. */
+  const showAgentGraph =
+    showAgentDashboard && (preferSidePanel || !showResponsePanel);
 
-  const agentLiveTasks = useMemo<TaskItem[] | null>(() => {
-    if (!showAgentDashboard) return null;
-    if (agentTasks.length > 0) {
-      return tasksToPanelItems(agentTasks);
-    }
-    if (!isStreaming || thinkingSteps.length === 0) return null;
-    return thinkingSteps.map((step) => ({
-      id: step.id,
-      text: step.title,
-      active: step.status === "active",
-    }));
-  }, [showAgentDashboard, isStreaming, agentTasks, thinkingSteps]);
+  const taskPanelLiveTasks = useMemo<TaskItem[] | null>(() => {
+    const items = tasksToPanelItems(agentTasks);
+    return items.length > 0 ? items : null;
+  }, [agentTasks]);
+
+  const taskPanelLive = taskPanelLiveTasks !== null;
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -433,10 +435,12 @@ function ChatDashboard() {
   };
 
   const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
-  const showResponsePanel = hasMessages && !copycatMode;
-  const showCenterConversation = showResponsePanel && !preferSidePanel;
   const showSideResponse = showResponsePanel && preferSidePanel;
-  const showWelcomeHero = !showAgentDashboardView && !showCenterConversation;
+  const showWelcomeHero = !showAgentGraph && !showMainConversation;
+
+  const toggleAgentVisualize = () => {
+    setAgentSimulationOpen((open) => !open);
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
@@ -449,7 +453,7 @@ function ChatDashboard() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-background/50 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-background/50 z-40 lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -527,17 +531,23 @@ function ChatDashboard() {
             )}
           </AnimatePresence>
 
-          <AnimatePresence>
-            {showCenterConversation && (
-              <motion.div
-                key="center-conversation"
-                initial={enterOrSkip(uiReady, { opacity: 0, y: 10 })}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={overlayFade}
-                className={`${MAIN_STAGE} z-10 items-start justify-center pt-2 sm:pt-4 overflow-hidden`}
+          {showMainConversation && (
+            <motion.div
+              key="main-conversation"
+              initial={false}
+              className={`${MAIN_STAGE} z-10 items-stretch justify-start pt-2 sm:pt-3 overflow-hidden`}
+            >
+              <div
+                className={`w-full mx-auto min-w-0 h-full min-h-0 max-h-full flex flex-col pointer-events-auto px-1 ${
+                  showSplitAgentAndChat ? "max-w-4xl gap-2" : "max-w-3xl justify-center"
+                }`}
               >
-                <div className="w-full max-w-3xl mx-auto min-w-0 h-full min-h-0 max-h-full flex flex-col px-1">
+                {showSplitAgentAndChat && (
+                  <div className="flex-[0_0_38%] min-h-[180px] sm:min-h-[220px] max-h-[42%] shrink-0">
+                    <AgentDashboard embedded onClose={handleCloseAgentView} />
+                  </div>
+                )}
+                <div className={showSplitAgentAndChat ? "flex-1 min-h-0 overflow-hidden" : "min-h-0 flex-1"}>
                   <ResponseFullView
                     messages={messages}
                     isStreaming={isStreaming}
@@ -549,15 +559,14 @@ function ChatDashboard() {
                     onEditUserMessage={handleEditUserMessage}
                   />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
 
           {showSideResponse && (
             <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-4 sm:pt-6 overflow-y-auto no-scrollbar`}>
               <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
                 <AiResponseCard
-                  key={activeHistoryId ?? "active-chat"}
                   messages={messages}
                   isStreaming={isStreaming}
                   thinkingSteps={thinkingSteps}
@@ -572,7 +581,7 @@ function ChatDashboard() {
           )}
 
           <AnimatePresence>
-            {showAgentDashboardView && (
+            {showAgentGraph && !showSplitAgentAndChat && (
               <motion.div
                 key="agent-mode-shell"
                 initial={{ opacity: 0 }}
@@ -619,6 +628,8 @@ function ChatDashboard() {
                     copycatActive={copycatMode}
                     selectedAgentMode={selectedAgentMode}
                     onSelectAgentMode={handleSelectAgentMode}
+                    agentVisualizeOpen={agentSimulationOpen}
+                    onToggleAgentVisualize={toggleAgentVisualize}
                   />
                 </div>
               )}
@@ -643,7 +654,6 @@ function ChatDashboard() {
                   className="pointer-events-auto flex-1 min-h-0 flex flex-col overflow-hidden"
                 >
                   <AiResponseCard
-                    key={activeHistoryId ?? "active-chat"}
                     messages={messages}
                     isStreaming={isStreaming}
                     thinkingSteps={thinkingSteps}
@@ -658,13 +668,13 @@ function ChatDashboard() {
               )}
             </AnimatePresence>
 
-            <div className="pointer-events-auto shrink-0 mt-auto">
+            <div className="pointer-events-auto mt-auto w-full min-w-0 shrink-0">
               <TaskPanel
                 tasksCollapsed={tasksCollapsed}
                 setTasksCollapsed={setTasksCollapsed}
                 uiReady={uiReady}
-                liveTasks={showAgentDashboard ? agentLiveTasks : null}
-                agentMode={showAgentDashboard}
+                liveTasks={taskPanelLiveTasks}
+                agentMode={taskPanelLive}
               />
             </div>
           </motion.div>
@@ -677,8 +687,8 @@ function ChatDashboard() {
               tasksCollapsed={tasksCollapsed}
               setTasksCollapsed={setTasksCollapsed}
               uiReady={uiReady}
-              liveTasks={showAgentDashboard ? agentLiveTasks : null}
-              agentMode={showAgentDashboard}
+              liveTasks={taskPanelLiveTasks}
+              agentMode={taskPanelLive}
             />
           </div>
         </div>

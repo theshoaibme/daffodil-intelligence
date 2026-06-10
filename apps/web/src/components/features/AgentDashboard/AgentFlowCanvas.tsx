@@ -41,6 +41,8 @@ interface AgentFlowCanvasProps {
   graphReady?: boolean;
   /** Offset controls below a page header (agent hub flow view). */
   belowHeader?: boolean;
+  /** Chat-embedded simulation: only highlight from live SSE flow, not hub poll status. */
+  simulationOnly?: boolean;
 }
 
 export function AgentFlowCanvas({
@@ -50,6 +52,7 @@ export function AgentFlowCanvas({
   saveSignal,
   graphReady = true,
   belowHeader = false,
+  simulationOnly = false,
 }: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(agents), [agents]);
   const { runtime } = useRuntimeStatus();
@@ -75,17 +78,19 @@ export function AgentFlowCanvas({
     flow.modelActive ||
     flow.activeAgentIds.length > 0 ||
     flow.activeTools.length > 0 ||
-    flow.memoryActive;
+    flow.memoryActive ||
+    flow.activeInputId != null;
   const graph = useMemo(
     () =>
       buildAgentGraph(agents, savedLayout, {
         activeAgentIds: live ? flow.activeAgentIds : IDLE_OVERLAY.activeAgentIds,
         activeInputId: live ? flow.activeInputId : IDLE_OVERLAY.activeInputId,
         modelActive: live ? flow.modelActive : IDLE_OVERLAY.modelActive,
-        activeModelId: runtime.model || IDLE_OVERLAY.activeModelId,
+        activeModelId: live ? flow.activeModelId ?? runtime.model : runtime.model,
         engine: runtime.engine,
         memoryActive: live ? flow.memoryActive : false,
         activeTools: live ? flow.activeTools : [],
+        simulationOnly,
       }),
     [
       agents,
@@ -98,6 +103,8 @@ export function AgentFlowCanvas({
       flow.activeTools,
       flow.memoryActive,
       flow.modelActive,
+      flow.activeModelId,
+      simulationOnly,
     ]
   );
 

@@ -10,6 +10,9 @@ export interface ModelInfo {
 /** Sentinel id: backend picks the best model per message. */
 export const AUTO_MODEL_ID = "auto";
 
+/** Hugging Face GLM 5.1 catalog id (routes via HF Inference API). */
+export const GLM_5_1_MODEL_ID = "glm-5.1";
+
 /** Full catalog of built-in AI models available in the app. */
 export const DEFAULT_MODELS: ModelInfo[] = [
   // Gemini
@@ -43,12 +46,16 @@ export const DEFAULT_MODELS: ModelInfo[] = [
   { id: "llama-3.1-8b", name: "Llama 3.1 8B", provider: "Meta" },
   { id: "mistral-large", name: "Mistral Large", provider: "Mistral" },
   { id: "qwen-2.5-72b", name: "Qwen 2.5 72B", provider: "Qwen" },
+  // Hugging Face
+  { id: GLM_5_1_MODEL_ID, name: "GLM 5.1", provider: "Hugging Face" },
+  { id: "zai-org/GLM-5.1", name: "GLM 5.1 (HF)", provider: "Hugging Face" },
 ];
 
 /** Models shown as nodes on the agent flow canvas. */
 export const DASHBOARD_MODELS: ModelInfo[] = [
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Gemini" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "Gemini" },
+  { id: GLM_5_1_MODEL_ID, name: "GLM 5.1", provider: "Hugging Face" },
   { id: "gpt-4o", name: "GPT-4o", provider: "OpenAI" },
   { id: "claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "Claude" },
   { id: "deepseek-chat", name: "DeepSeek Chat", provider: "DeepSeek" },

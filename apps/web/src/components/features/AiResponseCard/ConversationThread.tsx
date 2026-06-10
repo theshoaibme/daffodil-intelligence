@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import type { ChatMessage } from "@hooks";
 import type { ThinkingStep } from "./ThinkingProcess";
@@ -43,6 +43,7 @@ export function ConversationThread({
   onEditUserMessage,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [thinkingExpanded, setThinkingExpanded] = useState(false);
   const isPanel = variant === "panel";
   const lastAssistant = messages.filter((m) => m.role === "assistant").pop();
   const lastAssistantHasUi =
@@ -57,6 +58,12 @@ export function ConversationThread({
     if (!autoScroll || !scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [autoScroll, messages, isStreaming, thinkingText]);
+
+  useEffect(() => {
+    if (isStreaming) {
+      setThinkingExpanded(false);
+    }
+  }, [isStreaming]);
 
   const showActions = (message: ChatMessage, isLast: boolean) => {
     const blocks = coerceUiBlocks((message.metadata?.ui_blocks as UiBlock[] | undefined) ?? []);
@@ -107,21 +114,24 @@ export function ConversationThread({
             const responseData = parseResponseText(displayContent);
             const hasBlocks = uiBlocks.length > 0;
             const showThinking =
-              isLast && isLastAssistantStreaming && !displayContent.trim() && !hasBlocks;
+              isLast &&
+              isStreaming &&
+              !displayContent.trim() &&
+              !hasBlocks &&
+              (isLastAssistantStreaming || thinkingText.trim().length > 0);
             const showStreaming = isLast && isStreaming && Boolean(displayContent.trim());
 
             return (
               <div key={message.id} className="flex flex-col items-start w-full">
                 <div className={`w-full text-left ${isPanel ? "px-0.5" : "px-1 sm:px-2 py-1"}`}>
                   {showThinking && (
-                    <div className="mb-3">
+                    <div className="mb-2">
                       <ThinkingProcess
-                        isThinking
-                        steps={thinkingSteps}
+                        isThinking={isLastAssistantStreaming}
                         thinkingText={thinkingText}
                         thinkingMs={thinkingMs}
-                        isExpanded
-                        onToggleExpand={() => {}}
+                        isExpanded={thinkingExpanded}
+                        onToggleExpand={() => setThinkingExpanded((open) => !open)}
                       />
                     </div>
                   )}

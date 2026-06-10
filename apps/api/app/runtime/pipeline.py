@@ -388,7 +388,6 @@ async def _run_turn_stream_inner(
     trace_recorder.add_tokens(turn_id, estimate_tokens(prompt) + estimate_tokens(extra_system or ""))
     trace_recorder.event(turn_id, type="model", name=display_model or "auto", detail=active_routing or "")
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
-    yield {"type": "agent", "agent_id": cfg.agent_id, "name": cfg.agent_id, "status": "active"}
 
     reset_turn_tasks()
     root_task = emit_task(

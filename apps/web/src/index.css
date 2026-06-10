@@ -142,5 +142,20 @@ body {
   .chat-bubble-user {
     background-color: color-mix(in srgb, var(--color-surface-container-highest) 72%, transparent);
   }
+
+  .thinking-shimmer {
+    @apply text-on-surface-variant;
+    animation: thinking-shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes thinking-shimmer {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
 }
 
