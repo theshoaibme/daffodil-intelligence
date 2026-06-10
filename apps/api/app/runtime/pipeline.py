@@ -413,6 +413,7 @@ async def _run_turn_stream_inner(
     async for signal in stream_turn_preamble(
         status_lines=status_lines,
         routing=active_routing,
+        simulate_thinking=False,
     ):
         stype = signal.get("type")
         if stype in ("thinking", "status"):

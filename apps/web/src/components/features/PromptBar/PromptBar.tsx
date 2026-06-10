@@ -8,6 +8,7 @@ import { ContextUseRing } from "./ContextUseRing";
 import { FileAttachmentButton, MicButton, SendButton, StopButton } from "./ActionButtons";
 import {
   AGENT_MODE_PLACEHOLDERS,
+  CHAT_INPUT_SHELL_CLASS,
   GLM_5_1_MODEL_ID,
   BOTTOM_BAR_LAYOUT_ID,
   enterOrSkip,
@@ -37,6 +38,8 @@ interface PromptBarProps {
   onToggleAgentVisualize?: () => void;
   /** When true, omit viewport-fixed wrapper — parent positions the bar in the main column. */
   embedded?: boolean;
+  /** Extra classes on the prompt shell (e.g. flush stack with task panel on mobile). */
+  shellClassName?: string;
 }
 
 export function PromptBar({
@@ -56,6 +59,7 @@ export function PromptBar({
   agentVisualizeOpen = false,
   onToggleAgentVisualize,
   embedded = false,
+  shellClassName = "",
 }: PromptBarProps) {
   const [selectedModelId, setSelectedModelId] = useLocalStorageState(
     "di-dashboard-selected-model",
@@ -99,7 +103,7 @@ export function PromptBar({
           }
         }}
         placeholder={AGENT_MODE_PLACEHOLDERS[selectedAgentMode]}
-        className="w-full bg-transparent border-none outline-none resize-none text-sm text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
+        className="w-full min-w-0 bg-transparent border-none outline-none resize-none text-sm text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
       />
 
       <div className="flex items-center justify-between px-0.5">
@@ -119,15 +123,20 @@ export function PromptBar({
             <button
               type="button"
               onClick={onToggleAgentVisualize}
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer outline-none ${
-                agentVisualizeOpen
-                  ? "border-primary/40 text-primary bg-primary/5"
-                  : "border-outline-variant/40 text-on-surface-variant hover:text-on-surface hover:border-outline-variant/60 bg-transparent"
-              }`}
               aria-pressed={agentVisualizeOpen}
+              aria-label="Toggle agent visualization"
+              className={`flex items-center gap-1 rounded-full cursor-pointer outline-none border-0 pl-2 pr-1.5 py-1 text-xs font-medium leading-none transition-colors bg-surface-container-highest text-on-surface-variant ${
+                agentVisualizeOpen
+                  ? ""
+                  : "hover:bg-surface-container-high hover:text-on-surface"
+              }`}
             >
-              <Network size={12} strokeWidth={2} />
-              Visualize
+              <span className="shrink-0 [&>svg]:size-3.5">
+                <Network size={14} strokeWidth={2} />
+              </span>
+              <span className={agentVisualizeOpen ? "thinking-shimmer" : undefined}>
+                Visualize
+              </span>
             </button>
           )}
         </div>
@@ -166,19 +175,19 @@ export function PromptBar({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 10, scale: 0.94 }}
           transition={modeSpring}
-          className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto"
+          className={`${CHAT_INPUT_SHELL_CLASS} glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto ${shellClassName}`}
         >
           {promptBarInner}
         </motion.div>
       ) : (
-        <div className="fixed bottom-6 left-0 right-0 z-30 flex justify-center w-full px-4 pointer-events-none">
+        <div className="fixed bottom-6 left-0 right-0 z-30 flex justify-center w-full px-3 sm:px-4 pointer-events-none">
           <motion.div
             layoutId={BOTTOM_BAR_LAYOUT_ID}
             initial={enterOrSkip(uiReady, { opacity: 0, y: 14, scale: 0.96 })}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.94 }}
             transition={modeSpring}
-            className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto"
+            className={`${CHAT_INPUT_SHELL_CLASS} glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto`}
           >
             {promptBarInner}
           </motion.div>

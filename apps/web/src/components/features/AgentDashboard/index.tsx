@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Check, Pencil, RefreshCw, X } from "lucide-react";
 import { useAgents } from "@hooks";
-import { ROUTES } from "@lib";
-import { modeSpringSoft } from "@lib";
+import { ROUTES, modeSpringSoft } from "@lib";
 import { AgentFlowCanvas } from "./AgentFlowCanvas";
 import { clearLayout } from "./layoutStorage";
+
 export interface AgentDashboardProps {
   embedded?: boolean;
   /** Fill parent container (e.g. agent hub flow tab below page header). */
@@ -64,7 +64,7 @@ export default function AgentDashboard({
   return (
     <Shell className={shellClass} {...shellProps}>
       <div
-        className={`absolute right-3 z-30 flex items-center gap-2 ${fillParent ? "top-14" : "top-3"}`}
+        className={`absolute right-3 z-30 flex items-center gap-2 ${fillParent ? "top-14" : embedded ? "top-2" : "top-3"}`}
       >
         {!embedded && !fillParent ? (
           <Link
@@ -84,7 +84,7 @@ export default function AgentDashboard({
           </button>
         ) : null}
 
-        {!editing ? (
+        {!embedded && !editing ? (
           <>
             <button
               type="button"
@@ -103,7 +103,7 @@ export default function AgentDashboard({
               Edit
             </button>
           </>
-        ) : (
+        ) : !embedded && editing ? (
           <>
             <button
               type="button"
@@ -129,7 +129,7 @@ export default function AgentDashboard({
               Save
             </button>
           </>
-        )}
+        ) : null}
       </div>
 
       {savedToast && (

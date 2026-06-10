@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
-import { FileText, MessageSquare, Gift, Sun, Moon, LogOut } from "lucide-react";
+import { FileText, MessageSquare, Gift, Sun, Moon, LogOut, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeaderIcon } from "../ui";
 import { useThemeMode } from "@providers";
@@ -95,7 +95,11 @@ function UserAvatar({
   );
 }
 
-export function Header() {
+interface HeaderProps {
+  onOpenSidebar?: () => void;
+}
+
+export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
@@ -264,11 +268,21 @@ export function Header() {
     <>
     <header className="sticky top-0 z-50 shrink-0 flex justify-between items-center h-16 pr-4 sm:pr-6 w-full bg-background/90 backdrop-blur-md isolate">
       <motion.div
-        className="flex items-center gap-2.5 min-w-0"
+        className="flex items-center gap-2.5 min-w-0 pl-4"
         initial={false}
         animate={{ paddingLeft: 16 }}
         transition={sidebarWidthTransition}
       >
+        {onOpenSidebar && (
+          <button
+            type="button"
+            onClick={onOpenSidebar}
+            aria-label="Open menu"
+            className="lg:hidden shrink-0 p-2 -ml-1 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface border-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <Menu size={22} />
+          </button>
+        )}
         <Link
           to={ROUTES.home}
           className="flex items-center gap-2.5 min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"

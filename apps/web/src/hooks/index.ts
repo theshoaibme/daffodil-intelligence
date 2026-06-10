@@ -4,6 +4,7 @@ export * from "./useChatContext";
 export * from "./useComputerStream";
 export * from "./useKit";
 export * from "./useLocalStorageState";
+export * from "./useMediaQuery";
 export * from "./useMcpStatus";
 export * from "./useMemory";
 export * from "./useRuntimeStatus";

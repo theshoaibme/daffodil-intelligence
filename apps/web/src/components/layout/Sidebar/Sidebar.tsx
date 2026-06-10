@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "@lib";
 import type { SidebarProps } from "./types";
 import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "@lib";
+import { useIsLgUp } from "@hooks";
 import { useChatHistory } from "@context";
 import { ChatHistoryItem } from "./ChatHistoryItem";
 
@@ -96,6 +97,7 @@ export function Sidebar({
   const { histories } = useChatHistory();
   const navigate = useNavigate();
   const location = useLocation();
+  const isLgUp = useIsLgUp();
 
   const visibleHistories = useMemo(
     () => histories.filter((entry) => matchesSearch(entry, searchQuery)),
@@ -104,12 +106,21 @@ export function Sidebar({
 
   const toggleSidebar = () => setSidebarOpen?.(!sidebarOpen);
 
+  const sidebarWidth = isLgUp
+    ? sidebarOpen
+      ? SIDEBAR_WIDTH_EXPANDED
+      : SIDEBAR_WIDTH_COLLAPSED
+    : sidebarOpen
+      ? SIDEBAR_WIDTH_EXPANDED
+      : 0;
+
   return (
     <motion.aside
-      initial={enterOrSkip(uiReady, { width: SIDEBAR_WIDTH_COLLAPSED })}
-      animate={{ width: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED }}
+      initial={enterOrSkip(uiReady, { width: isLgUp ? SIDEBAR_WIDTH_COLLAPSED : 0 })}
+      animate={{ width: sidebarWidth }}
       transition={sidebarWidthTransition}
-      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width]"
+      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width] max-lg:shadow-xl"
+      aria-hidden={!isLgUp && !sidebarOpen}
     >
       <div
         className="relative h-full"
@@ -124,7 +135,7 @@ export function Sidebar({
             ...sidebarPanelTransition,
             delay: sidebarOpen ? 0 : 0.06,
           }}
-          className={`absolute inset-y-0 left-0 flex w-[56px] flex-col items-center gap-2 py-4 ${
+          className={`absolute inset-y-0 left-0 hidden lg:flex w-[56px] flex-col items-center gap-2 py-4 ${
             sidebarOpen ? "pointer-events-none" : "pointer-events-auto"
           }`}
         >

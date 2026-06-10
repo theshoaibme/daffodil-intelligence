@@ -9,6 +9,9 @@ import {
 
   AUTO_MODEL_ID,
   DEFAULT_AGENT_MODE,
+  MOBILE_INPUT_WIDTH_CLASS,
+  MOBILE_TASK_PANEL_SHELL_CLASS,
+  MOBILE_TASK_PANEL_WIDTH_CLASS,
   enterOrSkip,
   getHistoryEntry,
   hubApi,
@@ -22,7 +25,7 @@ import {
   tasksToPanelItems,
   type AgentMode,
 } from "@lib";
-import { useChat, useChatContext, useLocalStorageState } from "@hooks";
+import { useChat, useChatContext, useIsLgUp, useLocalStorageState } from "@hooks";
 import {
   ChatHistoryProvider,
   UiAnimationProvider,
@@ -127,13 +130,18 @@ const DASHBOARD_STORAGE_KEYS = {
 /** Horizontal column width — shared by welcome hero and prompt bar. */
 const MAIN_COLUMN = "w-full max-w-xl mx-auto min-w-0";
 
-/** Fills center column below header; pb reserves prompt bar. */
-const MAIN_STAGE =
-  "absolute inset-0 flex items-center justify-center px-3 sm:px-4 pb-[7rem] sm:pb-[8.5rem] pointer-events-none min-w-0";
+const MAIN_STAGE_BASE =
+  "absolute inset-0 flex px-3 sm:px-4 pb-[12.5rem] md:pb-[7rem] lg:pb-[8.5rem] pointer-events-none min-w-0";
 
-/** Prompt bar slot — pinned to bottom of center column. */
-const PROMPT_SLOT =
-  "absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl px-3 sm:px-4 z-30 pointer-events-none min-w-0";
+/** Centered hero / overlay stages. */
+const MAIN_STAGE_CENTER = `${MAIN_STAGE_BASE} items-center justify-center`;
+
+/** Top-aligned conversation + agent visualize stack. */
+const MAIN_STAGE_STACK = `${MAIN_STAGE_BASE} items-stretch justify-start pt-2 sm:pt-3 overflow-hidden`;
+
+/** Mobile: task manager + input stacked flush. Desktop: input only in center column. */
+const BOTTOM_DOCK =
+  "fixed md:absolute bottom-0 md:bottom-4 lg:bottom-6 inset-x-0 z-30 flex flex-col gap-0 pointer-events-none px-3 sm:px-4 pb-4 md:pb-0";
 
 /** Right rail: chat response + task panel (md+). */
 const RIGHT_RAIL =
@@ -147,6 +155,7 @@ function greetingDisplayName(fullName: string | null | undefined, email: string)
 
 function ChatDashboard() {
   const uiReady = useUiAnimationReady();
+  const isLgUp = useIsLgUp();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
@@ -324,6 +333,7 @@ function ChatDashboard() {
     const session = selectHistory(id);
     loadSession(session.chatId, session.messages);
     setPrompt("");
+    if (!isLgUp) setSidebarOpen(false);
   };
 
   const handleNewChat = () => {
@@ -483,11 +493,15 @@ function ChatDashboard() {
         className="relative flex flex-1 flex-col min-w-0 w-full h-screen overflow-hidden bg-background"
         initial={false}
         animate={{
-          paddingLeft: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,
+          paddingLeft: isLgUp
+            ? sidebarOpen
+              ? SIDEBAR_WIDTH_EXPANDED
+              : SIDEBAR_WIDTH_COLLAPSED
+            : 0,
         }}
         transition={sidebarWidthTransition}
       >
-        <Header />
+        <Header onOpenSidebar={() => setSidebarOpen(true)} />
 
         <div
           className={`relative flex-1 min-h-0 min-w-0 grid grid-cols-1 ${
@@ -510,7 +524,7 @@ function ChatDashboard() {
                 }}
                 exit={{ opacity: 0, y: -8, scale: 0.99 }}
                 transition={overlayFade}
-                className={`${MAIN_STAGE} z-10`}
+                className={`${MAIN_STAGE_CENTER} z-10`}
               >
                 <div
                   className={`${MAIN_COLUMN} text-center ${
@@ -543,19 +557,21 @@ function ChatDashboard() {
             <motion.div
               key="main-conversation"
               initial={false}
-              className={`${MAIN_STAGE} z-10 items-stretch justify-start pt-2 sm:pt-3 overflow-hidden`}
+              className={`${MAIN_STAGE_STACK} z-10`}
             >
               <div
-                className={`w-full mx-auto min-w-0 h-full min-h-0 max-h-full flex flex-col pointer-events-auto px-1 ${
-                  showSplitAgentAndChat ? "max-w-4xl gap-2" : "max-w-3xl justify-center"
+                className={`w-full mx-auto min-w-0 h-full min-h-0 max-h-full pointer-events-auto px-1 ${
+                  showSplitAgentAndChat
+                    ? "max-w-4xl grid grid-rows-[minmax(280px,50%)_minmax(0,1fr)] gap-2"
+                    : "max-w-3xl flex flex-col justify-center"
                 }`}
               >
                 {showSplitAgentAndChat && (
-                  <div className="flex-[0_0_38%] min-h-[180px] sm:min-h-[220px] max-h-[42%] shrink-0">
+                  <div className="min-h-0 w-full self-start overflow-hidden rounded-2xl border border-outline-variant/30 shadow-sm">
                     <AgentDashboard embedded onClose={handleCloseAgentView} />
                   </div>
                 )}
-                <div className={showSplitAgentAndChat ? "flex-1 min-h-0 overflow-hidden" : "min-h-0 flex-1"}>
+                <div className="min-h-0 overflow-hidden">
                   <ResponseFullView
                     messages={messages}
                     isStreaming={isStreaming}
@@ -573,7 +589,7 @@ function ChatDashboard() {
           )}
 
           {showSideResponse && (
-            <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-4 sm:pt-6 overflow-y-auto no-scrollbar`}>
+            <div className={`${MAIN_STAGE_STACK} z-0 md:hidden pointer-events-auto pt-4 sm:pt-6 overflow-y-auto no-scrollbar`}>
               <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
                 <AiResponseCard
                   messages={messages}
@@ -598,9 +614,9 @@ function ChatDashboard() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={overlayFade}
-                className={`${MAIN_STAGE} z-20`}
+                className={`${MAIN_STAGE_STACK} z-20`}
               >
-                <div className="w-full max-w-4xl mx-auto h-[min(480px,calc(100%-0.5rem))] min-h-[220px] sm:min-h-[280px] pointer-events-auto px-1 sm:px-0">
+                <div className="w-full max-w-4xl mx-auto h-[min(560px,calc(100%-1rem))] min-h-[300px] sm:min-h-[360px] pointer-events-auto px-1 sm:px-0 self-start pt-2">
                   <AgentDashboard embedded onClose={handleCloseAgentView} />
                 </div>
               </motion.div>
@@ -620,27 +636,44 @@ function ChatDashboard() {
 
             <AnimatePresence mode="popLayout">
               {!copycatMode && (
-                <div className={PROMPT_SLOT}>
-                  <PromptBar
-                    key="chat-mode-bar"
-                    embedded
-                    uiReady={uiReady}
-                    prompt={prompt}
-                    setPrompt={setPrompt}
-                    isSent={hasMessages}
-                    handleSend={handleSend}
-                    agentMenuOpen={agentMenuOpen}
-                    setAgentMenuOpen={setAgentMenuOpen}
-                    textareaRef={textareaRef}
-                    isStreaming={isStreaming}
-                    context={chatContext}
-                    onCopycatMode={() => setCopycatMode(true)}
-                    copycatActive={copycatMode}
-                    selectedAgentMode={selectedAgentMode}
-                    onSelectAgentMode={handleSelectAgentMode}
-                    agentVisualizeOpen={agentSimulationOpen}
-                    onToggleAgentVisualize={toggleAgentVisualize}
-                  />
+                <div className={`${BOTTOM_DOCK} max-md:items-center`}>
+                  <div className="md:contents flex w-full flex-col gap-0 max-md:items-center">
+                    <div
+                      className={`md:hidden pointer-events-auto ${MOBILE_TASK_PANEL_WIDTH_CLASS} ${MOBILE_TASK_PANEL_SHELL_CLASS}`}
+                    >
+                      <TaskPanel
+                        inset
+                        tasksCollapsed={tasksCollapsed}
+                        setTasksCollapsed={setTasksCollapsed}
+                        uiReady={uiReady}
+                        liveTasks={taskPanelLiveTasks}
+                        agentMode={taskPanelLive}
+                      />
+                    </div>
+                    <div className="w-full flex justify-center pointer-events-auto max-md:-mt-px">
+                      <PromptBar
+                        key="chat-mode-bar"
+                        embedded
+                        uiReady={uiReady}
+                        prompt={prompt}
+                        setPrompt={setPrompt}
+                        isSent={hasMessages}
+                        handleSend={handleSend}
+                        agentMenuOpen={agentMenuOpen}
+                        setAgentMenuOpen={setAgentMenuOpen}
+                        textareaRef={textareaRef}
+                        isStreaming={isStreaming}
+                        context={chatContext}
+                        onCopycatMode={() => setCopycatMode(true)}
+                        copycatActive={copycatMode}
+                        selectedAgentMode={selectedAgentMode}
+                        onSelectAgentMode={handleSelectAgentMode}
+                        agentVisualizeOpen={agentSimulationOpen}
+                        onToggleAgentVisualize={toggleAgentVisualize}
+                        shellClassName={MOBILE_INPUT_WIDTH_CLASS}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </AnimatePresence>
@@ -690,18 +723,6 @@ function ChatDashboard() {
             </div>
           </motion.div>
         )}
-        </div>
-
-        <div className="md:hidden fixed bottom-[7.25rem] sm:bottom-28 left-0 right-0 z-20 flex justify-center px-3 sm:px-4 pointer-events-none">
-          <div className="w-full max-w-md min-w-0 pointer-events-auto">
-            <TaskPanel
-              tasksCollapsed={tasksCollapsed}
-              setTasksCollapsed={setTasksCollapsed}
-              uiReady={uiReady}
-              liveTasks={taskPanelLiveTasks}
-              agentMode={taskPanelLive}
-            />
-          </div>
         </div>
 
       </motion.main>

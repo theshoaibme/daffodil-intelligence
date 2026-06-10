@@ -205,7 +205,7 @@ export function reduceAgentTasks(
       id: "model",
       title: `Model: ${event.content}`,
       kind: "model",
-      status: "success",
+      status: "active",
       depth: 0,
     });
   }

@@ -12,6 +12,7 @@ import { coerceUiBlocks } from "@lib/uiBlocks/coerce";
 import { normalizeUiBlocks } from "@lib/uiBlocks/normalize";
 import { sanitizeAssistantContent } from "@lib/uiBlocks/sanitizeContent";
 import type { UiBlock } from "@lib/uiBlocks/types";
+import { hasThinkingContent } from "@lib/thinkingText";
 
 export interface ConversationThreadProps {
   messages: ChatMessage[];
@@ -34,8 +35,8 @@ function messageThinkingText(
   isLast: boolean,
   liveThinking: string
 ): string {
-  const stored = String(message.metadata?.thinking_text ?? "").trim();
-  if (isLast && liveThinking.trim()) return liveThinking.trim();
+  const stored = String(message.metadata?.thinking_text ?? "");
+  if (isLast && liveThinking) return liveThinking;
   return stored;
 }
 
@@ -110,11 +111,11 @@ export function ConversationThread({
             const displayContent = sanitizeAssistantContent(message.content, uiBlocks);
             const responseData = parseResponseText(displayContent);
             const hasBlocks = uiBlocks.length > 0;
-            const combinedThinking = messageThinkingText(message, isLast, thinkingText);
+            const rawThinking = messageThinkingText(message, isLast, thinkingText);
             const awaitingAnswer =
               isLast && isStreaming && !displayContent.trim();
             const showThinking =
-              combinedThinking.length > 0 ||
+              hasThinkingContent(rawThinking) ||
               (awaitingAnswer && (hasActiveWork || Boolean(message.isStreaming)));
             const showStreaming = isLast && isStreaming && Boolean(displayContent.trim());
 
@@ -124,8 +125,9 @@ export function ConversationThread({
                   {showThinking && (
                     <div className="mb-2">
                       <ThinkingProcess
+                        key={`thinking-${message.id}`}
                         isThinking={awaitingAnswer}
-                        thinkingText={combinedThinking}
+                        thinkingText={rawThinking}
                         thinkingMs={
                           isLast
                             ? thinkingMs

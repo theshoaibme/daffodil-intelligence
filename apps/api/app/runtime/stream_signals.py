@@ -22,9 +22,8 @@ _THINKING_MIDDLES = (
 )
 
 _THINKING_ENDINGS = (
-    "...\n",
+    "\n",
     ".\n",
-    " — almost there...\n",
 )
 
 
@@ -32,7 +31,7 @@ async def stream_turn_preamble(
     *,
     status_lines: list[str],
     routing: str,
-    simulate_thinking: bool = True,
+    simulate_thinking: bool = False,
 ) -> AsyncIterator[dict[str, Any]]:
     """Yield status + thinking events before the model streams content."""
     for line in status_lines:

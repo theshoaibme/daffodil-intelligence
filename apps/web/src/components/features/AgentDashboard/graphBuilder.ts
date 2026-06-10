@@ -79,7 +79,12 @@ export function buildAgentGraph(
     simulationOnly = false,
   } = simulation;
   const activeSet = new Set(activeAgentIds);
-  const orchestratorActive = modelActive || activeSet.size > 0 || memoryActive || activeTools.length > 0;
+  const orchestratorActive =
+    modelActive ||
+    activeSet.size > 0 ||
+    memoryActive ||
+    activeTools.length > 0 ||
+    Boolean(activeInputId);
   const grouped = agents.reduce(
     (acc, agent) => {
       const cat = agent.category || "general";

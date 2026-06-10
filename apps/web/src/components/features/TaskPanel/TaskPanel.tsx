@@ -33,6 +33,8 @@ export interface TaskPanelProps {
   /** Live agent tasks — when set, overrides stored tasks and is not persisted. */
   liveTasks?: TaskItem[] | null;
   agentMode?: boolean;
+  /** Inside a shared mobile shell — no outer card border/radius. */
+  inset?: boolean;
 }
 
 export const initialTasks: TaskItem[] = [];
@@ -138,6 +140,7 @@ export function TaskPanel({
   uiReady = true,
   liveTasks = null,
   agentMode = false,
+  inset = false,
 }: TaskPanelProps) {
   const [storedTasks, setStoredTasks] = useLocalStorageState<TaskItem[]>(TASKS_STORAGE_KEY, initialTasks);
   const usingLiveTasks = liveTasks !== null;
@@ -176,10 +179,18 @@ export function TaskPanel({
 
   return (
     <div
-      className="flex w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-outline-variant/40 glass-gradient-panel shadow-md"
+      className={
+        inset
+          ? "flex w-full min-w-0 flex-col overflow-hidden"
+          : "flex w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-outline-variant/40 glass-gradient-panel shadow-md"
+      }
       id="agent-log-panel"
     >
-      <div className="flex h-9 shrink-0 items-center justify-between gap-1.5 border-b border-outline-variant/20 bg-surface-container-highest/20 px-2.5">
+      <div
+        className={`flex h-9 shrink-0 items-center justify-between gap-1.5 bg-surface-container-highest/20 px-2.5 ${
+          inset ? "" : "border-b border-outline-variant/20"
+        }`}
+      >
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <Compass size={15} className="shrink-0 text-primary" />
           <span className="truncate text-xs font-semibold text-on-surface">Task manager</span>
@@ -239,7 +250,9 @@ export function TaskPanel({
       </motion.div>
 
       {tasksCollapsed && (
-        <div className="shrink-0 border-t border-outline-variant/15 px-2 py-1.5">
+        <div
+          className={`shrink-0 px-2 py-1.5 ${inset ? "" : "border-t border-outline-variant/15"}`}
+        >
           {collapsedTask ? (
             <LogItem
               text={collapsedTask.text}

@@ -148,6 +148,10 @@ body {
     animation: thinking-shimmer 2s ease-in-out infinite;
   }
 
+  .thinking-message {
+    color: color-mix(in srgb, var(--color-on-surface-variant) 88%, var(--color-outline-variant));
+  }
+
   @keyframes thinking-shimmer {
     0%,
     100% {

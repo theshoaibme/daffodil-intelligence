@@ -12,23 +12,26 @@ import {
   tasksToPanelItems,
   type AgentTaskNode,
 } from "../lib/agentTasks";
-import { emitFlow, getFlow, resetFlow, setFlow } from "../lib/flowBus";
+import { getFlow, resetFlow, setFlow } from "../lib/flowBus";
 import type { ChatContextUsage } from "../lib/chatContext";
 import { coerceUiBlock, mergeUiBlocks } from "../lib/uiBlocks/coerce";
 import type { UiBlock } from "../lib/uiBlocks/types";
-
 function syncFlowFromTasks(tasks: AgentTaskNode[], inputId: string | null) {
+  const current = getFlow();
+  const hasActiveTasks = tasks.some((t) => t.status === "active");
   const activeAgents = activeAgentsFromTasks(tasks);
-  const withoutMain = activeAgents.filter((id) => id !== "main");
+  const withoutMain = activeAgents.filter(
+    (id) => id !== "main" && id !== "supervisor" && id !== "default"
+  );
   const modelTask = tasks.find((t) => t.kind === "model");
   const modelLabel = modelTask?.title?.replace(/^Model:\s*/i, "").trim();
   setFlow({
-    modelActive: tasks.some((t) => t.status === "active"),
+    modelActive: hasActiveTasks || current.modelActive,
     activeAgentIds: withoutMain.length > 0 ? withoutMain : activeAgents,
     activeTools: activeToolsFromTasks(tasks),
     memoryActive: memoryActiveFromTasks(tasks),
-    activeInputId: inputId,
-    activeModelId: modelLabel || undefined,
+    activeInputId: inputId ?? current.activeInputId,
+    activeModelId: modelLabel || current.activeModelId,
   });
 }
 
@@ -206,15 +209,15 @@ export function useChat(options?: UseChatOptions) {
       thinkingAccumRef.current = "";
       setThinkingMs(0);
       setLastContext(null);
-      resetFlow();
       const channel = (metadata?.channel as string) || "chat";
       const inputId = channel === "telegram" ? "input-telegram" : "input-chat";
-      emitFlow({
+      setFlow({
         activeInputId: inputId,
         activeAgentIds: [],
         activeTools: [],
         memoryActive: false,
-        modelActive: false,
+        modelActive: true,
+        activeModelId: modelId,
       });
       thinkingStartRef.current = Date.now();
       stopThinkingTimer();
@@ -311,7 +314,11 @@ export function useChat(options?: UseChatOptions) {
         }
       }
 
-      setAgentTasks((prev) => finalizeAgentTasks(prev));
+      setAgentTasks((prev) => {
+        const finalized = finalizeAgentTasks(prev);
+        syncFlowFromTasks(finalized, getFlow().activeInputId ?? null);
+        return finalized;
+      });
 
       const finalThinking = thinkingAccumRef.current.trim();
       const finalThinkingMs =
