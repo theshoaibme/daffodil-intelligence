@@ -1,4 +1,4 @@
-# CopyCat Kit — auto-installs Python on Windows if missing
+# CopyCat Kit - auto-installs Python on Windows if missing
 #   irm https://raw.githubusercontent.com/the-shoaib2/daffodil-intelligence/main/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
