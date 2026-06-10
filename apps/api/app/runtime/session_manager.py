@@ -179,8 +179,20 @@ class SessionManager:
             active_tools: List[str] = []
 
             def _complete_tools() -> List[StreamEvent]:
+                from .task_events import pop_pending_tool_events
+
                 events: List[StreamEvent] = []
+                for nested in pop_pending_tool_events():
+                    events.append(nested)  # type: ignore[arg-type]
                 for name in active_tools:
+                    if name in ("invoke_agent", "parallel_invoke_agents"):
+                        events.append(
+                            {
+                                "type": "subagent",
+                                "name": name,
+                                "status": "success",
+                            }
+                        )
                     events.append({"type": "tool", "name": name, "status": "success"})
                 active_tools.clear()
                 return events
@@ -212,8 +224,10 @@ class SessionManager:
                     name = chunk.name or "tool"
                     active_tools.append(name)
                     tool_event: StreamEvent = {"type": "tool", "name": name, "status": "active"}
-                    if name == "invoke_agent":
-                        sub_id = _invoke_agent_type(chunk) or "routine"
+                    if name in ("invoke_agent", "parallel_invoke_agents"):
+                        sub_id = _invoke_agent_type(chunk) or (
+                            "routine" if name == "invoke_agent" else "parallel"
+                        )
                         tool_event["agent_id"] = sub_id
                         yield {
                             "type": "subagent",

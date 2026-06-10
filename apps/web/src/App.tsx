@@ -18,6 +18,7 @@ import {
   readLocalMcpServers,
   ROUTES,
   sidebarWidthTransition,
+  tasksToPanelItems,
   type AgentMode,
 } from "@lib";
 import { useChat, useChatContext, useLocalStorageState } from "@hooks";
@@ -202,6 +203,7 @@ function ChatDashboard() {
     messages,
     isStreaming,
     thinkingSteps,
+    agentTasks,
     thinkingText,
     thinkingMs,
     error,
@@ -351,15 +353,17 @@ function ChatDashboard() {
   const showAgentDashboard = agentModeActive && agentSimulationOpen;
 
   const agentLiveTasks = useMemo<TaskItem[] | null>(() => {
-    if (!showAgentDashboard || !isStreaming || thinkingSteps.length === 0) return null;
-    return thinkingSteps.map((step, index) => ({
+    if (!showAgentDashboard || !isStreaming) return null;
+    if (agentTasks.length > 0) {
+      return tasksToPanelItems(agentTasks);
+    }
+    if (thinkingSteps.length === 0) return null;
+    return thinkingSteps.map((step) => ({
       id: step.id,
       text: step.title,
-      active:
-        step.status === "active" ||
-        (index === thinkingSteps.length - 1 && step.status !== "success"),
+      active: step.status === "active",
     }));
-  }, [showAgentDashboard, isStreaming, thinkingSteps]);
+  }, [showAgentDashboard, isStreaming, agentTasks, thinkingSteps]);
 
   useEffect(() => {
     if (textareaRef.current) {

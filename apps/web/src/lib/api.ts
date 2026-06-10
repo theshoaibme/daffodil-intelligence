@@ -286,11 +286,17 @@ interface StreamResult {
 }
 
 export interface StreamEvent {
-  type: "thinking" | "tool" | "agent" | "subagent" | "status" | "model" | "memory";
+  type: "thinking" | "tool" | "agent" | "subagent" | "status" | "model" | "memory" | "task";
   content?: string;
   name?: string;
   status?: string;
   agent_id?: string;
+  task_id?: string;
+  parent_id?: string;
+  kind?: string;
+  title?: string;
+  parallel_group?: string;
+  depth?: number;
 }
 
 async function consumeSSEStream(
@@ -397,6 +403,22 @@ async function consumeSSEStream(
 
         if (parsed.type === "memory") {
           onEvent?.({ type: "memory", name: parsed.name, status: parsed.status });
+          continue;
+        }
+
+        if (parsed.type === "task") {
+          onEvent?.({
+            type: "task",
+            task_id: parsed.task_id,
+            parent_id: parsed.parent_id,
+            kind: parsed.kind,
+            name: parsed.name,
+            title: parsed.title,
+            status: parsed.status,
+            agent_id: parsed.agent_id,
+            parallel_group: parsed.parallel_group,
+            depth: parsed.depth,
+          });
           continue;
         }
 

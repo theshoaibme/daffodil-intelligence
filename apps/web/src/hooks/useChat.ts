@@ -4,8 +4,29 @@ import {
   sendMessage,
 } from "../lib/api";
 import type { StreamEvent } from "../lib/api";
+import {
+  activeAgentsFromTasks,
+  activeToolsFromTasks,
+  agentForTool,
+  memoryActiveFromTasks,
+  reduceAgentTasks,
+  tasksToPanelItems,
+  type AgentTaskNode,
+} from "../lib/agentTasks";
 import { emitFlow, getFlow, resetFlow } from "../lib/flowBus";
 import type { ChatContextUsage } from "../lib/chatContext";
+
+function syncFlowFromTasks(tasks: AgentTaskNode[], inputId: string | null) {
+  const activeAgents = activeAgentsFromTasks(tasks);
+  const withoutMain = activeAgents.filter((id) => id !== "main");
+  emitFlow({
+    modelActive: tasks.some((t) => t.status === "active"),
+    activeAgentIds: withoutMain.length > 0 ? withoutMain : activeAgents,
+    activeTools: activeToolsFromTasks(tasks),
+    memoryActive: memoryActiveFromTasks(tasks),
+    activeInputId: inputId,
+  });
+}
 
 function humanizeName(name: string): string {
   return name
@@ -64,6 +85,7 @@ export function useChat(options?: UseChatOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStreamingContent, setCurrentStreamingContent] = useState("");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [agentTasks, setAgentTasks] = useState<AgentTaskNode[]>([]);
   const [thinkingText, setThinkingText] = useState("");
   const [thinkingMs, setThinkingMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +114,7 @@ export function useChat(options?: UseChatOptions) {
     setChatId(nextChatId);
     setMessages(nextMessages);
     setThinkingSteps([]);
+    setAgentTasks([]);
     setThinkingText("");
     setThinkingMs(null);
     setCurrentStreamingContent("");
@@ -147,12 +170,14 @@ export function useChat(options?: UseChatOptions) {
       setMessages(prev => [...prev, userMessage]);
 
       setThinkingSteps([]);
+      setAgentTasks([]);
       setThinkingText("");
       setThinkingMs(0);
       resetFlow();
       const channel = (metadata?.channel as string) || "chat";
+      const inputId = channel === "telegram" ? "input-telegram" : "input-chat";
       emitFlow({
-        activeInputId: channel === "telegram" ? "input-telegram" : "input-chat",
+        activeInputId: inputId,
         activeAgentIds: [],
         activeTools: [],
         memoryActive: false,
@@ -210,97 +235,45 @@ export function useChat(options?: UseChatOptions) {
         metadata,
         (event: StreamEvent) => {
           if (isSendStale(generation)) return;
+          const inputId = getFlow().activeInputId ?? "input-chat";
+
           if (event.type === "thinking" && event.content) {
             setThinkingText((prev) => prev + event.content);
-          } else if (event.type === "status" && event.content) {
-            setThinkingSteps((prev) => [
-              ...prev,
-              {
-                id: `status:${prev.length}`,
-                title: event.content!,
-                status: "success",
-              },
-            ]);
-          } else if (event.type === "model" && event.content) {
-            setThinkingSteps((prev) =>
-              upsertStep(
-                prev,
-                "model",
-                `Model: ${event.content}${event.name ? ` (${event.name})` : ""}`,
-                "success"
-              )
-            );
-            emitFlow({ modelActive: true });
-          } else if (event.type === "memory" && event.name) {
-            setThinkingSteps((prev) =>
-              upsertStep(
-                prev,
-                `memory:${event.name}`,
-                `Memory: ${humanizeName(event.name!)}`,
-                normalizeStatus(event.status)
-              )
-            );
-            if (normalizeStatus(event.status) === "active") {
-              emitFlow({ modelActive: true, memoryActive: true });
-            }
-          } else if (event.type === "tool" && event.name) {
-            const toolLabel =
-              event.name === "invoke_agent" && event.agent_id
-                ? `Delegating to ${humanizeName(event.agent_id)}`
-                : `Using ${humanizeName(event.name!)}`;
-            setThinkingSteps((prev) =>
-              upsertStep(
-                prev,
-                `tool:${event.name}${event.agent_id ? `:${event.agent_id}` : ""}`,
-                toolLabel,
-                normalizeStatus(event.status)
-              )
-            );
-            if (normalizeStatus(event.status) === "active") {
-              const flow = getFlow();
-              const nextAgents = new Set(flow.activeAgentIds);
-              if (event.name === "invoke_agent") {
-                nextAgents.add("main");
-                if (event.agent_id) nextAgents.add(event.agent_id);
-              } else if (
-                event.name === "get_class_routine" ||
-                event.name === "read_routine_pdf" ||
-                event.name === "read_pdf"
-              ) {
-                nextAgents.add("main");
-                nextAgents.add("routine");
-              } else if (
-                event.name === "recall_notes" ||
-                event.name === "store_note"
-              ) {
-                emitFlow({ memoryActive: true });
-              }
-              emitFlow({
-                modelActive: true,
-                activeTools: Array.from(new Set([...flow.activeTools, event.name!])),
-                activeAgentIds: Array.from(nextAgents),
-              });
-            }
-          } else if ((event.type === "agent" || event.type === "subagent") && event.name) {
-            const label = event.type === "subagent" ? "Delegating to" : "Agent";
-            setThinkingSteps((prev) =>
-              upsertStep(
-                prev,
-                `${event.type}:${event.agent_id ?? event.name}`,
-                `${label} ${humanizeName(event.name!)}`,
-                normalizeStatus(event.status)
-              )
-            );
-            const id = event.agent_id ?? event.name!;
+            return;
+          }
+
+          if (
+            event.type === "task" ||
+            event.type === "tool" ||
+            event.type === "agent" ||
+            event.type === "subagent" ||
+            event.type === "memory" ||
+            event.type === "model" ||
+            event.type === "status"
+          ) {
+            setAgentTasks((prev) => {
+              const next = reduceAgentTasks(prev, event);
+              syncFlowFromTasks(next, inputId);
+              const panel = tasksToPanelItems(next);
+              setThinkingSteps(
+                panel.map((p) => ({
+                  id: p.id,
+                  title: p.text,
+                  status: p.active ? "active" : "success",
+                }))
+              );
+              return next;
+            });
+          }
+
+          if (event.type === "tool" && event.name && normalizeStatus(event.status) === "active") {
+            const extra = agentForTool(event.name, event.agent_id).filter((id) => id !== "main");
             const flow = getFlow();
-            const nextAgents = new Set(flow.activeAgentIds);
-            nextAgents.add(id);
-            if (event.type === "subagent") {
-              nextAgents.add("main");
-            }
             emitFlow({
               modelActive: true,
-              activeAgentIds: Array.from(nextAgents),
+              activeAgentIds: Array.from(new Set([...flow.activeAgentIds, ...extra])),
+              activeTools: Array.from(new Set([...flow.activeTools, event.name!])),
+              activeInputId: inputId,
             });
           }
         }
@@ -384,6 +357,7 @@ export function useChat(options?: UseChatOptions) {
     isStreaming,
     currentStreamingContent,
     thinkingSteps,
+    agentTasks,
     thinkingText,
     thinkingMs,
     error,

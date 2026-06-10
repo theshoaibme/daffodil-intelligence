@@ -22,6 +22,8 @@ from .computer_use import ComputerUseAgent
 from .copycat import CopyCatAgent
 from .planning import PlanningAgent
 from .routine import RoutineAgent
+from .writing import WritingAgent
+from .tasks import TasksAgent
 
 AGENT_MAP = {
     "academic": AcademicAgent(),
@@ -30,6 +32,8 @@ AGENT_MAP = {
     "career": CareerAgent(),
     "coding": CodingAgent(),
     "research": ResearchAgent(),
+    "writing": WritingAgent(),
+    "tasks": TasksAgent(),
     "wellness": WellnessAgent(),
     "finance": FinanceAgent(),
     "vision": VisionAgent(),

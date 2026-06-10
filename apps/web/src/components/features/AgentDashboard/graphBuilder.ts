@@ -1,7 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { Agent } from "@hooks";
 import { CATEGORY_LABELS } from "./agentConstants";
-import { DASHBOARD_MODELS, modelNodeId } from "@lib";
+import { DASHBOARD_MODELS, isAgentActiveFromTools, modelNodeId } from "@lib";
 import {
   ROOT_DEFAULT_X,
   ROOT_DEFAULT_Y,
@@ -13,6 +13,7 @@ import {
   AGENT_COL_GAP,
   modelNodeX,
   modelNodeY,
+  rightOutputNodeY,
   sideNodeY,
 } from "./flowLayout";
 import type { SavedPositions } from "./flowLayout";
@@ -20,7 +21,10 @@ import type { SavedPositions } from "./flowLayout";
 export const ROOT_NODE_ID = "daffodil-intelligence";
 
 export const ROOT_INPUT_HANDLE = "input";
+/** Legacy single output — category agents use bottom handles. */
 export const ROOT_OUTPUT_HANDLE = "output";
+export const OUTPUT_MEMORY_HANDLE = "output-memory";
+export const OUTPUT_RESPONSE_HANDLE = "output-response";
 
 export const INPUT_INTEGRATIONS = [
   { id: "input-telegram", label: "Telegram", integration: "telegram" },
@@ -98,6 +102,7 @@ export function buildAgentGraph(
         inputs: [ROOT_INPUT_HANDLE],
         modelInputs: DASHBOARD_MODELS.map((model) => modelNodeId(model.id)),
         outputHandle: ROOT_OUTPUT_HANDLE,
+        sideOutputs: OUTPUT_INTEGRATIONS.map((o) => o.id),
         outputs: [...CATEGORY_ORDER],
         working: orchestratorActive,
       },
@@ -177,7 +182,7 @@ export function buildAgentGraph(
       position: pos(
         output.id,
         rootX + OUTPUT_OFFSET_X,
-        sideNodeY(index, OUTPUT_INTEGRATIONS.length, rootY)
+        rightOutputNodeY(index, OUTPUT_INTEGRATIONS.length, rootY)
       ),
       data: {
         label: output.label,
@@ -190,7 +195,7 @@ export function buildAgentGraph(
     edges.push({
       id: `e-${ROOT_NODE_ID}-${output.id}`,
       source: ROOT_NODE_ID,
-      sourceHandle: ROOT_OUTPUT_HANDLE,
+      sourceHandle: output.id,
       target: output.id,
       type: "activeBeam",
       data: { active: outputActive },
@@ -225,6 +230,7 @@ export function buildAgentGraph(
     list.forEach((agent, agentIndex) => {
       const isActive =
         activeSet.has(agent.id) ||
+        isAgentActiveFromTools(agent.id, activeTools) ||
         agent.status === "executing" ||
         agent.status === "thinking";
 

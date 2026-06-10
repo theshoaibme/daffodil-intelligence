@@ -22,6 +22,8 @@ import {
   RiRobotFill,
   RiTimerFill,
   RiWalletFill,
+  RiFileTextFill,
+  RiListCheck2,
 } from "react-icons/ri";
 
 export interface AgentIconStyle {
@@ -36,6 +38,8 @@ export const AGENT_ICON_STYLES: Record<string, AgentIconStyle> = {
   career: { icon: RiBriefcaseFill, iconColor: "text-indigo-500" },
   coding: { icon: RiCodeFill, iconColor: "text-emerald-500" },
   research: { icon: RiFlaskFill, iconColor: "text-violet-500" },
+  writing: { icon: RiFileTextFill, iconColor: "text-sky-600" },
+  tasks: { icon: RiListCheck2, iconColor: "text-orange-500" },
   wellness: { icon: RiHeartFill, iconColor: "text-rose-500" },
   finance: { icon: RiMoneyDollarCircleFill, iconColor: "text-green-600" },
   vision: { icon: RiCameraFill, iconColor: "text-fuchsia-500" },

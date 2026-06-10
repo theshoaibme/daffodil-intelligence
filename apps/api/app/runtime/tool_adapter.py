@@ -44,7 +44,13 @@ def _make_callable(tool: BaseTool) -> Callable[..., Any]:
     tool_name = tool.name
 
     async def _runner(**kwargs: Any) -> str:
+        from .task_events import stash_pending_tool_events, take_nested_events
+
+        take_nested_events()
         result = await registry.execute(tool_name, **kwargs)
+        nested = take_nested_events()
+        if nested:
+            stash_pending_tool_events(nested)
         if result.success:
             return _serialize(result.data)
         return f"ERROR ({tool_name}): {result.error}"

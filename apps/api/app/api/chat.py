@@ -202,6 +202,8 @@ async def add_message(
                     yield f'data: {json.dumps({"type": "subagent", "agent_id": event.get("agent_id"), "name": event.get("name", "delegated"), "status": event.get("status", "active"), "content": event.get("content", "")})}\n\n'
                 elif event_type == "memory":
                     yield f'data: {json.dumps({"type": "memory", "name": event.get("name", "memory"), "status": event.get("status", "active")})}\n\n'
+                elif event_type == "task":
+                    yield f'data: {json.dumps({"type": "task", "task_id": event.get("task_id"), "parent_id": event.get("parent_id"), "kind": event.get("kind"), "name": event.get("name"), "title": event.get("title"), "status": event.get("status", "active"), "agent_id": event.get("agent_id"), "parallel_group": event.get("parallel_group"), "depth": event.get("depth", 0)})}\n\n'
             if not full_response.strip():
                 result = await run_turn(
                     message.content,

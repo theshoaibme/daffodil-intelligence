@@ -19,6 +19,7 @@ from .chat_router import groq_model_for_routing, should_use_fast_groq, should_us
 from .intent_router import route_message
 from .stream_signals import stream_turn_preamble
 from .tool_context import clear_turn_context, set_turn_context
+from .task_events import emit_task, reset_turn_tasks, turn_root_id
 from .trace import estimate_tokens, trace_recorder
 
 
@@ -378,6 +379,17 @@ async def _run_turn_stream_inner(
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
     yield {"type": "agent", "agent_id": cfg.agent_id, "name": cfg.agent_id, "status": "active"}
 
+    reset_turn_tasks()
+    root_task = emit_task(
+        kind="agent",
+        name=cfg.agent_id or "main",
+        title=f"Orchestrator ({cfg.agent_id or 'main'})",
+        status="active",
+        agent_id=cfg.agent_id or "main",
+        depth=0,
+    )
+    yield root_task
+
     if recall_block:
         trace_recorder.event(turn_id, type="memory", name="recall_notes", status="active")
         yield {"type": "memory", "name": "recall_notes", "status": "active"}
@@ -418,13 +430,13 @@ async def _run_turn_stream_inner(
             etype = event.get("type") if isinstance(event, dict) else None
             if etype == "content":
                 trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
-            elif etype in ("tool", "thinking", "subagent", "status", "memory"):
+            elif etype in ("tool", "thinking", "subagent", "status", "memory", "task"):
                 trace_recorder.event(
                     turn_id,
                     type=etype,
-                    name=event.get("name", ""),
+                    name=event.get("name", "") or event.get("task_id", ""),
                     status=event.get("status", ""),
-                    detail=(event.get("content", "") or "")[:160],
+                    detail=(event.get("content", "") or event.get("title", "") or "")[:160],
                 )
             yield event
 
@@ -468,6 +480,17 @@ async def _run_turn_stream_inner(
         else:
             async for event in _stream_orchestrator():
                 yield event
-    finally:
+
         trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="success")
+        yield emit_task(
+            task_id=turn_root_id(),
+            kind="agent",
+            name=cfg.agent_id or "main",
+            title=f"Orchestrator ({cfg.agent_id or 'main'})",
+            status="success",
+            agent_id=cfg.agent_id or "main",
+            depth=0,
+        )
+    finally:
+        reset_turn_tasks()
         trace_recorder.end_turn(turn_id)

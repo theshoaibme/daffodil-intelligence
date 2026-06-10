@@ -156,6 +156,28 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
 }
 
 AGENT_TOOLS: dict[str, List[str]] = {
+    "orchestration": [
+        "list_agents",
+        "invoke_agent",
+        "parallel_invoke_agents",
+    ],
+    "productivity": [
+        "deep_research",
+        "google_web_search",
+        "web_search",
+        "search_papers",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "read_pdf",
+        "run_shell_command",
+        "run_python",
+        "schedule_task",
+        "get_daily_schedule",
+        "create_routine",
+        "list_routines",
+        "send_telegram_message",
+    ],
     "routine": [
         "get_class_routine",
         "read_pdf",

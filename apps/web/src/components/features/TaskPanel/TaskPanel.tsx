@@ -9,6 +9,8 @@ export interface TaskItem {
   id: string;
   text: string;
   active?: boolean;
+  depth?: number;
+  parallelGroup?: string;
 }
 
 export interface TaskPanelProps {
@@ -25,10 +27,12 @@ export const initialTasks: TaskItem[] = [];
 export function LogItem({
   text,
   active = false,
-  onClick
+  depth = 0,
+  onClick,
 }: {
   text: string;
   active?: boolean;
+  depth?: number;
   onClick?: () => void;
 }) {
   return (
@@ -38,6 +42,7 @@ export function LogItem({
           ? 'bg-surface-container border-primary/35 text-on-surface shadow-sm'
           : 'bg-surface-container-highest/30 border-outline-variant/25 hover:bg-surface-container-highest/60 hover:border-outline-variant/40 text-on-surface-variant hover:text-on-surface'
         }`}
+      style={{ marginLeft: depth > 0 ? `${Math.min(depth, 4) * 12}px` : undefined }}
     >
       <div className="flex-shrink-0 w-[18px] h-[18px] flex items-center justify-center">
         {active ? (
@@ -129,7 +134,8 @@ export function TaskPanel({
                   <LogItem 
                     key={task.id} 
                     text={task.text} 
-                    active={task.active} 
+                    active={task.active}
+                    depth={task.depth}
                     onClick={() => handleTaskClick(task.id)}
                   />
                 ))

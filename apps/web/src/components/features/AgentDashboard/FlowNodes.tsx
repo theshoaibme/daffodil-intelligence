@@ -3,7 +3,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Brain } from "lucide-react";
 import { RiBrainFill, RiChat3Fill, RiDatabase2Fill, RiQuestionAnswerFill, RiTelegramFill } from "react-icons/ri";
 import { getAgentIconStyle } from "./agentIcons";
-import { ICON_SIZE, ROOT_HUB_Y } from "./flowLayout";
+import { ICON_SIZE, ROOT_CARD_HEIGHT, ROOT_HUB_Y, rootOutputHandleY } from "./flowLayout";
 import {
   getCategoryTheme,
   getIntegrationTheme,
@@ -52,7 +52,12 @@ function IconNodeFrame({
         <Handle type="target" position={Position.Top} className="handle-muted" style={{ left: "50%" }} />
       )}
       {targetLeft && (
-        <Handle type="target" position={Position.Left} className="handle-muted" style={{ top: ICON_SIZE / 2 }} />
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="handle-muted"
+          style={{ top: ICON_SIZE / 2, transform: "translateY(-50%)" }}
+        />
       )}
       {sourceRight && (
         <Handle type="source" position={Position.Right} className="handle-primary" style={{ top: ICON_SIZE / 2 }} />
@@ -91,14 +96,17 @@ function RootNode({ data }: NodeProps) {
   const inputs = (data.inputs as string[] | undefined) ?? [];
   const modelInputs = (data.modelInputs as string[] | undefined) ?? [];
   const outputHandle = data.outputHandle as string | undefined;
+  const sideOutputs = (data.sideOutputs as string[] | undefined) ?? [];
   const outputs = (data.outputs as string[] | undefined) ?? [];
   const theme = ROOT_NODE_THEME;
+  const sideOutputCount = sideOutputs.length || 2;
 
   return (
     <div
       className={`root-node-shell relative min-w-[220px] rounded-sm px-4 py-2 text-center shadow-md backdrop-blur-sm ${theme.bg} ${
         data.working ? `ring-2 ring-primary/40 ${NODE_RING_OFFSET}` : ""
       }`}
+      style={{ minHeight: ROOT_CARD_HEIGHT }}
     >
       {modelInputs.map((inputId, index) => {
         const left = ((index + 0.5) / modelInputs.length) * 100;
@@ -125,15 +133,29 @@ function RootNode({ data }: NodeProps) {
         />
       ))}
 
-      {outputHandle && (
-        <Handle
-          id={outputHandle}
-          type="source"
-          position={Position.Right}
-          className="handle-primary"
-          style={{ top: ROOT_HUB_Y }}
-        />
-      )}
+      {sideOutputs.length > 0
+        ? sideOutputs.map((handleId, index) => (
+            <Handle
+              key={handleId}
+              id={handleId}
+              type="source"
+              position={Position.Right}
+              className="handle-primary"
+              style={{
+                top: rootOutputHandleY(index, sideOutputCount),
+                transform: "translateY(-50%)",
+              }}
+            />
+          ))
+        : outputHandle && (
+            <Handle
+              id={outputHandle}
+              type="source"
+              position={Position.Right}
+              className="handle-primary"
+              style={{ top: ROOT_HUB_Y }}
+            />
+          )}
 
       <div className="mx-auto flex flex-col items-center" style={{ width: ICON_SIZE }}>
         <div

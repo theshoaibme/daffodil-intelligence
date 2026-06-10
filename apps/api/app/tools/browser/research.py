@@ -59,9 +59,41 @@ class DeepResearchTool(BaseTool):
             pages: list[dict[str, Any]] = []
             seen_urls: set[str] = set()
 
+            from ...runtime.task_events import emit_task, new_task_id
+
+            research_task = emit_task(
+                kind="tool",
+                name="deep_research",
+                title="Deep research",
+                status="active",
+                agent_id="research",
+                depth=1,
+            )
+            parent_id = research_task["task_id"]
+
             for subq in subqueries:
+                sub_task = emit_task(
+                    parent_id=parent_id,
+                    kind="plan",
+                    name="subquery",
+                    title=f"Search: {subq[:80]}",
+                    status="active",
+                    parallel_group=new_task_id("rq"),
+                    agent_id="research",
+                    depth=2,
+                )
                 search_payload = await web_search(subq, max_results=max_sources)
                 searches.append(search_payload)
+                emit_task(
+                    task_id=sub_task["task_id"],
+                    parent_id=parent_id,
+                    kind="plan",
+                    name="subquery",
+                    title=f"Search: {subq[:80]}",
+                    status="success",
+                    agent_id="research",
+                    depth=2,
+                )
 
                 for hit in search_payload.get("results") or []:
                     url = (hit.get("url") or "").strip()
@@ -82,6 +114,15 @@ class DeepResearchTool(BaseTool):
                     if len(pages) >= max_sources * len(subqueries):
                         break
 
+            emit_task(
+                task_id=parent_id,
+                kind="tool",
+                name="deep_research",
+                title="Deep research",
+                status="success",
+                agent_id="research",
+                depth=1,
+            )
             return self.ok(
                 {
                     "query": query,

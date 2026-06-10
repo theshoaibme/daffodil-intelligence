@@ -6,6 +6,8 @@ export const AGENT_DESCRIPTION_FALLBACKS: Record<string, string> = {
   career: "Handles job opportunities, CV/resume help, career roadmap, and interview preparation.",
   coding: "Helps with code debugging, generation, explanation, and programming assistance.",
   research: "Helps with research papers, citations, thesis help, and literature review.",
+  writing: "Drafts and edits documents, notes, PDFs, and files.",
+  tasks: "Personal schedules, daily tasks, habits, and reminders.",
   wellness: "Mental health support, stress management, and study tips (non-medical advice only).",
   finance: "Handles tuition fees, payments, waivers, scholarships, and financial queries.",
   vision: "Analyzes images, PDFs, screenshots, and documents in real-time via camera.",
@@ -30,7 +32,7 @@ export const ROOT_DESCRIPTION =
 export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   orchestration: "Plans tasks, delegates work, and coordinates multi-step workflows.",
   computer: "Screen control, browser automation, and recorded workflows.",
-  productivity: "Coding, research, and general productivity assistance.",
+  productivity: "Coding, research, writing, tasks, notifications, and productivity tools.",
   university: "Campus services — academic, library, career, finance, routines, and more.",
   ai: "Vision, voice, and multimodal AI capabilities.",
   general: "Fallback agent for open-ended queries.",

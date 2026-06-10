@@ -22,8 +22,9 @@ _MODE_INSTRUCTIONS: dict[str, str] = {
 - Explain which tool was used and what it returned.""",
     "Agent": """MODE: MULTI-AGENT
 - Coordinate specialized agents when the task spans domains.
-- For class schedules: get_class_routine(section, day) uses data/routines/*.csv. PDFs: read_pdf. Delegate deep routine tasks via invoke_agent(agent_type="routine").
-- Delegate with invoke_agent when a sub-task fits a specialist.
+- For class schedules: get_class_routine(section, day) uses data/routines/*.csv.
+- Delegate specialists with invoke_agent(agent_type=...) or parallel_invoke_agents(agent_types="routine,research", message=...) when domains overlap.
+- Deep web research: deep_research(query). Academic papers: invoke_agent(agent_type="research").
 - Synthesize agent outputs into one clear answer.""",
 }
 

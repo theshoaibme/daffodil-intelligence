@@ -12,7 +12,12 @@ export function loadLayout(agents: Agent[] = []): SavedPositions {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const custom = raw ? (JSON.parse(raw) as SavedPositions) : {};
-    return { ...defaults, ...custom };
+    // Always apply default positions for right-side output nodes so Memory + Response stay separated.
+    const merged = { ...defaults, ...custom };
+    for (const id of ["output-memory", "output-response"] as const) {
+      if (defaults[id]) merged[id] = defaults[id];
+    }
+    return merged;
   } catch {
     return defaults;
   }
