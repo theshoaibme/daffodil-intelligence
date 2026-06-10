@@ -10,16 +10,16 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   resolve: {
-    alias: [
-      { find: /^@lib$/, replacement: resolve(__dirname, '../web/src/lib/index.ts') },
-      { find: /^@hooks$/, replacement: resolve(__dirname, '../web/src/hooks/index.ts') },
-      { find: /^@context$/, replacement: resolve(__dirname, '../web/src/context/index.ts') },
-      { find: /^@styles$/, replacement: resolve(__dirname, '../web/src/styles/index.ts') },
-      { find: /^@ui$/, replacement: resolve(__dirname, '../web/src/components/ui/index.ts') },
-      { find: /^@features$/, replacement: resolve(__dirname, '../web/src/components/features/index.ts') },
-      { find: /^@features\//, replacement: resolve(__dirname, '../web/src/components/features') + '/' },
-      { find: /^@components\//, replacement: resolve(__dirname, '../web/src/components') + '/' }
-    ]
+    alias: {
+      '@lib': resolve(__dirname, '../web/src/lib/index.ts'),
+      '@hooks': resolve(__dirname, '../web/src/hooks/index.ts'),
+      '@context': resolve(__dirname, '../web/src/context/index.ts'),
+      '@styles': resolve(__dirname, '../web/src/styles/index.ts'),
+      '@ui': resolve(__dirname, '../web/src/components/ui/index.ts'),
+      '@features': resolve(__dirname, '../web/src/components/features/index.ts'),
+      '@features/': resolve(__dirname, '../web/src/components/features') + '/',
+      '@components/': resolve(__dirname, '../web/src/components') + '/'
+    }
   },
   server: {
     port: 3001,
