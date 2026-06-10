@@ -66,8 +66,8 @@ function ToolbarButton({
 
 function GroupDivider() {
   return (
-    <div className="flex items-center justify-center px-0.5">
-      <div className="w-px h-5 bg-outline-variant/40 rounded-full" />
+    <div className="flex items-center justify-center py-0.5 w-full">
+      <div className="w-5 h-px bg-outline-variant/40 rounded-full" />
     </div>
   );
 }
@@ -127,14 +127,14 @@ export function CopycatToolbar({
   const PermIcon = permsOk ? Shield : ShieldAlert;
 
   return (
-    <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center w-full px-4 pointer-events-none">
+    <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex items-center h-fit pointer-events-none">
       <motion.div
         layoutId={BOTTOM_BAR_LAYOUT_ID}
-        initial={{ opacity: 0, y: 14, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 10, scale: 0.92 }}
+        initial={{ opacity: 0, x: 14, scale: 0.9 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{ opacity: 0, x: 10, scale: 0.92 }}
         transition={modeSpring}
-        className="glass-gradient-panel border border-outline-variant/40 inline-flex items-center justify-center gap-0.5 rounded-full px-2 py-1.5 shadow-md pointer-events-auto"
+        className="glass-gradient-panel border border-outline-variant/40 flex flex-col items-center justify-center gap-1 rounded-full px-1.5 py-3 shadow-md pointer-events-auto"
       >
         {/* ── Navigation Group ───────────────────────────────────────── */}
         <ToolbarButton onClick={onChat} label="Back to chat (Esc)">
@@ -271,15 +271,14 @@ export function CopycatToolbar({
         </ToolbarButton>
 
         {kitOnline && (
-          <span className="ml-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-primary/15 text-primary flex items-center gap-1">
-            <Monitor size={10} />
+          <span className="px-1.5 py-0.5 text-[8px] font-semibold rounded-full bg-primary/15 text-primary flex flex-col items-center gap-0.5 mt-1 select-none">
+            <Monitor size={8} />
             KIT
           </span>
         )}
 
-        {/* Stream stats badge */}
         {streaming && (
-          <span className="ml-0.5 px-1.5 py-0.5 text-[9px] font-mono rounded-full bg-surface-container-highest/80 text-on-surface-variant">
+          <span className="px-1 py-0.5 text-[7px] font-mono rounded bg-surface-container-highest/80 text-on-surface-variant select-none mt-1">
             LIVE
           </span>
         )}
@@ -287,3 +286,4 @@ export function CopycatToolbar({
     </div>
   );
 }
+
