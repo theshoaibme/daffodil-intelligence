@@ -12,6 +12,7 @@ This document outlines the system architecture, component topologies, and formal
 1. **The Intercommunication Ecosystem (Agent-to-Agent Event Bus)**
 2. **The Research Community & Publication Hub**
 3. **The Dynamic Agent Spawning & Skill Hub System**
+4. **The Comprehensive Dynamic Tool Catalog**
 
 ---
 
@@ -20,51 +21,72 @@ Daffodil Intelligence utilizes a decoupled, multi-tier system architecture desig
 
 ```mermaid
 graph TD
-    %% Component Layers
-    subgraph clients ["Client Layer"]
-        UI["Web Dashboard"]
-        WS_Client["WebSocket Client"]
-        RTC_Client["WebRTC Voice Endpoint"]
+    %% Styling Definitions
+    classDef client fill:#f4f2ff,stroke:#2e46ef,stroke-width:2px,color:#1a1b24;
+    classDef gateway fill:#eeecfa,stroke:#757688,stroke-width:2px,color:#1a1b24;
+    classDef core fill:#dfe0ff,stroke:#213be7,stroke-width:2px,color:#000c62;
+    classDef agent fill:#ffdbce,stroke:#c04500,stroke-width:2px,color:#370e00;
+    classDef tool fill:#e8e7f5,stroke:#4e58a2,stroke-width:1px,color:#1a1b24;
+    classDef storage fill:#ffffff,stroke:#757688,stroke-width:2px,color:#1a1b24,stroke-dasharray: 5 5;
+
+    %% Client Layer
+    subgraph Client_Layer ["1. Client Interaction Layer"]
+        UI["React Web Dashboard"]:::client
+        WS_Client["WebSocket Client Interface"]:::client
+        RTC_Client["WebRTC Real-time Voice Client"]:::client
     end
 
-    subgraph gateways ["Gateway & API Layer"]
-        API["REST / SSE Gateway"]
-        WS_GW["WebSocket Gateway"]
-        LIVE["WebRTC Voice Gateway"]
-        AUTH["Authentication Gate"]
+    %% Gateway Layer
+    subgraph Gateway_Layer ["2. Gateway & Security Layer"]
+        API["FastAPI REST & SSE Gateway"]:::gateway
+        WS_GW["WebSocket Router & Gateway"]:::gateway
+        LIVE["WebRTC Voice Streaming Gateway"]:::gateway
+        AUTH["JWT & OAuth Security Engine"]:::gateway
     end
 
-    subgraph orchestrator ["Orchestration & Routing Layer"]
-        MA["Master Agent Orchestrator"]
-        SUP["Supervisor Routing Agent"]
-        REG["Agent Registry"]
+    %% Orchestration Layer
+    subgraph Orchestration_Layer ["3. Orchestration & Control Layer"]
+        MA["Master Agent Orchestrator"]:::core
+        SUP["Supervisor Routing Core"]:::core
+        REG["Dynamic Agent Registry"]:::core
     end
 
-    subgraph agents ["Specialized Domain Agents (Dynamic Test Cases)"]
-        A_Acad["Academic Agent"]
-        A_Lib["Library Agent"]
-        A_Res["Research Agent"]
-        A_Camp["Campus Agent"]
-        A_Car["Career Agent"]
-        A_Fin["Finance Agent"]
+    %% Agent Pool
+    subgraph Agent_Pool ["4. Specialized Sub-Agents Pool"]
+        A_Supervisor["Supervisor Core Agent"]:::agent
+        A_Acad["Academic Agent Profile"]:::agent
+        A_Lib["Library Agent Profile"]:::agent
+        A_Res["Research Agent Profile"]:::agent
+        A_Car["Career Agent Profile"]:::agent
+        A_Fin["Finance Agent Profile"]:::agent
+        A_Other["Hostel/Transport/Other Profiles"]:::agent
     end
 
-    subgraph event_mesh ["Intercommunication Ecosystem"]
-        Bus["Central Event Bus"]
-        Broker["Redis Pub/Sub Broker"]
+    %% Event Mesh
+    subgraph Event_Mesh ["5. Event Mesh & Broker"]
+        Bus["Central Event Bus"]:::gateway
+        Broker["Redis Pub/Sub Message Broker"]:::gateway
     end
 
-    subgraph storage ["Persistent & Vector Storage Layer"]
-        PG[("PostgreSQL\n(Relational DB)")]
-        RD[("Redis\n(Cache & Session)")]
-        QD[("Qdrant\n(Vector Store)")]
-        IO[("MinIO\n(Object Store)")]
+    %% Tool Layer
+    subgraph Tool_Layer ["6. Model Context Protocol (MCP) Tool Layer"]
+        MCP_Server["MCP Dynamic Tool Server"]:::tool
+        Doc_Server["Dynamic Document-to-MCP Map"]:::tool
+        Catalog["20+ Dynamic Core Tools"]:::tool
+    end
+
+    %% Storage Layer
+    subgraph Storage_Layer ["7. Persistent & Indexing Data Layer"]
+        PG[("PostgreSQL\n(Relational Chats & Users)")]:::storage
+        RD[("Redis\n(Caching & Active Sessions)")]:::storage
+        QD[("Qdrant\n(Vector RAG Embeddings)")]:::storage
+        IO[("MinIO\n(Object Document Store)")]:::storage
     end
 
     %% Flow Connections (Top to Bottom)
-    UI --> API
-    WS_Client --> WS_GW
-    RTC_Client --> LIVE
+    UI -->|HTTPS / Event Stream| API
+    WS_Client -->|WebSocket Protocol| WS_GW
+    RTC_Client -->|WebRTC Media Streams| LIVE
 
     API --> AUTH
     WS_GW --> MA
@@ -73,21 +95,28 @@ graph TD
 
     MA --> SUP
     SUP --> REG
-    REG --> A_Acad
-    REG --> A_Lib
-    REG --> A_Res
-    REG --> A_Camp
-    REG --> A_Car
-    REG --> A_Fin
+    REG --> A_Supervisor
+    A_Supervisor --> A_Acad
+    A_Supervisor --> A_Lib
+    A_Supervisor --> A_Res
+    A_Supervisor --> A_Car
+    A_Supervisor --> A_Fin
+    A_Supervisor --> A_Other
 
-    %% Bidirectional Event Bus Communication
+    %% Agent-to-Agent Bus Communication
     A_Acad <--> Bus
     A_Lib <--> Bus
     A_Res <--> Bus
     A_Camp <--> Bus
     A_Car <--> Bus
     A_Fin <--> Bus
+    A_Other <--> Bus
     Bus <--> Broker
+
+    %% Tools Access
+    A_Acad & A_Lib & A_Res & A_Car & A_Fin --> MCP_Server
+    MCP_Server --> Catalog
+    MCP_Server --> Doc_Server
 
     %% Resource Queries & State Ingestion
     MA --> PG
@@ -97,12 +126,13 @@ graph TD
 ```
 
 ### Component Tiers Description
-1. **Client Layer**: A modern dashboard containing real-time conversation portals, dynamic agent-status feeds, installable skill interfaces, and WebRTC-based voice calls.
-2. **Gateway & API Layer**: The network access point managing session state, authentication checks, Server-Sent Events (SSE), and bidirectional WebSockets.
-3. **Orchestration & Routing Layer**: The cognitive engine of DI. It parses user intent, creates step-by-step execution plans, and routes subtasks to targeted agents.
-4. **Specialized Domain Agents**: Ready-made agent profiles acting as modular test cases. They represent target domain capabilities (e.g., Library search, Academic audits) that can be activated on demand.
-5. **Intercommunication Ecosystem**: An event-driven message bus enabling dynamic, non-blocking agent-to-agent collaboration.
-6. **Storage Layer**: A hybrid database system incorporating relational tables for session history, Redis memory caches, Qdrant vector databases for semantic search (RAG), and MinIO object storage for media attachments.
+1. **Client Interaction Layer**: Contains the visual workspace dashboard. Implemented with React and Zustand, it hosts the real-time text threads, dynamic agent metrics panels, and voice communication channels (WebRTC).
+2. **Gateway & Security Layer**: Built on FastAPI. Manages the entry gateways, executes authentication validations, decrypts JWT credentials, and routes connections to streaming pipelines (WebSockets, SSE).
+3. **Orchestration & Control Layer**: The control hub of Daffodil Intelligence. It compiles user inputs into task roadmaps, classification graphs, and dynamically resolves routing via the registry.
+4. **Specialized Sub-Agents Pool**: Ready-made domain profiles acting as modular test cases. They represent target domain capabilities that can be activated on demand.
+5. **Event Mesh & Broker**: Built on Redis Pub/Sub channels. Connects agents, allowing background, non-blocking task negotiation and result compilation.
+6. **Model Context Protocol (MCP) Tool Layer**: Exposes standardized tools to agents, offering rate-limiting, validations, and dynamic document-mapping systems.
+7. **Persistent & Indexing Data Layer**: Contains relational databases (PostgreSQL), high-speed memory caches (Redis), vector databases (Qdrant), and object repositories (MinIO).
 
 ---
 
@@ -217,7 +247,83 @@ To enable developers and agents to interface with external workflows, the platfo
 
 ---
 
-## 6. Agent Ecosystem & Catalog
+## 6. Dynamic Tool Catalog
+The platform implements a comprehensive suite of domain-specific tools integrated into the Model Context Protocol (MCP) layer. These tools empower agents to read, query, compute, and interact with backing university services and data models.
+
+### 6.1 Academic Domain Tools
+- **`get_cgpa`**: 
+  - *Function*: Retrieves the verified CGPA score of a student profile.
+  - *Details*: Performs secure queries against relational schemas to generate calculated semester averages.
+- **`get_courses`**: 
+  - *Function*: Fetches active course registrations for a specified semester.
+  - *Details*: Returns course titles, credits, syllabus links, and scheduled lecture timings.
+- **`get_results`**: 
+  - *Function*: Pulls official grade sheets and academic results.
+  - *Details*: Allows filter settings by semester and user ID, compiling scores dynamically.
+- **`check_prerequisites`**: 
+  - *Function*: Analyzes dependency chains for target courses.
+  - *Details*: Scans course directories to verify if a student has completed prerequisite courses.
+
+### 6.2 Library Domain Tools
+- **`search_books`**: 
+  - *Function*: Queries the library database for physical and digital books.
+  - *Details*: Searches by query keywords, titles, or authors, outputting matches.
+- **`check_book_availability`**: 
+  - *Function*: Verifies circulation status and borrow history of books.
+  - *Details*: Details shelf numbers, copies available, and return timelines.
+- **`get_seat_availability`**: 
+  - *Function*: Monitors study seat occupancy in reading rooms.
+  - *Details*: Emits real-time data feeds of vacant study zones.
+
+### 6.3 Campus Services & Transport Tools
+- **`get_shuttle_schedule`**: 
+  - *Function*: Downloads shuttle routes and schedule changes.
+  - *Details*: Provides structured timelines organized by transit lines.
+- **`get_shuttle_location`**: 
+  - *Function*: Tracks transit positions along active routes.
+  - *Details*: Integrates with route maps to report real-time bus locations.
+- **`get_notices`**: 
+  - *Function*: Retrieves administrative bulletins and academic warnings.
+  - *Details*: Filters by department, category, or announcement date.
+
+### 6.4 Career & Placement Tools
+- **`search_jobs`**: 
+  - *Function*: Searches job postings and internship listings.
+  - *Details*: Scans listings database by roles, salary grades, or corporate sponsors.
+- **`analyze_cv`**: 
+  - *Function*: Evaluates resume texts for compliance.
+  - *Details*: Runs semantic keyword assessments to highlight missing skills, formatting errors, and overall scores.
+- **`generate_career_roadmap`**: 
+  - *Function*: Generates developmental milestones for careers.
+  - *Details*: Produces step-by-step roadmaps, recommending certifications and projects based on career roles.
+
+### 6.5 Financial & Tuition Tools
+- **`calculate_tuition`**: 
+  - *Function*: Calculates billing statements for active semesters.
+  - *Details*: Tabulates registered course credits, lab fees, and operational costs.
+- **`check_financial_dues`**: 
+  - *Function*: Audits transaction records for outstanding payments.
+  - *Details*: Reports payment details, waiver credits, and due dates.
+- **`get_scholarships`**: 
+  - *Function*: Details available scholarship programs and financial aid.
+  - *Details*: Returns application criteria, CGPA limits, and discount percentages.
+
+### 6.6 Vision & Media Tools
+- **`analyze_screen`**: 
+  - *Function*: Runs deep image assessments on UI screen captures.
+  - *Details*: Identifies coordinate grids, text fields, buttons, and elements for cursor tracking.
+- **`extract_text_from_image`**: 
+  - *Function*: Performs high-speed Optical Character Recognition (OCR).
+  - *Details*: Translates document images or scans into plain textual blocks.
+
+### 6.7 Semantic Memory Tools
+- **`search_memory`**: 
+  - *Function*: Scans session archives and vector records.
+  - *Details*: Queries semantic context history databases to find relevant references based on query inputs.
+
+---
+
+## 7. Agent Ecosystem & Catalog
 Daffodil Intelligence orchestrates 18 specialized domain agent profiles (which act as pre-configured test profiles):
 
 | # | Agent Class | System Identifier | Core Capabilities |
