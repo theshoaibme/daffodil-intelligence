@@ -23,6 +23,7 @@
     "docker:ps": "docker compose ps"
   },
   "devDependencies": {
+    "@eslint/js": "8.57.1",
     "run-script-os": "^1.1.6",
     "turbo": "^2.0.0"
   },

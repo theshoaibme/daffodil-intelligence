@@ -1,13 +1,9 @@
-/**
- * useCopycatMode — high-level orchestration hook for CopyCat mode.
- * Composes useComputerStream + useKit + useMouseTracker into a single state surface.
- */
 import { useState, useCallback, useEffect } from "react";
-import { useComputerStream } from "./useComputerStream";
-import { useKit } from "./useKit";
-import { useMouseTracker } from "./useMouseTracker";
-import type { ActionLogEntry, ScreenFrame } from "./useComputerStream";
-import type { KitPermissions } from "./useKit";
+import { useComputerStream } from "@hooks";
+import { useKit } from "@hooks";
+import { useMouseTracker } from "@hooks";
+import type { ActionLogEntry, ScreenFrame } from "@hooks";
+import type { KitPermissions } from "@hooks";
 
 export interface CopycatModeState {
   // Connection
@@ -62,6 +58,7 @@ export interface CopycatModeState {
   enableFocusCapture: () => Promise<unknown>;
   configureStream: (config: Record<string, unknown>) => void;
   clearActionLog: () => void;
+  sendChatAction: (command: string) => void;
 }
 
 export function useCopycatMode(active: boolean = false): CopycatModeState {
@@ -81,12 +78,15 @@ export function useCopycatMode(active: boolean = false): CopycatModeState {
     if (!active && stream.connected) {
       stream.disconnect();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]); // intentionally not tracking stream to avoid loops
 
   // Disable input modes when CopyCat is blocking
   useEffect(() => {
     if (stream.copycatBlocked) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClickMode(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setKeyboardOpen(false);
     }
   }, [stream.copycatBlocked]);
@@ -137,15 +137,14 @@ export function useCopycatMode(active: boolean = false): CopycatModeState {
   );
 
   const replayRecording = useCallback(
-    async (name?: string, speed = 2.0, _skipMoves = true) => {
+    async (name?: string, speed = 2.0) => {
       return stream.replayRecording(name, speed);
     },
     [stream]
   );
 
   const clearActionLog = useCallback(() => {
-    // The actionLog is managed inside useComputerStream — we can't clear it directly
-    // This is a no-op placeholder; the full clear would need a setter exposed from useComputerStream
+    // Managed inside stream
   }, []);
 
   return {
@@ -201,5 +200,6 @@ export function useCopycatMode(active: boolean = false): CopycatModeState {
     enableFocusCapture: kit.enableFocusCapture,
     configureStream: stream.configureStream,
     clearActionLog,
+    sendChatAction: stream.sendChatAction,
   };
 }

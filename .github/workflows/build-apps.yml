@@ -1,0 +1,67 @@
+name: Build CopyCat Desktop Apps
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["copycat-v*"]
+    paths:
+      - "apps/copycat/**"
+      - ".github/workflows/build-apps.yml"
+  pull_request:
+    paths:
+      - "apps/copycat/**"
+      - ".github/workflows/build-apps.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: build-apps-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.0.0
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build CopyCat web app
+        run: pnpm --filter copycat run build
+
+      - name: Package application
+        working-directory: apps/copycat
+        run: npx electron-builder --publish never
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Packaged Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: copycat-desktop-${{ matrix.os }}
+          path: |
+            apps/copycat/release-builds/*.exe
+            apps/copycat/release-builds/*.dmg
+            apps/copycat/release-builds/*.AppImage
+            apps/copycat/release-builds/*.zip
+          if-no-files-found: warn

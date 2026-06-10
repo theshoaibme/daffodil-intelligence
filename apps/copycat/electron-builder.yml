@@ -1,0 +1,26 @@
+appId: com.daffodil.copycat
+productName: Copycat
+directories:
+  output: release-builds
+  buildResources: build
+files:
+  - dist/**/*
+  - main.js
+  - preload.js
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
