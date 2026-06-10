@@ -28,7 +28,10 @@ def format_class_routine(data: Dict[str, Any]) -> str:
         return "\n".join(lines)
 
     if not weekly or all(not v for v in weekly.values()):
-        return f"No routine data for section `{sec}` yet. Try e.g. `64_I`."
+        return (
+            f"No routine data for section `{sec}` yet. "
+            "Save it in agent memory, assign a routine skill, or upload a department PDF."
+        )
 
     lines = [f"📅 **Class routine — {sec}**"]
     for day, items in weekly.items():

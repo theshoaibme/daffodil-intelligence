@@ -158,6 +158,9 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
 AGENT_TOOLS: dict[str, List[str]] = {
     "routine": [
         "get_class_routine",
+        "read_department_routine_pdf",
+        "recall_notes",
+        "store_note",
         "enable_routine_automation",
         "create_reminder",
         "list_reminders",
@@ -199,7 +202,7 @@ class RoutePlan:
             lines.append(f"- Section detected: `{self.section}` — call get_class_routine(section=\"{self.section}\")")
         elif self.primary == "routine":
             lines.append(
-                "- If section is missing, ask once for section (e.g. 64_I). "
+                "- If section is missing, ask once for the user's section code. "
                 "When user gives a section code, call get_class_routine immediately."
             )
         lines.append("- Do NOT greet again; continue the conversation.")

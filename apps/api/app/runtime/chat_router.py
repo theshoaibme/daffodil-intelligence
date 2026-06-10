@@ -115,7 +115,7 @@ def should_use_fast_groq(
         return False
 
     selected = meta.get("selected_tools") or []
-    if settings.MCP_ENABLED and "MCP" in selected:
+    if settings.MCP_ENABLED and ("MCP" in selected or meta.get("mcp_servers")):
         return False
     if any(mode in _TOOL_MODES for mode in selected):
         return False

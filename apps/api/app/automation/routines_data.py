@@ -1,38 +1,58 @@
-"""Class routine catalog (section → weekly schedule)."""
+"""Class routine lookup — uploads and agent memory only (no hardcoded catalogs)."""
 
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-# time: "HH:MM" 24h, type: class | exam
-ROUTINE_CATALOG: Dict[str, Dict[str, List[Dict[str, Any]]]] = {
-    "64_I": {
-        "Monday": [
-            {"time": "10:00", "course": "CSE321", "title": "Machine Learning", "room": "401", "teacher": "Prof. Rahman", "type": "class"},
-            {"time": "14:00", "course": "CSE322", "title": "Computer Networks", "room": "205", "teacher": "Prof. Karim", "type": "class"},
-        ],
-        "Tuesday": [
-            {"time": "09:00", "course": "CSE323", "title": "Software Engineering", "room": "102", "teacher": "Prof. Islam", "type": "class"},
-            {"time": "11:00", "course": "CSE324", "title": "Database Systems", "room": "C-401", "teacher": "Prof. Ahmed", "type": "class"},
-        ],
-        "Wednesday": [
-            {"time": "10:00", "course": "CSE321", "title": "Machine Learning Lab", "room": "Lab-3", "teacher": "Prof. Rahman", "type": "class"},
-        ],
-        "Thursday": [
-            {"time": "13:00", "course": "CSE322", "title": "Networks Lab", "room": "Lab-2", "teacher": "Prof. Karim", "type": "class"},
-        ],
-        "Friday": [],
-        "Saturday": [],
-        "Sunday": [],
-    },
-}
+from .routine_resolver import (
+    load_uploaded_catalog,
+    normalize_section,
+    read_department_routine_source,
+)
 
 
-def get_section_routine(section: str, day: Optional[str] = None) -> Dict[str, Any]:
-    key = section.strip().replace(" ", "_").upper()
-    if key not in ROUTINE_CATALOG:
-        key = "64_I"
-    weekly = ROUTINE_CATALOG[key]
+def get_uploaded_routine(
+    section: str,
+    day: Optional[str] = None,
+    *,
+    department: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Return schedule from department-uploaded JSON/PDF only."""
+    key = normalize_section(section)
+    if not key:
+        return {
+            "section": None,
+            "department": department,
+            "source": "none",
+            "error": "section_required",
+            "hint": "Ask the user for their section, or save it with store_note (tag=section).",
+        }
+
+    uploaded = load_uploaded_catalog(key, department)
+    weekly: Dict[str, List[Dict[str, Any]]] = {}
+    source = "none"
+    if uploaded and key in uploaded:
+        weekly = uploaded[key]
+        source = "department_upload"
+
+    source_text = read_department_routine_source(department, key)
+    payload: Dict[str, Any] = {
+        "section": key,
+        "department": department or None,
+        "source": source,
+    }
+    if source_text:
+        payload["pdf_excerpt"] = source_text[:1200]
+        if source == "none":
+            payload["source"] = "department_pdf"
+
     if day:
-        return {"section": key, "day": day, "items": weekly.get(day, [])}
-    return {"section": key, "weekly": weekly}
+        payload.update({"day": day, "items": weekly.get(day, [])})
+        return payload
+
+    payload["weekly"] = weekly
+    return payload
+
+
+# Backward-compatible alias used by scheduler and university connector.
+get_section_routine = get_uploaded_routine

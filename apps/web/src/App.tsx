@@ -377,21 +377,35 @@ function ChatDashboard() {
       loadSession(session.chatId, session.messages);
     }
 
+    const mcpServers = readLocalMcpServers();
+    const selectedTools = new Set<string>([selectedAgentMode]);
+    const routineLike =
+      /\b(class routine|class schedule|my routine|daily schedule|section routine)\b/i.test(
+        text
+      );
+    if (
+      selectedAgentMode === "MCP" ||
+      selectedAgentMode === "Agent" ||
+      selectedAgentMode === "Planning" ||
+      routineLike
+    ) {
+      selectedTools.add("MCP");
+    }
+
     const chatMetadata: Record<string, unknown> = {
-      selected_tools: [selectedAgentMode],
-      section: "64_I",
+      selected_tools: [...selectedTools],
     };
-    if (selectedAgentMode === "MCP") {
-      const mcpServers = readLocalMcpServers();
-      if (mcpServers.length > 0) {
-        chatMetadata.mcp_servers = mcpServers.map((server) => ({
-          name: server.name,
-          command: server.command,
-        }));
-      }
+    if (user?.department) {
+      chatMetadata.department = user.department;
     }
     if (user?.student_id) {
       chatMetadata.student_id = user.student_id;
+    }
+    if (mcpServers.length > 0) {
+      chatMetadata.mcp_servers = mcpServers.map((server) => ({
+        name: server.name,
+        command: server.command,
+      }));
     }
 
     setPrompt("");

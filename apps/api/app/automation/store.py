@@ -34,7 +34,7 @@ class AutomationSubscription:
     id: str
     user_id: int
     kind: str  # routine_daily | class_hourly
-    section: str = "64_I"
+    section: str = ""
     telegram_chat_id: Optional[int] = None
     active: bool = True
     created_at: str = ""
@@ -263,7 +263,7 @@ class AutomationStore:
         *,
         user_id: int,
         kind: str,
-        section: str = "64_I",
+        section: str = "",
         telegram_chat_id: Optional[int] = None,
     ) -> AutomationSubscription:
         with self._lock:

@@ -17,10 +17,12 @@ _MODE_INSTRUCTIONS: dict[str, str] = {
 - Call out uncertainty when evidence is thin.""",
     "MCP": """MODE: MCP TOOLS
 - Use configured MCP integrations when they help answer the request.
+- For class routines: call get_class_routine, read_department_routine_pdf, recall_notes.
 - Prefer tool results over invented data.
 - Explain which tool was used and what it returned.""",
     "Agent": """MODE: MULTI-AGENT
 - Coordinate specialized agents when the task spans domains.
+- For schedules/routines: invoke_agent(agent_type="routine") or MCP tools directly.
 - Delegate with invoke_agent when a sub-task fits a specialist.
 - Synthesize agent outputs into one clear answer.""",
 }

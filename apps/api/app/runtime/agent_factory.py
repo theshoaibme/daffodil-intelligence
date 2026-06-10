@@ -69,13 +69,33 @@ def _get_mcp_servers() -> List[Any]:
         from ..mcp.user_store import get_user_specs
         from .tool_context import get_selected_tools, get_turn_mcp_specs, get_user_id
 
-        selected = get_selected_tools()
-        if selected and "MCP" not in selected:
+        if not settings.MCP_ENABLED:
             return []
 
+        selected = get_selected_tools()
         turn_specs = get_turn_mcp_specs()
+
+        wants_mcp = (
+            not selected
+            or "MCP" in selected
+            or "Agent" in selected
+            or "Planning" in selected
+            or bool(turn_specs)
+        )
+        if not wants_mcp:
+            return []
+
         extra = turn_specs or get_user_specs(get_user_id())
-        return get_mcp_server_configs(extra_specs=extra or None)
+        include_self = (
+            "MCP" in selected
+            or "Agent" in selected
+            or "Planning" in selected
+            or not extra
+        )
+        return get_mcp_server_configs(
+            include_self=include_self,
+            extra_specs=extra or None,
+        )
     except Exception as e:
         logger.debug(f"No MCP servers wired: {e}")
         return []

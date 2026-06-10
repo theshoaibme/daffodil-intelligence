@@ -72,6 +72,54 @@ def _resolve_turn_mcp_specs(metadata: Optional[dict]):
     return specs or None
 
 
+async def _resolve_turn_metadata(
+    user_id: Any,
+    metadata: Optional[dict],
+    message: Optional[str] = None,
+) -> dict:
+    """Fill department/section from profile and memory — no hardcoded defaults."""
+    from ..automation.routine_mcp import ensure_mcp_in_metadata, mcp_servers_for_user
+    from ..automation.routine_memory import recall_user_section
+    from ..automation.routine_resolver import normalize_section
+
+    meta = dict(metadata or {})
+    uid = int(user_id or 0)
+
+    if uid and not meta.get("department"):
+        try:
+            from sqlalchemy import select
+
+            from ..core.database import get_session_maker
+            from ..models.user import User
+
+            session_maker = get_session_maker()
+            if session_maker:
+                async with session_maker() as session:
+                    row = await session.execute(select(User).where(User.id == uid))
+                    user = row.scalar_one_or_none()
+                    if user:
+                        if user.department:
+                            meta["department"] = user.department
+                        if user.student_id and not meta.get("student_id"):
+                            meta["student_id"] = user.student_id
+        except Exception:
+            pass
+
+    if meta.get("section"):
+        meta["section"] = normalize_section(str(meta["section"])) or None
+    elif uid:
+        recalled = await recall_user_section(uid)
+        if recalled:
+            meta["section"] = recalled
+
+    if uid and not meta.get("mcp_servers"):
+        servers = mcp_servers_for_user(uid)
+        if servers:
+            meta["mcp_servers"] = servers
+
+    return ensure_mcp_in_metadata(meta, message)
+
+
 def _apply_turn_context(
     *,
     user_id: Any,
@@ -82,7 +130,8 @@ def _apply_turn_context(
     set_turn_context(
         user_id=int(user_id or 0),
         student_id=meta.get("student_id"),
-        section=meta.get("section") or "64_I",
+        section=meta.get("section"),
+        department=meta.get("department"),
         selected_tools=meta.get("selected_tools") or [],
         telegram_chat_id=int(telegram_chat_id) if telegram_chat_id else None,
         mcp_specs=_resolve_turn_mcp_specs(meta),
@@ -102,7 +151,8 @@ async def run_turn(
     metadata: Optional[dict] = None,
 ) -> dict:
     """Run one non-streaming turn through the main agent runtime."""
-    _apply_turn_context(user_id=user_id, metadata=metadata)
+    resolved_metadata = await _resolve_turn_metadata(user_id, metadata, message)
+    _apply_turn_context(user_id=user_id, metadata=resolved_metadata)
     try:
         return await _run_turn_inner(
             message,
@@ -113,7 +163,7 @@ async def run_turn(
             attachments=attachments,
             lang=lang,
             model_id=model_id,
-            metadata=metadata,
+            metadata=resolved_metadata,
         )
     finally:
         clear_turn_context()
@@ -229,7 +279,8 @@ async def run_turn_stream(
     metadata: Optional[dict] = None,
 ) -> AsyncIterator[dict]:
     """Stream one turn through the main agent runtime."""
-    _apply_turn_context(user_id=user_id, metadata=metadata)
+    resolved_metadata = await _resolve_turn_metadata(user_id, metadata, message)
+    _apply_turn_context(user_id=user_id, metadata=resolved_metadata)
     try:
         async for event in _run_turn_stream_inner(
             message,
@@ -240,7 +291,7 @@ async def run_turn_stream(
             attachments=attachments,
             lang=lang,
             model_id=model_id,
-            metadata=metadata,
+            metadata=resolved_metadata,
         ):
             yield event
     finally:

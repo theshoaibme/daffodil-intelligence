@@ -77,10 +77,15 @@ class InvokeAgentTool(BaseTool):
         agent = AGENT_MAP.get(key)
         if agent:
             try:
-                from ...runtime.tool_context import get_section
+                from ...runtime.tool_context import get_department, get_section
 
-                ctx = {"user_id": uid, "section": get_section() or "64_I"}
+                ctx = {
+                    "user_id": uid,
+                    "section": get_section(default=""),
+                    "department": get_department(),
+                }
                 if key in ("routine", "planning", "academic", "exam", "library", "transport"):
+                    from ...automation.routine_mcp import merge_invoke_metadata
                     from ...runtime.pipeline import run_turn
 
                     result = await run_turn(
@@ -88,7 +93,7 @@ class InvokeAgentTool(BaseTool):
                         user_id=uid,
                         chat_id=f"invoke-{uid}-{key}",
                         agent_id=key,
-                        metadata={"channel": "invoke_agent", "_message": message},
+                        metadata=merge_invoke_metadata(key, message, uid),
                     )
                     response = result.get("content", "")
                 else:
