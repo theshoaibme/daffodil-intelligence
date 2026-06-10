@@ -8,14 +8,17 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
 
   AUTO_MODEL_ID,
+  DEFAULT_AGENT_MODE,
   enterOrSkip,
   getHistoryEntry,
   hubApi,
   modeSpring,
+  normalizeAgentMode,
   overlayFade,
   readLocalMcpServers,
   ROUTES,
   sidebarWidthTransition,
+  type AgentMode,
 } from "@lib";
 import { useChat, useChatContext, useLocalStorageState } from "@hooks";
 import {
@@ -114,7 +117,7 @@ const DASHBOARD_STORAGE_KEYS = {
   sidebarOpen: "di-dashboard-sidebar-open",
   tasksCollapsed: "di-dashboard-tasks-collapsed",
   promptDraft: "di-dashboard-prompt-draft",
-  selectedTools: "di-dashboard-selected-tools",
+  agentMode: "di-dashboard-agent-mode",
 } as const;
 
 /** Horizontal column width — shared by welcome hero and prompt bar. */
@@ -160,9 +163,9 @@ function ChatDashboard() {
   );
   const [copycatMode, setCopycatMode] = useState(false);
   const [agentViewOpen, setAgentViewOpen] = useState(false);
-  const [selectedTools, setSelectedTools] = useLocalStorageState<string[]>(
-    DASHBOARD_STORAGE_KEYS.selectedTools,
-    ["Agent"]
+  const [selectedAgentMode, setSelectedAgentMode] = useLocalStorageState<AgentMode>(
+    DASHBOARD_STORAGE_KEYS.agentMode,
+    DEFAULT_AGENT_MODE
   );
   const [prompt, setPrompt] = useLocalStorageState(DASHBOARD_STORAGE_KEYS.promptDraft, "");
   const [selectedModelId] = useLocalStorageState(
@@ -181,21 +184,18 @@ function ChatDashboard() {
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
   const [preferSidePanel, setPreferSidePanel] = useState(false);
 
-  const agentModeActive = selectedTools.includes("Agent") && !copycatMode;
+  const agentModeActive = selectedAgentMode === "Agent" && !copycatMode;
 
-  const handleToggleTool = (tool: string) => {
-    setSelectedTools((prev) => {
-      const next = prev.includes(tool) ? prev.filter((t) => t !== tool) : [...prev, tool];
-      if (tool === "Agent") {
-        setAgentViewOpen(next.includes("Agent"));
-      }
-      return next;
-    });
+  const handleSelectAgentMode = (mode: AgentMode) => {
+    setSelectedAgentMode(mode);
+    setAgentViewOpen(mode === "Agent");
   };
 
   const handleCloseAgentView = () => {
     setAgentViewOpen(false);
-    setSelectedTools((prev) => prev.filter((t) => t !== "Agent"));
+    if (selectedAgentMode === "Agent") {
+      setSelectedAgentMode("MCP");
+    }
   };
 
   const initialSession = activeHistoryId ? getHistoryEntry(activeHistoryId) : null;
@@ -218,6 +218,18 @@ function ChatDashboard() {
 
   const fetchedContext = useChatContext(chatId, messages, prompt, selectedModelId);
   const chatContext = lastContext ?? fetchedContext;
+
+  useEffect(() => {
+    try {
+      const current = localStorage.getItem(DASHBOARD_STORAGE_KEYS.agentMode);
+      const legacy = localStorage.getItem("di-dashboard-selected-tools");
+      if (current === null && legacy) {
+        setSelectedAgentMode(normalizeAgentMode(JSON.parse(legacy)));
+      }
+    } catch {
+      // ignore invalid legacy storage
+    }
+  }, [setSelectedAgentMode]);
 
   useEffect(() => {
     hubApi
@@ -288,9 +300,7 @@ function ChatDashboard() {
     if (searchParams.get("agents") !== "1") return;
 
     handledAgentsParam.current = true;
-    setSelectedTools((prev) =>
-      prev.includes("Agent") ? prev : [...prev, "Agent"]
-    );
+    setSelectedAgentMode("Agent");
     setAgentViewOpen(true);
     setSearchParams(
       (prev) => {
@@ -300,7 +310,7 @@ function ChatDashboard() {
       },
       { replace: true }
     );
-  }, [searchParams, setSearchParams, setSelectedTools]);
+  }, [searchParams, setSearchParams, setSelectedAgentMode]);
 
   const handleSelectHistory = (id: string) => {
     if (id === activeHistoryId) return;
@@ -372,10 +382,10 @@ function ChatDashboard() {
     }
 
     const chatMetadata: Record<string, unknown> = {
-      selected_tools: selectedTools,
+      selected_tools: [selectedAgentMode],
       section: "64_I",
     };
-    if (selectedTools.includes("MCP")) {
+    if (selectedAgentMode === "MCP") {
       const mcpServers = readLocalMcpServers();
       if (mcpServers.length > 0) {
         chatMetadata.mcp_servers = mcpServers.map((server) => ({
@@ -589,8 +599,8 @@ function ChatDashboard() {
                     context={chatContext}
                     onCopycatMode={() => setCopycatMode(true)}
                     copycatActive={copycatMode}
-                    selectedTools={selectedTools}
-                    onToggleTool={handleToggleTool}
+                    selectedAgentMode={selectedAgentMode}
+                    onSelectAgentMode={handleSelectAgentMode}
                   />
                 </div>
               )}

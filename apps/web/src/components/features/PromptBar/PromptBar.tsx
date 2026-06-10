@@ -5,7 +5,15 @@ import { McpConfigureDialog } from "./McpConfigureDialog";
 import { ModelSelector } from "./ModelSelector";
 import { ContextUseRing } from "./ContextUseRing";
 import { FileAttachmentButton, MicButton, SendButton, StopButton } from "./ActionButtons";
-import { AUTO_MODEL_ID, BOTTOM_BAR_LAYOUT_ID, enterOrSkip, modeSpring, type ChatContextUsage } from "@lib";
+import {
+  AGENT_MODE_PLACEHOLDERS,
+  AUTO_MODEL_ID,
+  BOTTOM_BAR_LAYOUT_ID,
+  enterOrSkip,
+  modeSpring,
+  type AgentMode,
+  type ChatContextUsage,
+} from "@lib";
 import { useLocalStorageState } from "@hooks";
 import { useMcpStatus } from "@hooks";
 
@@ -22,8 +30,8 @@ interface PromptBarProps {
   onCopycatMode?: () => void;
   copycatActive?: boolean;
   uiReady?: boolean;
-  selectedTools: string[];
-  onToggleTool: (tool: string) => void;
+  selectedAgentMode: AgentMode;
+  onSelectAgentMode: (mode: AgentMode) => void;
   /** When true, omit viewport-fixed wrapper — parent positions the bar in the main column. */
   embedded?: boolean;
 }
@@ -40,8 +48,8 @@ export function PromptBar({
   onCopycatMode,
   copycatActive = false,
   uiReady = true,
-  selectedTools,
-  onToggleTool,
+  selectedAgentMode,
+  onSelectAgentMode,
   embedded = false,
 }: PromptBarProps) {
   const [selectedModelId, setSelectedModelId] = useLocalStorageState(
@@ -85,7 +93,7 @@ export function PromptBar({
             }
           }
         }}
-        placeholder="What would you like to change or create?"
+        placeholder={AGENT_MODE_PLACEHOLDERS[selectedAgentMode]}
         className="w-full bg-transparent border-none outline-none resize-none text-sm text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
       />
 
@@ -94,8 +102,8 @@ export function PromptBar({
           <AgentSelector
             isOpen={agentMenuOpen}
             setIsOpen={setAgentMenuOpen}
-            selectedTools={selectedTools}
-            onToggleTool={onToggleTool}
+            selectedMode={selectedAgentMode}
+            onSelectMode={onSelectAgentMode}
             onCopycatMode={onCopycatMode}
             copycatActive={copycatActive}
             mcpConfigured={mcpConfigured}

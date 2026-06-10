@@ -1,13 +1,15 @@
 import { useRef, useEffect } from "react";
-import { Infinity, ChevronDown, Compass, Monitor, Brain, Settings2 } from "lucide-react";
+import { ChevronDown, Settings2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { AgentMode } from "@lib";
+import { AGENT_MODE_ICONS, COPYCAT_MODE_ICON } from "./agentModeIcons";
 import { DropdownItem } from "../../ui";
 
 interface AgentSelectorProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  selectedTools: string[];
-  onToggleTool: (toolName: string) => void;
+  selectedMode: AgentMode;
+  onSelectMode: (mode: AgentMode) => void;
   onCopycatMode?: () => void;
   copycatActive?: boolean;
   mcpConfigured?: boolean;
@@ -17,15 +19,14 @@ interface AgentSelectorProps {
 export function AgentSelector({
   isOpen,
   setIsOpen,
-  selectedTools,
-  onToggleTool,
+  selectedMode,
+  onSelectMode,
   onCopycatMode,
   copycatActive = false,
   mcpConfigured = true,
   onConfigureMcp,
 }: AgentSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mcpSelected = selectedTools.includes("MCP");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,14 +38,12 @@ export function AgentSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [setIsOpen]);
 
-  const tools = [
-    { text: "MCP", icon: <Compass size={16} strokeWidth={1.75} />, isMcp: true },
-    { text: "Agent", icon: <Monitor size={16} strokeWidth={1.75} /> },
-    { text: "Research", icon: <Compass size={16} strokeWidth={1.75} /> },
-    { text: "Planning", icon: <Brain size={16} strokeWidth={1.75} /> },
-  ];
+  const tools: AgentMode[] = ["MCP", "Agent", "Research", "Planning"];
 
-  const modes = [{ text: "Copycat", icon: <Monitor size={16} strokeWidth={1.75} /> }];
+  const selectMode = (mode: AgentMode) => {
+    onSelectMode(mode);
+    setIsOpen(false);
+  };
 
   const handleMcpClick = () => {
     if (!mcpConfigured) {
@@ -52,7 +51,7 @@ export function AgentSelector({
       onConfigureMcp?.();
       return;
     }
-    onToggleTool("MCP");
+    selectMode("MCP");
   };
 
   return (
@@ -64,9 +63,9 @@ export function AgentSelector({
         aria-expanded={isOpen}
         className="flex items-center gap-1 bg-surface-container-highest hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors rounded-full cursor-pointer outline-none border-0 pl-2 pr-1.5 py-1"
       >
-        <Infinity size={14} strokeWidth={2} />
-        <span className="text-xs font-medium">Agent</span>
-        <ChevronDown size={12} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <span className="shrink-0 [&>svg]:size-3.5">{AGENT_MODE_ICONS[selectedMode]}</span>
+        <span className="text-xs font-medium leading-none">{selectedMode}</span>
+        <ChevronDown size={13} className={`shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       <AnimatePresence>
@@ -76,17 +75,17 @@ export function AgentSelector({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className="absolute bottom-full left-0 mb-2 w-56 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
+            className="absolute bottom-full left-0 mb-2 w-52 glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md z-[60] overflow-hidden flex flex-col py-1"
           >
             <div className="px-1 py-1">
-              {tools.map((item) =>
-                item.isMcp ? (
-                  <div key={item.text} className="relative flex items-center pr-1">
+              {tools.map((mode) =>
+                mode === "MCP" ? (
+                  <div key={mode} className="relative flex items-center pr-1">
                     <div className="flex-1 min-w-0">
                       <DropdownItem
-                        icon={item.icon}
-                        text={item.text}
-                        active={mcpSelected && mcpConfigured}
+                        icon={AGENT_MODE_ICONS.MCP}
+                        text={mode}
+                        active={selectedMode === "MCP" && mcpConfigured}
                         onClick={handleMcpClick}
                       />
                     </div>
@@ -100,20 +99,20 @@ export function AgentSelector({
                           onConfigureMcp?.();
                         }}
                         className={`absolute top-1/2 -translate-y-1/2 p-1 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high border-0 cursor-pointer ${
-                          mcpSelected ? "right-9" : "right-2"
+                          selectedMode === "MCP" ? "right-9" : "right-2"
                         }`}
                       >
-                        <Settings2 size={14} />
+                        <Settings2 size={13} />
                       </button>
                     )}
                   </div>
                 ) : (
                   <DropdownItem
-                    key={item.text}
-                    icon={item.icon}
-                    text={item.text}
-                    active={selectedTools.includes(item.text)}
-                    onClick={() => onToggleTool(item.text)}
+                    key={mode}
+                    icon={AGENT_MODE_ICONS[mode]}
+                    text={mode}
+                    active={selectedMode === mode}
+                    onClick={() => selectMode(mode)}
                   />
                 )
               )}
@@ -122,18 +121,15 @@ export function AgentSelector({
             <div className="mx-2.5 my-1 border-t border-outline-variant/30" />
 
             <div className="px-1 py-1">
-              {modes.map((mode) => (
-                <DropdownItem
-                  key={mode.text}
-                  icon={mode.icon}
-                  text={mode.text}
-                  active={copycatActive}
-                  onClick={() => {
-                    setIsOpen(false);
-                    onCopycatMode?.();
-                  }}
-                />
-              ))}
+              <DropdownItem
+                icon={COPYCAT_MODE_ICON}
+                text="Copycat"
+                active={copycatActive}
+                onClick={() => {
+                  setIsOpen(false);
+                  onCopycatMode?.();
+                }}
+              />
             </div>
           </motion.div>
         )}

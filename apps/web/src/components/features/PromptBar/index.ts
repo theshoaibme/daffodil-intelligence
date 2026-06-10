@@ -1,5 +1,6 @@
 export * from "./PromptBar";
 export * from "./AgentSelector";
+export * from "./agentModeIcons";
 export * from "./PlusMenuDropdown";
 export * from "./ModelSelector";
 export * from "./ActionButtons";

@@ -181,7 +181,7 @@ function ModalShell({
         onClick={(e) => e.stopPropagation()}
         className={`w-full ${wide ? "max-w-xl" : "max-w-lg"} max-h-[92dvh] sm:max-h-[85vh] rounded-t-3xl sm:rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-xl flex flex-col overflow-hidden`}
       >
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-outline-variant/20 shrink-0">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 shrink-0">
           <h2 id="skills-modal-title" className="text-base sm:text-lg font-semibold">
             {title}
           </h2>
@@ -369,7 +369,7 @@ export function SkillsPage() {
   return (
     <div className="relative h-[100dvh] text-on-surface font-sans overflow-hidden bg-background">
       <main className="absolute inset-0 z-10 overflow-y-auto no-scrollbar w-full">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
           <div className="h-14 shrink-0" aria-hidden="true" />
 
           <section className="pt-6 sm:pt-8">
@@ -513,8 +513,8 @@ export function SkillsPage() {
         </div>
       </main>
 
-      <header className="absolute top-0 inset-x-0 z-20 bg-surface-container-lowest/80 backdrop-blur-md border-b border-outline-variant/20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
+      <header className="absolute top-0 inset-x-0 z-20 w-full bg-transparent pointer-events-none">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3 pointer-events-auto">
           <div className="flex items-center gap-3 min-w-0">
             <Link
               to={ROUTES.home}
@@ -627,7 +627,7 @@ export function SkillsPage() {
                 <span>Make this skill public</span>
               </label>
             </div>
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-6 pt-4 border-t border-outline-variant/15">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-6 pt-2">
               <Button type="button" variant="text" size="sm" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
@@ -732,7 +732,7 @@ export function SkillsPage() {
                 )}
               </div>
             </div>
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-6 pt-4 border-t border-outline-variant/15">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-6 pt-2">
               <Button type="button" variant="text" size="sm" onClick={() => setAssignOpen(false)}>
                 Cancel
               </Button>
