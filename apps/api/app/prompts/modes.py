@@ -17,12 +17,12 @@ _MODE_INSTRUCTIONS: dict[str, str] = {
 - Call out uncertainty when evidence is thin.""",
     "MCP": """MODE: MCP TOOLS
 - Use configured MCP integrations when they help answer the request.
-- For documents/PDFs: call read_pdf(path=...). For routines: read_routine_pdf or get_class_routine.
+- For class schedules: get_class_routine(section, day) — uses data/routines/*.csv. PDFs: read_pdf / read_routine_pdf.
 - Prefer tool results over invented data.
 - Explain which tool was used and what it returned.""",
     "Agent": """MODE: MULTI-AGENT
 - Coordinate specialized agents when the task spans domains.
-- For any PDF or text file: call read_pdf(path=...). For routines: read_routine_pdf or invoke_agent(agent_type="routine").
+- For class schedules: get_class_routine(section, day) uses data/routines/*.csv. PDFs: read_pdf. Delegate deep routine tasks via invoke_agent(agent_type="routine").
 - Delegate with invoke_agent when a sub-task fits a specialist.
 - Synthesize agent outputs into one clear answer.""",
 }

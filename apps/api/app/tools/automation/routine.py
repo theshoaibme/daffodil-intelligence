@@ -15,8 +15,8 @@ from ...runtime.tool_context import get_department, get_section, get_user_id
 class GetClassRoutineTool(BaseTool):
     name = "get_class_routine"
     description = (
-        "Get class routine for a section. Uses agent memory and skills first, "
-        "then department-uploaded PDF/JSON. Ask for section if unknown."
+        "Get class routine for a section. Uses agent memory first, then bundled "
+        "CSV routines in data/routines/, then uploaded PDF/JSON. Ask for section if unknown."
     )
     category = "automation"
     parameters = [
@@ -71,6 +71,8 @@ class GetClassRoutineTool(BaseTool):
         if data.get("weekly") and any(data["weekly"].values()):
             return self.ok(data)
         if data.get("items"):
+            return self.ok(data)
+        if data.get("source") == "csv":
             return self.ok(data)
         if data.get("pdf_excerpt"):
             return self.ok(data)
