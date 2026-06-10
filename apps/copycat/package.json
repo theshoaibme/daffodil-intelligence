@@ -2,6 +2,12 @@
   "name": "copycat",
   "private": true,
   "version": "1.0.0",
+  "description": "AI-driven macro recording & playback companion for Daffodil Intelligence",
+  "author": "Daffodil Intelligence Team",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/the-shoaib2/daffodil-intelligence.git"
+  },
   "type": "commonjs",
   "main": "main.js",
   "scripts": {
