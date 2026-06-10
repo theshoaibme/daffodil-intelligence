@@ -210,10 +210,41 @@ Automates thesis management workflows:
 - **Milestone Management**: Tracks student progress across typical academic milestones: *Proposal Submission, Mid-term Evaluation, Manuscript Draft, Final Defense*.
 - **Automatic Compliance Checks**: Integrates citation validation routines verifying manuscript references against standard guidelines (APA, MLA, IEEE) using external bibliographic endpoints.
 - **Notification Routing**: When milestone status shifts, updates are sent dynamically over the *Intercommunication Ecosystem* to the `Notification Agent`, which dispatches notifications to students and faculty through WebSockets, Telegram channels, or WhatsApp.
+### 4.4 Research Hub & Publication Feed
+The **Research Hub** serves as a public directory where students and faculty members showcase their research projects and publications.
+- **Reference-Link Ingestion**: Rather than hosting entire text documents within the repository database, users add reference URLs (e.g., DOI, arXiv, ResearchGate, or institutional links).
+- **Publication Card Renderer**: Upon submission, the gateway fetches bibliographic metadata and generates a dynamic "Publication Card" displayed on the user's public profile and the global trending directory.
+- **Trending & Engagement Indexing**: A background worker tabulates weekly views, citations, and semantic query matches to maintain a "Trending Research" section, highlighting popular scientific investigations inside the university network.
+
+### 4.5 Specialized Research Sub-Agents & Dynamic Ingestion
+To support rigorous academic reviews, the research platform employs two autonomous sub-agents:
+- **AI Citation & Integrity Verification Agent**: Performs structural checks to detect generative AI fingerprints in uploaded drafts, flagging synthetic anomalies, verifying bibliography authenticity, and outputting an AI-similarity score.
+- **Human-like Research Agent (Literature Review Specialist)**: Dynamically parses search databases, clusters papers, builds citation graphs, synthesizes contradictions or alignments in literature, and drafts summaries formatted according to specific styling guidelines.
+- **Dynamic Ingestion to Agent Skill Memory**: When a student or teacher adds a research link, a worker downloads, extracts, and vectorizes the document in the background. The resulting embeddings are dynamically loaded into the active context memory of the student's personal `Research Agent`. This allows the student to immediately query, dissect, and converse with the publication using natural language.
 
 ---
 
-## 5. Agent Ecosystem & Catalog
+## 5. Dynamic Agent Spawning & Skill Hub System
+Daffodil Intelligence features a dynamic execution layer allowing runtime modification of agent configurations, prompt behaviors, and capability bindings.
+
+### 5.1 Programmatic Agent Spawning & Dynamic Sub-Agents
+Rather than relying solely on the 18 pre-defined static agents, the `Master Agent Orchestrator` can programmatically spawn specialized sub-agents on demand:
+- **Runtime Compilation**: If a complex user goal is decomposed by the `Planning Agent` into highly specialized subtasks (e.g., analyzing a specific legacy COBOL file), the orchestrator dynamically creates an instance of a new sub-agent, compiles a target system prompt, binds requested tools, and registers it to the active session.
+- **Context Jailing**: Spawned sub-agents run in isolated execution blocks, inheriting only the necessary subset of conversation history and system parameters.
+
+### 5.2 Installable Agent Skill Hub (App Store Model)
+The **Skill Hub** serves as a modular registry (analogous to a mobile app store) where custom tools, APIs, and computational libraries are organized as installable modules.
+- **App-Store Style Management**: The React frontend provides a visual directory of all available skills (e.g., a "Bengali NLP Parser", "Financial Fee Calculator", or "VS Code Workspace Integration").
+- **One-Click Binding**: When a user or supervisor agent clicks the "Install" button on a skill, the backend dynamically loads the skill's Python runtime package and binds its functional entry point to the target agent. The agent instantly updates its system schema, declaring the new tool to the LLM during the next chat turn.
+
+### 5.3 Own MCP Builder & Dynamic Document-to-MCP Server
+To enable developers and agents to interface with external workflows, the platform provides:
+- **Own MCP Builder**: A developer utility that programmatically translates standard Python functions and API paths into a fully compliant Model Context Protocol (MCP) server container, generating dynamic schemas, validation rules, and endpoint bindings automatically.
+- **Dynamic Document-to-MCP Server**: Integrations that dynamically map uploaded files (PDFs, Word Documents, Excel sheets, text files) into a transient MCP server. Once a file is uploaded, the platform launches a dedicated MCP interface around it, exposing document-specific tools (e.g., `search_sections`, `retrieve_table_data`, `summarize_pages`). The target LLM interacts with the file directly via structured protocol tool-calls rather than consuming the raw, token-heavy text context.
+
+---
+
+## 6. Agent Ecosystem & Catalog
 Daffodil Intelligence orchestrates 18 specialized domain agents:
 
 | # | Agent Class | System Identifier | Core Capabilities |
@@ -239,7 +270,7 @@ Daffodil Intelligence orchestrates 18 specialized domain agents:
 
 ---
 
-## 6. Database Schema Design (Core Entities)
+## 7. Database Schema Design (Core Entities)
 Below is the PostgreSQL schema defining users, session records, academic tracking, and research vaults.
 
 ```sql
@@ -310,7 +341,7 @@ CREATE TABLE thesis_milestones (
 
 ---
 
-## 7. API Routing & Endpoints
+## 8. API Routing & Endpoints
 The backend exposes RESTful routers alongside real-time channels:
 
 ### 7.1 Authentication (`/api/auth`)
@@ -330,7 +361,7 @@ The backend exposes RESTful routers alongside real-time channels:
 
 ---
 
-## 8. Development & Installation Guide
+## 9. Development & Installation Guide
 
 ### Prerequisites
 - Python 3.11+
