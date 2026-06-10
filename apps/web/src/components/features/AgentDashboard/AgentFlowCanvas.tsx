@@ -14,6 +14,7 @@ import "./flowTheme.css";
 import type { Agent } from "@hooks";
 import { useRuntimeStatus } from "@hooks";
 import { subscribeFlow, type FlowState } from "@lib";
+import { useEventStore } from "../../../engine/stores/eventStore";
 import { ActiveBeamEdge } from "./ActiveBeamEdge";
 import { AgentHoverCard, type HoverAnchor } from "./AgentHoverCard";
 import { FlowZoomControls } from "./FlowZoomControls";
@@ -37,6 +38,8 @@ interface AgentFlowCanvasProps {
   editing: boolean;
   onSave: () => void;
   saveSignal: number;
+  /** Chat session id for event-store driven highlights */
+  sessionId?: string | null;
   /** When false, defer fit-to-view until the graph has finished loading. */
   graphReady?: boolean;
   /** Offset controls below a page header (agent hub flow view). */
@@ -53,6 +56,7 @@ export function AgentFlowCanvas({
   graphReady = true,
   belowHeader = false,
   simulationOnly = false,
+  sessionId = null,
 }: AgentFlowCanvasProps) {
   const savedLayout = useMemo(() => loadLayout(agents), [agents]);
   const { runtime } = useRuntimeStatus();
@@ -65,6 +69,22 @@ export function AgentFlowCanvas({
   });
 
   useEffect(() => subscribeFlow(setFlow), []);
+
+  const storeGraph = useEventStore((s) =>
+    sessionId ? s.sessions[sessionId]?.agentGraph : undefined
+  );
+
+  useEffect(() => {
+    if (!sessionId || !storeGraph) return;
+    setFlow({
+      activeAgentIds: storeGraph.activeAgentIds,
+      activeTools: storeGraph.activeTools,
+      modelActive: storeGraph.modelActive,
+      activeInputId: storeGraph.activeInputId ?? undefined,
+      activeModelId: storeGraph.activeModelId ?? undefined,
+      memoryActive: storeGraph.memoryActive,
+    });
+  }, [sessionId, storeGraph]);
   const [fitTrigger, setFitTrigger] = useState(0);
   const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null);
   const [hoverAnchor, setHoverAnchor] = useState<HoverAnchor | null>(null);

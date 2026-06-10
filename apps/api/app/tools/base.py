@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from ..ui_blocks.schemas import UiBlock
+    from .ui_meta import ToolUiMeta
 
 
 class ToolParameter(BaseModel):
@@ -49,11 +50,46 @@ class BaseTool(ABC):
     description: str = ""
     category: str = "general"
     parameters: List[ToolParameter] = []
+    ui_meta: Optional["ToolUiMeta"] = None
 
     @abstractmethod
     async def execute(self, **kwargs) -> ToolResult:
         """Execute the tool and return a ToolResult."""
         ...
+
+    def _input_schema(self) -> Dict:
+        """JSON Schema for tool parameters only (no ui_meta — avoids recursion)."""
+        return {
+            "type": "object",
+            "properties": {
+                p.name: {
+                    "type": p.type,
+                    "description": p.description,
+                    **({"default": p.default} if p.default is not None else {}),
+                }
+                for p in self.parameters
+            },
+            "required": [p.name for p in self.parameters if p.required],
+        }
+
+    def get_ui_meta(self) -> Dict:
+        """Return UI rendering metadata for the frontend tool registry."""
+        from .ui_meta import resolve_tool_ui_meta
+
+        if self.ui_meta is not None:
+            meta = self.ui_meta
+        else:
+            meta = resolve_tool_ui_meta(
+                self.name,
+                {"name": self.name, "inputSchema": self._input_schema()},
+            )
+        return {
+            "tool_name": meta.tool_name,
+            "card_type": meta.card_type,
+            "widget_type": meta.widget_type,
+            "icon": meta.icon,
+            "streaming": meta.streaming,
+        }
 
     def get_schema(self) -> Dict:
         """Return MCP-compatible tool schema."""
@@ -61,18 +97,8 @@ class BaseTool(ABC):
             "name": self.name,
             "description": self.description,
             "category": self.category,
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    p.name: {
-                        "type": p.type,
-                        "description": p.description,
-                        **({"default": p.default} if p.default is not None else {}),
-                    }
-                    for p in self.parameters
-                },
-                "required": [p.name for p in self.parameters if p.required],
-            },
+            "ui_meta": self.get_ui_meta(),
+            "inputSchema": self._input_schema(),
         }
 
     def ok(self, data: Any, duration_ms: float = 0.0) -> ToolResult:

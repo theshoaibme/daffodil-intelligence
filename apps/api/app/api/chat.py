@@ -20,7 +20,9 @@ from ..schemas.user import (
 from ..core.context_usage import compute_chat_context_usage
 from ..memory import memory_service
 from ..runtime.pipeline import run_turn, run_turn_stream
+from ..runtime.event_emitter import TurnEventEmitter, persist_event_log
 from ..voice.chat_voice import resolve_voice_message
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +168,11 @@ async def add_message(
         resolved_model = message.model_id
         model_mode = "manual" if message.model_id and message.model_id != "auto" else "auto"
         model_routing = None
+        turn_id = f"turn-{uuid4().hex[:12]}"
+        emitter = TurnEventEmitter(
+            session_id=str(chat_id),
+            turn_id=turn_id,
+        )
         context_usage = await compute_chat_context_usage(
             db,
             chat_id=chat_id,
@@ -173,7 +180,8 @@ async def add_message(
             draft_message=turn_content,
             model_id=message.model_id,
         )
-        yield f'data: {json.dumps({"type": "context", **context_usage})}\n\n'
+        ctx_envelope = emitter.wrap_legacy({"type": "context", **context_usage})
+        yield emitter.sse_line(ctx_envelope)
         try:
             async for event in run_turn_stream(
                 turn_content,
@@ -193,69 +201,26 @@ async def add_message(
                     resolved_model = event.get("model_id", resolved_model)
                     model_mode = event.get("model_mode", model_mode)
                     model_routing = event.get("model_routing")
-                    yield f'data: {json.dumps({"type": "model", "model_id": resolved_model, "model_mode": model_mode, "model_routing": model_routing})}\n\n'
-                    continue
                 if event_type == "content":
                     chunk = event.get("content") or ""
-                    if not chunk:
-                        continue
-                    full_response += chunk
-                    yield f'data: {json.dumps({"type": "content", "content": chunk})}\n\n'
-                elif event_type == "thinking":
-                    thinking = event.get("content") or ""
-                    if thinking:
-                        yield f'data: {json.dumps({"type": "thinking", "content": thinking})}\n\n'
-                elif event_type == "status":
-                    status_msg = event.get("content") or ""
-                    if status_msg:
-                        yield f'data: {json.dumps({"type": "status", "content": status_msg})}\n\n'
+                    if chunk:
+                        full_response += chunk
                 elif event_type == "ui":
                     block = event.get("block")
-                    if not isinstance(block, dict):
-                        continue
-                    ui_blocks.append(block)
-                    yield f'data: {json.dumps({"type": "ui", "block": block, "source": event.get("source"), "tool_name": event.get("tool_name")})}\n\n'
+                    if isinstance(block, dict):
+                        ui_blocks.append(block)
                 elif event_type == "tool":
                     tool_name = event.get("name")
-                    if not tool_name:
-                        continue
-                    status = event.get("status", "active")
-                    if status == "active" and tool_name not in tool_calls:
-                        tool_calls.append(tool_name)
-                    tool_payload = {
-                        "type": "tool",
-                        "name": tool_name,
-                        "status": status,
-                    }
-                    if event.get("agent_id"):
-                        tool_payload["agent_id"] = event.get("agent_id")
-                    if event.get("source"):
-                        tool_payload["source"] = event.get("source")
-                    if event.get("mcp_server"):
-                        tool_payload["mcp_server"] = event.get("mcp_server")
-                    yield f'data: {json.dumps(tool_payload)}\n\n'
+                    if tool_name:
+                        status = event.get("status", "active")
+                        if status == "active" and tool_name not in tool_calls:
+                            tool_calls.append(tool_name)
                 elif event_type == "agent":
                     resolved_agent = event.get("agent_id", resolved_agent)
-                    yield f'data: {json.dumps({"type": "agent", "agent_id": event.get("agent_id"), "name": event.get("name"), "status": event.get("status", "active")})}\n\n'
-                elif event_type == "subagent":
-                    yield f'data: {json.dumps({"type": "subagent", "agent_id": event.get("agent_id"), "name": event.get("name", "delegated"), "status": event.get("status", "active"), "content": event.get("content", "")})}\n\n'
-                elif event_type == "memory":
-                    yield f'data: {json.dumps({"type": "memory", "name": event.get("name", "memory"), "status": event.get("status", "active")})}\n\n'
-                elif event_type == "task":
-                    task_payload = {
-                        "type": "task",
-                        "task_id": event.get("task_id"),
-                        "parent_id": event.get("parent_id"),
-                        "kind": event.get("kind"),
-                        "name": event.get("name"),
-                        "title": event.get("title"),
-                        "short_title": event.get("short_title"),
-                        "status": event.get("status", "active"),
-                        "agent_id": event.get("agent_id"),
-                        "parallel_group": event.get("parallel_group"),
-                        "depth": event.get("depth", 0),
-                    }
-                    yield f"data: {json.dumps({k: v for k, v in task_payload.items() if v is not None})}\n\n"
+
+                envelope = emitter.wrap_legacy(event)
+                yield emitter.sse_line(envelope)
+
             if not full_response.strip() and not ui_blocks and not tool_calls:
                 result = await run_turn(
                     turn_content,
@@ -276,13 +241,17 @@ async def add_message(
                 for block in result.get("ui_blocks") or []:
                     if isinstance(block, dict):
                         ui_blocks.append(block)
-                        yield f'data: {json.dumps({"type": "ui", "block": block})}\n\n'
+                        yield emitter.sse_line(emitter.wrap_legacy({"type": "ui", "block": block}))
                 if full_response:
-                    yield f'data: {json.dumps({"content": full_response})}\n\n'
+                    yield emitter.sse_line(
+                        emitter.wrap_legacy({"type": "content", "content": full_response})
+                    )
         except Exception as e:
             logger.error(f"Error processing turn: {e}")
             full_response = f"I encountered an error while processing your request: {str(e)}"
-            yield f'data: {json.dumps({"content": full_response})}\n\n'
+            yield emitter.sse_line(
+                emitter.wrap_legacy({"type": "content", "content": full_response})
+            )
 
         from ..runtime.response_validate import validate_assistant_response
 
@@ -356,7 +325,9 @@ async def add_message(
                 "created_at": None
             }
             yield f"data: {json.dumps(final_payload)}\n\n"
-            
+
+        await persist_event_log(db, emitter.events)
+        yield emitter.done_line()
         yield "data: [DONE]\n\n"
         
     return StreamingResponse(

@@ -20,6 +20,7 @@ import {
   setActiveHistoryId,
   updateHistoryMessages,
   upsertHistoryEntry,
+  bindChatIdToSession,
   type ChatHistoryEntry,
 } from "@lib";
 import type { ChatMessage } from "@hooks";
@@ -41,6 +42,7 @@ interface ChatHistoryContextValue {
   syncActiveSession: (chatId: number | null, messages: ChatMessage[]) => void;
   refreshHistories: () => void;
   syncFromApi: (search?: string) => Promise<void>;
+  bindChatIdToSession: (sessionId: string, chatId: number) => void;
 }
 
 const ChatHistoryContext = createContext<ChatHistoryContextValue | null>(null);
@@ -160,6 +162,11 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
     [activeHistoryId]
   );
 
+  const bindChatIdToActiveSession = useCallback((sessionId: string, chatId: number) => {
+    const next = bindChatIdToSession(sessionId, chatId);
+    setHistories(next);
+  }, []);
+
   useEffect(() => {
     refreshHistories();
   }, [refreshHistories]);
@@ -175,6 +182,7 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
       syncActiveSession,
       refreshHistories,
       syncFromApi,
+      bindChatIdToSession: bindChatIdToActiveSession,
     }),
     [
       histories,
@@ -186,6 +194,7 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
       syncActiveSession,
       refreshHistories,
       syncFromApi,
+      bindChatIdToActiveSession,
     ]
   );
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { UiBlock } from "@lib/uiBlocks/types";
 import { normalizeUiBlocks } from "@lib/uiBlocks/normalize";
 import { ErrorAlert } from "./ErrorAlert";
@@ -11,58 +12,71 @@ interface StructuredBlockRendererProps {
   blocks: UiBlock[];
 }
 
-function renderBlock(block: UiBlock) {
-  const schema = block.schema;
-  const data = block.data ?? {};
+type BlockRenderer = (block: UiBlock) => ReactNode;
 
-  switch (schema) {
-    case "data_table": {
-      const columns = (data.columns as { key: string; label: string }[]) ?? [];
-      const rows = (data.rows as Record<string, unknown>[]) ?? [];
-      return (
-        <UiPanel title={block.title}>
-          <UiDataTable columns={columns} rows={rows} />
-        </UiPanel>
-      );
-    }
-    case "key_value":
-      return (
-        <KeyValueBlock
-          title={block.title ?? undefined}
-          rows={(data.rows as Array<{ key: string; value: string }>) ?? []}
-        />
-      );
-    case "tabs": {
-      const tabs = (data.tabs as Array<{ id: string; label: string; block: UiBlock }>) ?? [];
-      return (
-        <UiPanel title={block.title}>
-          <UiTabs
-            tabs={tabs.map((tab) => ({
-              id: tab.id,
-              label: tab.label,
-              content: renderBlock(tab.block),
-            }))}
-          />
-        </UiPanel>
-      );
-    }
-    case "status_card":
-      return (
-        <StatusCard
-          title={block.title ?? undefined}
-          tone={String(data.tone ?? "info")}
-          message={String(data.message ?? "")}
-        />
-      );
-    case "error_alert":
-      return <ErrorAlert title={block.title ?? undefined} message={String(data.message ?? "Error")} />;
-    default:
-      return (
-        <UiPanel title={block.title ?? String(schema)}>
-          <p className="text-sm text-on-surface-variant">Unable to display this block.</p>
-        </UiPanel>
-      );
-  }
+const blockRegistry = new Map<string, BlockRenderer>();
+
+function registerBlockSchema(schema: string, renderer: BlockRenderer) {
+  blockRegistry.set(schema, renderer);
+}
+
+registerBlockSchema("data_table", (block) => {
+  const data = block.data ?? {};
+  const columns = (data.columns as { key: string; label: string }[]) ?? [];
+  const rows = (data.rows as Record<string, unknown>[]) ?? [];
+  return (
+    <UiPanel title={block.title}>
+      <UiDataTable columns={columns} rows={rows} />
+    </UiPanel>
+  );
+});
+
+registerBlockSchema("key_value", (block) => (
+  <KeyValueBlock
+    title={block.title ?? undefined}
+    rows={(block.data?.rows as Array<{ key: string; value: string }>) ?? []}
+  />
+));
+
+registerBlockSchema("tabs", (block) => {
+  const tabs = (block.data?.tabs as Array<{ id: string; label: string; block: UiBlock }>) ?? [];
+  return (
+    <UiPanel title={block.title}>
+      <UiTabs
+        tabs={tabs.map((tab) => ({
+          id: tab.id,
+          label: tab.label,
+          content: renderBlock(tab.block),
+        }))}
+      />
+    </UiPanel>
+  );
+});
+
+registerBlockSchema("status_card", (block) => (
+  <StatusCard
+    title={block.title ?? undefined}
+    tone={String(block.data?.tone ?? "info")}
+    message={String(block.data?.message ?? "")}
+  />
+));
+
+registerBlockSchema("error_alert", (block) => (
+  <ErrorAlert title={block.title ?? undefined} message={String(block.data?.message ?? "Error")} />
+));
+
+export function registerUiBlockRenderer(schema: string, renderer: BlockRenderer) {
+  registerBlockSchema(schema, renderer);
+}
+
+function renderBlock(block: UiBlock) {
+  const renderer = blockRegistry.get(block.schema);
+  if (renderer) return renderer(block);
+  return (
+    <UiPanel title={block.title ?? String(block.schema)}>
+      <p className="text-sm text-on-surface-variant">Unable to display this block.</p>
+    </UiPanel>
+  );
 }
 
 export function StructuredBlockRenderer({ blocks }: StructuredBlockRendererProps) {

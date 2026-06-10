@@ -31,5 +31,9 @@ export function parseResponseText(text: string): ResponseContentData {
     paragraphs.push(text);
   }
 
-  return { paragraphs, bulletPoints: bulletPoints.length > 0 ? bulletPoints : undefined };
+  return {
+    paragraphs,
+    bulletPoints: bulletPoints.length > 0 ? bulletPoints : undefined,
+    rawText: text,
+  };
 }

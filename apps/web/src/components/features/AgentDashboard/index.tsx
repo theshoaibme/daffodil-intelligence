@@ -12,12 +12,14 @@ export interface AgentDashboardProps {
   /** Fill parent container (e.g. agent hub flow tab below page header). */
   fillParent?: boolean;
   onClose?: () => void;
+  sessionId?: string | null;
 }
 
 export default function AgentDashboard({
   embedded = false,
   fillParent = false,
   onClose,
+  sessionId = null,
 }: AgentDashboardProps) {
   const { agents, loading, error, refetch } = useAgents();
   const [editing, setEditing] = useState(false);
@@ -147,6 +149,7 @@ export default function AgentDashboard({
           graphReady={!loading}
           belowHeader={fillParent}
           simulationOnly={embedded}
+          sessionId={sessionId}
         />
       </div>
 

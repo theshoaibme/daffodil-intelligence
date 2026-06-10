@@ -24,6 +24,8 @@ export default defineConfig({
       { find: /^@layout\//, replacement: resolve(__dirname, './src/components/layout') + '/' },
       { find: /^@features$/, replacement: resolve(__dirname, './src/components/features/index.ts') },
       { find: /^@features\//, replacement: resolve(__dirname, './src/components/features') + '/' },
+      { find: /^@engine$/, replacement: resolve(__dirname, './src/engine/index.ts') },
+      { find: /^@engine\//, replacement: resolve(__dirname, './src/engine') + '/' },
       { find: /^@components\//, replacement: resolve(__dirname, './src/components') + '/' }
     ]
   },

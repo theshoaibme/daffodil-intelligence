@@ -4,6 +4,7 @@ import type { ThinkingStep } from "./ThinkingProcess";
 import { ConversationThread } from "./ConversationThread";
 
 interface ResponseFullViewProps {
+  sessionId?: string | null;
   messages: ChatMessage[];
   isStreaming?: boolean;
   thinkingSteps?: ThinkingStep[];
@@ -17,6 +18,7 @@ interface ResponseFullViewProps {
 
 /** Center-column conversation (ChatGPT-style) — lives in the main stage, not a modal. */
 export function ResponseFullView({
+  sessionId,
   messages,
   isStreaming = false,
   thinkingSteps = [],
@@ -39,6 +41,7 @@ export function ResponseFullView({
   return (
     <div className="flex flex-col h-full min-h-0 w-full pointer-events-auto">
       <ConversationThread
+        sessionId={sessionId}
         messages={messages}
         isStreaming={isStreaming}
         thinkingSteps={thinkingSteps}

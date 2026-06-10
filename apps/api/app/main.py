@@ -14,7 +14,7 @@ from .core.database import init_db, close_db
 from .core.logging import configure_logging, log_startup_banner, log_startup_ready, mark_startup_begin
 from .core.middleware import LoggingMiddleware
 from .mcp.client import mcp_client
-from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth, status, skills, agent_hub, mcp_builder
+from .api import auth, agents, websocket, chat, rag, upload, admin, agent_builder, voice, memory, telegram_auth, status, skills, agent_hub, mcp_builder, session_events
 from .api.computer_use import router as computer_use_router
 from .api.kit import router as kit_router
 from .live_broadcaster import live_router
@@ -112,6 +112,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(telegram_auth.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
+app.include_router(session_events.router, prefix="/api")
 app.include_router(rag.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
@@ -126,6 +127,7 @@ app.include_router(computer_use_router)
 app.include_router(kit_router)
 app.include_router(mcp_builder.router, prefix="/api")
 app.websocket("/ws/{user_id}")(websocket.websocket_endpoint)
+app.websocket("/api/sessions/{chat_id}/events/ws")(session_events.session_events_ws)
 app.websocket("/voice/ws/{user_id}")(voice.voice_websocket)
 
 

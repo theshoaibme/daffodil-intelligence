@@ -1,4 +1,6 @@
 import type { UiBlock } from "./types";
+import { dedupeRepeatedSections } from "../contentDedupe";
+import { normalizeAssistantMarkdown } from "../normalizeAssistantMarkdown";
 
 const TOOL_CALL_LINE = /^\s*[a-z][a-z0-9_]*\s*\([^)]*\)\s*$/i;
 const TOOL_CALL_INLINE = /\b[a-z][a-z0-9_]*\s*\([^)]*\)/gi;
@@ -57,6 +59,12 @@ function contentRedundantWithBlocks(content: string, blocks: UiBlock[]): boolean
   const text = content.trim();
   if (!text) return false;
 
+  // Keep prose that has structure the UI blocks do not represent.
+  if (/#{1,6}\s/.test(text)) return false;
+  if (/```/.test(text)) return false;
+  if (/[┌┐└┘├┤─│]/.test(text)) return false;
+  if (text.length > 280) return false;
+
   const blob = collectBlockText(blocks);
   if (!blob.trim()) return false;
 
@@ -79,7 +87,7 @@ function contentRedundantWithBlocks(content: string, blocks: UiBlock[]): boolean
     normText.match(/[a-z0-9]+/g)?.filter((w) => w.length > 2) ?? []
   );
   const blobWords = new Set(normBlob.match(/[a-z0-9]+/g) ?? []);
-  if (textWords.size > 0 && textWords.size <= 12 && [...textWords].every((w) => blobWords.has(w))) {
+  if (textWords.size > 0 && textWords.size <= 8 && [...textWords].every((w) => blobWords.has(w))) {
     return true;
   }
 
@@ -87,9 +95,17 @@ function contentRedundantWithBlocks(content: string, blocks: UiBlock[]): boolean
 }
 
 /** Remove tool-call syntax and duplicate prose when structured UI blocks are present. */
-export function sanitizeAssistantContent(content: string, blocks: UiBlock[] = []): string {
+export function sanitizeAssistantContent(
+  content: string,
+  blocks: UiBlock[] = [],
+  options?: { streaming?: boolean }
+): string {
   let text = (content || "").trim();
   if (!text) return text;
+
+  if (options?.streaming) {
+    return text;
+  }
 
   text = text
     .split("\n")
@@ -98,6 +114,8 @@ export function sanitizeAssistantContent(content: string, blocks: UiBlock[] = []
     .replace(TOOL_CALL_INLINE, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  text = normalizeAssistantMarkdown(dedupeRepeatedSections(text));
 
   if (!hasStructuredDataBlocks(blocks)) {
     return text;

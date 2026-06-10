@@ -17,6 +17,12 @@ import { getFlow, resetFlow, setFlow } from "../lib/flowBus";
 import type { ChatContextUsage } from "../lib/chatContext";
 import { coerceUiBlock, mergeUiBlocks } from "../lib/uiBlocks/coerce";
 import type { UiBlock } from "../lib/uiBlocks/types";
+import { StreamBuffer } from "../engine/streaming/StreamBuffer";
+import { useEventStore } from "../engine/stores/eventStore";
+import { eventBus } from "../engine/EventBus";
+import { useSessionStream } from "./useSessionStream";
+import { useSessionSync } from "./useSessionSync";
+import { cleanThinkingText } from "../lib/thinkingText";
 function syncFlowFromTasks(tasks: AgentTaskNode[], inputId: string | null) {
   const current = getFlow();
   const hasActiveTasks = tasks.some((t) => t.status === "active");
@@ -93,9 +99,28 @@ export function useChat(options?: UseChatOptions) {
   const [error, setError] = useState<string | null>(null);
   const [lastContext, setLastContext] = useState<ChatContextUsage | null>(null);
   const sendGenerationRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const streamBufferRef = useRef<StreamBuffer | null>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const thinkingStartRef = useRef<number | null>(null);
   const thinkingAccumRef = useRef("");
+
+  useSessionStream(chatId);
+  useSessionSync(chatId, true);
+
+  useEffect(() => {
+    if (!chatId) return;
+    const sessionId = String(chatId);
+    const graph = useEventStore.getState().getSession(sessionId).agentGraph;
+    setFlow({
+      activeAgentIds: graph.activeAgentIds,
+      activeTools: graph.activeTools,
+      modelActive: graph.modelActive,
+      activeInputId: graph.activeInputId ?? undefined,
+      activeModelId: graph.activeModelId ?? undefined,
+      memoryActive: graph.memoryActive,
+    });
+  }, [chatId, agentTasks]);
 
   const patchAssistantMessage = useCallback(
     (
@@ -137,9 +162,19 @@ export function useChat(options?: UseChatOptions) {
 
   const loadSession = useCallback((nextChatId: number | null, nextMessages: ChatMessage[]) => {
     sendGenerationRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    streamBufferRef.current?.reset();
+    streamBufferRef.current = null;
+    eventBus.clearPending();
+    if (chatId) useEventStore.getState().clearSession(String(chatId));
+    if (nextChatId != null && nextChatId !== chatId) {
+      useEventStore.getState().clearSession(String(nextChatId));
+    }
     stopThinkingTimer();
     resetFlow();
     thinkingStartRef.current = null;
+    thinkingAccumRef.current = "";
     setChatId(nextChatId);
     setMessages(withCoercedUiBlocks(nextMessages));
     setThinkingSteps([]);
@@ -151,7 +186,27 @@ export function useChat(options?: UseChatOptions) {
     setIsLoading(false);
     setIsStreaming(false);
     setLastContext(null);
-  }, [stopThinkingTimer]);
+  }, [chatId, stopThinkingTimer]);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    sendGenerationRef.current += 1;
+    stopThinkingTimer();
+    setIsStreaming(false);
+    setIsLoading(false);
+    eventBus.publishImmediate({
+      v: 1,
+      id: `cancel-${Date.now()}`,
+      seq: 0,
+      ts: new Date().toISOString(),
+      session_id: String(chatId ?? 0),
+      turn_id: "",
+      source: {},
+      type: "stream.cancelled",
+      payload: {},
+    });
+  }, [chatId, stopThinkingTimer]);
 
   const initializeChat = useCallback(async () => {
     try {
@@ -175,6 +230,8 @@ export function useChat(options?: UseChatOptions) {
     voice?: VoiceAttachmentPayload
   ) => {
     const generation = sendGenerationRef.current;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     try {
       setError(null);
@@ -243,6 +300,20 @@ export function useChat(options?: UseChatOptions) {
       setMessages(prev => [...prev, assistantMessage]);
       setCurrentStreamingContent("");
 
+      const turnId = `turn-${Date.now()}`;
+      useEventStore.getState().resetTurn(String(currentChatId), turnId, assistantMessageId);
+      useEventStore.getState().setActiveInput(
+        String(currentChatId),
+        channel === "telegram" ? "input-telegram" : "input-chat"
+      );
+
+      const streamBuffer = new StreamBuffer((full) => {
+        if (isSendStale(generation)) return;
+        setCurrentStreamingContent(full);
+        patchAssistantMessage(assistantMessageId, { content: full });
+      });
+      streamBufferRef.current = streamBuffer;
+
       let fullContent = "";
 
       const response = await sendMessage(
@@ -253,6 +324,7 @@ export function useChat(options?: UseChatOptions) {
           fullContent += chunk;
           setCurrentStreamingContent(fullContent);
           patchAssistantMessage(assistantMessageId, { content: fullContent });
+          streamBuffer.push(chunk);
         },
         modelId,
         (ctx) => {
@@ -275,17 +347,13 @@ export function useChat(options?: UseChatOptions) {
           }
 
           if (event.type === "status" && event.content?.trim()) {
-            const line = event.content.trim();
-            const prefix = thinkingAccumRef.current.trim();
-            if (!prefix.includes(line)) {
-              thinkingAccumRef.current = prefix ? `${prefix}\n${line}` : line;
-              const nextThinking = thinkingAccumRef.current;
-              setThinkingText(nextThinking);
-              patchAssistantMessage(assistantMessageId, (message) => ({
-                ...message,
-                metadata: { ...message.metadata, thinking_text: nextThinking },
-              }));
-            }
+            // Status (Mode/Model/Engine) belongs in the task panel, not thinking UI.
+            setAgentTasks((prev) => {
+              const reduced = reduceAgentTasks(prev, event);
+              const next = pruneLegacyTasks(reduced);
+              syncFlowFromTasks(next, inputId);
+              return next;
+            });
             return;
           }
 
@@ -322,10 +390,12 @@ export function useChat(options?: UseChatOptions) {
             });
           }
         },
-        voice
+        voice,
+        { signal: abortRef.current.signal, sessionId: String(currentChatId) }
       );
 
       if (isSendStale(generation)) return;
+      fullContent = streamBuffer.finalize();
 
       if (thinkingTimerRef.current) {
         stopThinkingTimer();
@@ -336,7 +406,7 @@ export function useChat(options?: UseChatOptions) {
 
       setAgentTasks([]);
 
-      const finalThinking = thinkingAccumRef.current.trim();
+      const finalThinking = cleanThinkingText(thinkingAccumRef.current);
       const finalThinkingMs =
         thinkingStartRef.current != null
           ? Date.now() - thinkingStartRef.current
@@ -389,6 +459,7 @@ export function useChat(options?: UseChatOptions) {
   const truncateFromMessage = useCallback(
     (messageId: string) => {
       sendGenerationRef.current += 1;
+      abortRef.current?.abort();
       stopThinkingTimer();
       resetFlow();
       thinkingStartRef.current = null;
@@ -409,6 +480,18 @@ export function useChat(options?: UseChatOptions) {
     [stopThinkingTimer]
   );
 
+  const regenerate = useCallback(
+    async (messageId: string, modelId?: string) => {
+      const index = messages.findIndex((m) => m.id === messageId);
+      if (index < 0) return;
+      const prior = messages[index - 1];
+      if (!prior || prior.role !== "user") return;
+      truncateFromMessage(messageId);
+      await send(prior.content, modelId, prior.metadata as Record<string, unknown> | undefined);
+    },
+    [messages, send, truncateFromMessage]
+  );
+
   return {
     chatId,
     messages,
@@ -422,6 +505,8 @@ export function useChat(options?: UseChatOptions) {
     error,
     lastContext,
     send,
+    cancel,
+    regenerate,
     clearChat,
     loadSession,
     initializeChat,

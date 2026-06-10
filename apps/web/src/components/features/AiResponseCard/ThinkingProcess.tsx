@@ -48,6 +48,11 @@ export function ThinkingProcess({
     return null;
   }
 
+  // Hide the panel when streaming but only simulated/metadata filler was removed.
+  if (isThinking && !hasThinkingText) {
+    return null;
+  }
+
   const duration = formatThinkingDuration(thinkingMs);
   const headerLabel = isThinking ? "Thinking" : "Thought";
 

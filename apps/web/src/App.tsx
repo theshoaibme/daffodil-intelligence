@@ -168,6 +168,7 @@ function ChatDashboard() {
     startNewChat,
     deleteHistory,
     shareHistory,
+    bindChatIdToSession,
   } = useChatHistory();
   const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
     DASHBOARD_STORAGE_KEYS.sidebarOpen,
@@ -279,6 +280,11 @@ function ChatDashboard() {
     syncActiveSession(chatId, messages);
   }, [chatId, messages, isStreaming, syncActiveSession]);
 
+  useEffect(() => {
+    if (!activeHistoryId || !chatId || isStreaming) return;
+    bindChatIdToSession(activeHistoryId, chatId);
+  }, [activeHistoryId, chatId, isStreaming, bindChatIdToSession]);
+
   const flushCurrentSession = useCallback(() => {
     if (!isStreaming) {
       syncActiveSession(chatId, messages);
@@ -360,7 +366,15 @@ function ChatDashboard() {
     flushCurrentSession();
     const session = startNewChat();
     lastUrlChatRef.current = session.sessionId;
-    loadSession(session.chatId, session.messages);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("chat", session.sessionId);
+        return next;
+      },
+      { replace: true }
+    );
+    loadSession(null, []);
     setPrompt("");
     setAgentSimulationOpen(false);
     setPreferSidePanel(false);
@@ -432,7 +446,15 @@ function ChatDashboard() {
     if (!activeHistoryId) {
       const session = startNewChat();
       lastUrlChatRef.current = session.sessionId;
-      loadSession(session.chatId, session.messages);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("chat", session.sessionId);
+          return next;
+        },
+        { replace: true }
+      );
+      loadSession(null, []);
     }
 
     const mcpServers = readLocalMcpServers();
@@ -601,16 +623,17 @@ function ChatDashboard() {
                 className={`w-full mx-auto min-w-0 h-full min-h-0 max-h-full pointer-events-auto px-1 ${
                   showSplitAgentAndChat
                     ? "max-w-4xl grid grid-rows-[minmax(240px,48%)_minmax(0,1fr)] gap-2"
-                    : "max-w-3xl flex flex-col justify-center"
+                    : "max-w-3xl flex flex-col justify-start"
                 }`}
               >
                 {showSplitAgentAndChat && (
                   <div className="min-h-0 h-full w-full overflow-hidden rounded-2xl border border-outline-variant/30 shadow-sm bg-[#f4f2ff]">
-                    <AgentDashboard embedded onClose={handleCloseAgentView} />
+                    <AgentDashboard embedded sessionId={chatId ? String(chatId) : null} onClose={handleCloseAgentView} />
                   </div>
                 )}
                 <div className="min-h-0 overflow-hidden">
                   <ResponseFullView
+                    sessionId={chatId ? String(chatId) : null}
                     messages={messages}
                     isStreaming={isStreaming}
                     thinkingSteps={thinkingSteps}
@@ -638,7 +661,7 @@ function ChatDashboard() {
               >
                 <div className="w-full max-w-4xl mx-auto flex-1 min-h-[min(560px,calc(100%-1rem))] h-full max-h-full pointer-events-auto px-1 sm:px-0 pt-2">
                   <div className="h-full min-h-[320px] overflow-hidden rounded-2xl border border-outline-variant/30 shadow-sm bg-[#f4f2ff]">
-                    <AgentDashboard embedded onClose={handleCloseAgentView} />
+                    <AgentDashboard embedded sessionId={chatId ? String(chatId) : null} onClose={handleCloseAgentView} />
                   </div>
                 </div>
               </motion.div>

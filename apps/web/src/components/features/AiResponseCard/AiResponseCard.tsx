@@ -32,7 +32,7 @@ export function AiResponseCard({
 
   return (
     <div
-      className={`w-full glass-gradient-panel border border-outline-variant/40 rounded-[28px] shadow-md text-left relative overflow-hidden flex flex-col min-w-0 select-text ${
+      className={`w-full rounded-2xl bg-surface-container-high/20 text-left relative overflow-hidden flex flex-col min-w-0 select-text ${
         fillHeight
           ? "h-full min-h-[200px] max-h-full p-3 sm:p-4"
           : "max-w-md h-[min(360px,50dvh)] sm:h-[360px] p-3 sm:p-4"

@@ -9,14 +9,14 @@ interface UiPanelProps {
 export function UiPanel({ title, children, className = "" }: UiPanelProps) {
   return (
     <div
-      className={`glass-gradient-panel border border-outline-variant/40 rounded-2xl overflow-hidden ${className}`}
+      className={`bg-surface-container-high/30 rounded-lg overflow-hidden ${className}`}
     >
       {title ? (
-        <div className="px-3 py-2 border-b border-outline-variant/30 bg-surface-container-high/40">
-          <h4 className="text-sm font-semibold text-on-surface">{title}</h4>
+        <div className="px-3 py-1.5">
+          <h4 className="text-sm font-medium text-on-surface">{title}</h4>
         </div>
       ) : null}
-      <div className="p-3">{children}</div>
+      <div className="px-3 pb-3 pt-0">{children}</div>
     </div>
   );
 }

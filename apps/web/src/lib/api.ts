@@ -6,6 +6,9 @@ import {
 import type { ChatContextUsage } from "./chatContext";
 import { coerceUiBlock, mergeUiBlocks } from "./uiBlocks/coerce";
 import type { UiBlock } from "./uiBlocks/types";
+import { parseEnvelope, envelopeToStreamEvent } from "./aiEvents";
+import { eventBus } from "../engine/EventBus";
+import type { AiEventEnvelope } from "../engine/types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -331,11 +334,18 @@ export interface StreamEvent {
   block?: UiBlock;
 }
 
+export interface SSEStreamOptions {
+  sessionId?: string;
+  onEnvelope?: (envelope: AiEventEnvelope) => void;
+  signal?: AbortSignal;
+}
+
 async function consumeSSEStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onChunk?: (text: string) => void,
   onContext?: (context: ChatContextUsage) => void,
-  onEvent?: (event: StreamEvent) => void
+  onEvent?: (event: StreamEvent) => void,
+  streamOptions?: SSEStreamOptions
 ): Promise<StreamResult> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -343,7 +353,13 @@ async function consumeSSEStream(
   let metadata: Record<string, unknown> | undefined;
   const uiBlocks: UiBlock[] = [];
 
+  let currentTurnId = "";
+
   while (true) {
+    if (streamOptions?.signal?.aborted) {
+      reader.cancel().catch(() => undefined);
+      break;
+    }
     const { done, value } = await reader.read();
     if (done) break;
 
@@ -359,7 +375,7 @@ async function consumeSSEStream(
       if (!payload || payload === "[DONE]") continue;
 
       try {
-        const parsed = JSON.parse(payload) as {
+        const parsed = JSON.parse(payload) as Record<string, unknown> & {
           type?: string;
           content?: string;
           id?: number;
@@ -389,6 +405,48 @@ async function consumeSSEStream(
           parallel_group?: string;
           depth?: number;
         };
+
+        const sessionId = streamOptions?.sessionId ?? "0";
+        const envelope = parseEnvelope(parsed, sessionId, currentTurnId || undefined);
+        if (envelope) {
+          if (envelope.turn_id) currentTurnId = envelope.turn_id;
+          eventBus.publish(envelope);
+          streamOptions?.onEnvelope?.(envelope);
+          const streamEv = envelopeToStreamEvent(envelope);
+          if (streamEv) onEvent?.(streamEv);
+          if (envelope.type === "message.chunk") {
+            const chunk = String(envelope.payload.content ?? "");
+            if (chunk) {
+              fullContent += chunk;
+              onChunk?.(chunk);
+            }
+            continue;
+          }
+          if (envelope.type === "context.usage") {
+            const ratio =
+              envelope.payload.usage_ratio != null
+                ? Number(envelope.payload.usage_ratio)
+                : Math.min(1, Math.max(0, Number(envelope.payload.usage_percent ?? 0) / 100));
+            const ctx: ChatContextUsage = {
+              usage_ratio: ratio,
+              used_tokens: Number(envelope.payload.used_tokens ?? 0),
+              max_tokens: Number(envelope.payload.max_tokens ?? 128_000),
+              usage_percent: Number(envelope.payload.usage_percent ?? Math.round(ratio * 100)),
+              breakdown: (envelope.payload.breakdown as ChatContextUsage["breakdown"]) ?? {
+                messages: 0,
+                draft: 0,
+                memory_recall: 0,
+                system_overhead: 0,
+              },
+              message_count: Number(envelope.payload.message_count ?? 0),
+              model_id: envelope.payload.model_id as string | undefined,
+            };
+            metadata = { ...metadata, context_usage: ctx };
+            onContext?.(ctx);
+            continue;
+          }
+          if (envelope.type === "stream.done") continue;
+        }
 
         if (
           parsed.type === "context" &&
@@ -443,6 +501,8 @@ async function consumeSSEStream(
         }
 
         if (parsed.type === "content" && typeof parsed.content === "string") {
+          // Skip if already handled via envelope wrapper (has nested envelope field)
+          if (parsed.envelope) continue;
           if (parsed.content) {
             fullContent += parsed.content;
             onChunk?.(parsed.content);
@@ -575,7 +635,8 @@ export async function sendMessage(
   onContext?: (context: ChatContextUsage) => void,
   metadata?: Record<string, unknown>,
   onEvent?: (event: StreamEvent) => void,
-  voice?: VoiceAttachmentPayload
+  voice?: VoiceAttachmentPayload,
+  streamOptions?: SSEStreamOptions
 ): Promise<{ content: string; metadata?: Record<string, unknown> }> {
   const mergedMetadata = { ...(metadata ?? {}) };
   if (voice) {
@@ -589,6 +650,7 @@ export async function sendMessage(
       model_id: modelId,
       metadata: mergedMetadata,
     }),
+    signal: streamOptions?.signal,
   });
   if (!res.ok) throw new ApiError(await parseError(res), res.status);
 
@@ -596,7 +658,10 @@ export async function sendMessage(
   if (contentType.includes("text/event-stream") || contentType.includes("application/x-ndjson")) {
     const reader = res.body?.getReader();
     if (!reader) throw new Error("No response body");
-    return consumeSSEStream(reader, onChunk, onContext, onEvent);
+    return consumeSSEStream(reader, onChunk, onContext, onEvent, {
+      sessionId: String(chatId),
+      ...streamOptions,
+    });
   }
 
   const data = await res.json();

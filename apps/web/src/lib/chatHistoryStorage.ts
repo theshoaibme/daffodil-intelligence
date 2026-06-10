@@ -114,6 +114,7 @@ export function formatHistoryDate(iso: string): string {
 }
 
 export function createHistorySession(title = "New chat"): ChatHistoryEntry {
+  const entries = pruneEmptyGenericSessions(loadChatHistory());
   const entry: ChatHistoryEntry = {
     id: generateChatSessionId(),
     title,
@@ -121,10 +122,39 @@ export function createHistorySession(title = "New chat"): ChatHistoryEntry {
     chatId: null,
     messages: [],
   };
-  const entries = [entry, ...loadChatHistory()];
-  saveChatHistory(entries);
+  const next = [entry, ...entries];
+  saveChatHistory(next);
   setActiveHistoryId(entry.id);
   return entry;
+}
+
+/** Remove stale empty "New agent" stubs before creating a fresh session. */
+function pruneEmptyGenericSessions(entries: ChatHistoryEntry[]): ChatHistoryEntry[] {
+  return entries.filter(
+    (entry) =>
+      !(
+        entry.messages.length === 0 &&
+        entry.chatId == null &&
+        isGenericTitle(entry.title)
+      )
+  );
+}
+
+/** Link a server chat id to a sidebar session before messages are persisted. */
+export function bindChatIdToSession(sessionId: string, chatId: number): ChatHistoryEntry[] {
+  const entries = loadChatHistory();
+  const index = entries.findIndex((entry) => entry.id === sessionId);
+  if (index < 0) return entries;
+  if (entries[index].chatId === chatId) return entries;
+
+  const next = [...entries];
+  next[index] = {
+    ...next[index],
+    chatId,
+    updatedAt: new Date().toISOString(),
+  };
+  saveChatHistory(next);
+  return next;
 }
 
 export function upsertHistoryEntry(
