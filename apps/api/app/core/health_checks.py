@@ -111,13 +111,27 @@ def _check_tools() -> Dict[str, Any]:
 
 
 def _check_agent_runtime() -> Dict[str, Any]:
-    from ..runtime.agent_factory import is_available
+    from ..runtime.agent_factory import glm_orchestration_available, is_available
+    from ..core.hf_models import GLM_5_1_CATALOG_ID
 
-    ok = is_available()
+    antigravity_ok = is_available()
+    glm_ok = glm_orchestration_available()
+    if antigravity_ok:
+        engine = "antigravity"
+        model = settings.ANTIGRAVITY_MODEL
+    elif glm_ok:
+        engine = "huggingface"
+        model = settings.HUGGINGFACE_MODEL or GLM_5_1_CATALOG_ID
+    else:
+        engine = "unavailable"
+        model = settings.ANTIGRAVITY_MODEL
     return {
-        "status": "up" if ok else "down",
-        "engine": "antigravity" if ok else "unavailable",
-        "model": settings.ANTIGRAVITY_MODEL,
+        "status": "up" if (antigravity_ok or glm_ok) else "down",
+        "engine": engine,
+        "model": model,
+        "antigravity": antigravity_ok,
+        "glm_orchestration": glm_ok,
+        "glm_default_model": GLM_5_1_CATALOG_ID,
     }
 
 

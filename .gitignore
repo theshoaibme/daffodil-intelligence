@@ -44,6 +44,9 @@ agent_memory.json
 telegram_profiles.json
 telegram_users.json
 apps/api/data/custom_agents.json
+# Local runtime data (routines CSV/PDF, examples) — not versioned
+apps/api/data/
+!apps/api/data/.gitkeep
 
 # CopyCat Kit — local install / build (never commit)
 packages/daffodil-kit/native/target/

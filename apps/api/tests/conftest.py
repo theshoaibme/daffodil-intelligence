@@ -11,3 +11,10 @@ if str(API_ROOT) not in sys.path:
 
 # University-data mocks only; auth always requires real register/login + JWT.
 os.environ.setdefault("USE_MOCK_DATA", "true")
+
+
+def run_async(coro):
+    """Run async test coroutines without pytest-asyncio."""
+    import asyncio
+
+    return asyncio.run(coro)

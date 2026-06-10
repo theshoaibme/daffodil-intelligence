@@ -15,7 +15,9 @@ import logging
 from typing import Any, AsyncIterator, List, Optional
 
 from .session_manager import session_manager
-from .agent_factory import AgentPersona
+from ..core.config import get_settings
+from ..core.hf_models import GLM_5_1_CATALOG_ID, is_hf_model
+from .agent_factory import AgentPersona, should_run_antigravity
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,7 @@ async def run(
         if include_tools is None:
             include_tools = cfg.tool_names
 
-    if session_manager.available():
+    if should_run_antigravity(model):
         try:
             res = await session_manager.chat(
                 message, user_id=user_id, chat_id=chat_id,
@@ -76,6 +78,24 @@ async def run(
             return res
         except Exception as e:
             logger.error(f"Antigravity run failed, falling back to legacy: {e}")
+
+    from .chat_router import message_needs_tools
+    from . import hf_chat
+
+    glm_model = model if model and is_hf_model(model) else GLM_5_1_CATALOG_ID
+    if hf_chat.is_available() and is_hf_model(glm_model) and not message_needs_tools(message):
+        try:
+            res = await hf_chat.chat(
+                message,
+                extra_system=extra_system,
+                model=glm_model,
+            )
+            res["engine"] = "huggingface"
+            res["model_id"] = glm_model
+            return res
+        except Exception as e:
+            logger.error("GLM orchestration chat failed, falling back to legacy: %s", e)
+
     return await _legacy_run(message, user_id, metadata)
 
 
@@ -101,7 +121,7 @@ async def run_stream(
         if include_tools is None:
             include_tools = cfg.tool_names
 
-    if session_manager.available():
+    if should_run_antigravity(model):
         try:
             async for event in session_manager.stream(
                 message, user_id=user_id, chat_id=chat_id,
@@ -115,6 +135,21 @@ async def run_stream(
             logger.error(f"Antigravity stream failed, falling back: {e}")
 
     from .chat_router import message_needs_tools
+    from . import hf_chat
+
+    glm_model = model if model and is_hf_model(model) else GLM_5_1_CATALOG_ID
+    if hf_chat.is_available() and is_hf_model(glm_model) and not message_needs_tools(message):
+        try:
+            async for event in hf_chat.stream_chat(
+                message,
+                extra_system=extra_system,
+                model=glm_model,
+            ):
+                yield event
+            return
+        except Exception as e:
+            logger.error("GLM orchestration stream failed, falling back: %s", e)
+
     from .groq_chat import is_available as groq_available, stream_chat as groq_stream
 
     if groq_available() and not message_needs_tools(message):

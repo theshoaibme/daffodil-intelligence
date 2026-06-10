@@ -17,8 +17,14 @@ def test_client_catalog_matches_registry():
     assert "get_cgpa" in TOOL_REGISTRY
 
 
-async def test_client_execute_tool_via_registry():
-    res = await execute_tool("get_cgpa", student_id="221-15-1234")
+def test_client_execute_tool_via_registry():
+    from tests.conftest import run_async
+    from app.mcp.client import execute_tool
+
+    async def _run():
+        return await execute_tool("get_cgpa", student_id="221-15-1234")
+
+    res = run_async(_run())
     assert res["success"]
     assert "cgpa" in res["data"]
 

@@ -62,6 +62,24 @@ def is_available() -> bool:
     return _ANTIGRAVITY_AVAILABLE and bool(settings.GEMINI_API_KEY)
 
 
+def should_run_antigravity(model: Optional[str] = None) -> bool:
+    """Run Antigravity only for Gemini-routed turns; GLM uses Hugging Face instead."""
+    from ..core.hf_models import is_hf_model
+
+    if not is_available():
+        return False
+    if model and is_hf_model(model):
+        return False
+    return True
+
+
+def glm_orchestration_available() -> bool:
+    """Agent orchestration can run on GLM 5.1 via Hugging Face (no Gemini key change)."""
+    from .hf_chat import is_available as hf_available
+
+    return hf_available()
+
+
 def _get_mcp_servers() -> List[Any]:
     """Best-effort load of MCP server configs for the agent to consume."""
     try:
