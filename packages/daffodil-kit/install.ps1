@@ -17,19 +17,25 @@ function Test-PythonCommand([string[]]$PyCommand) {
     } elseif (-not (Get-Command $exe -ErrorAction SilentlyContinue)) {
         return $false
     }
-    $prefix = @()
-    if ($PyCommand.Length -gt 1) { $prefix = $PyCommand[1..($PyCommand.Length - 1)] }
-    $checkArgs = @($prefix + @("-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"))
-    $proc = Start-Process -FilePath $exe -ArgumentList $checkArgs -Wait -PassThru -NoNewWindow
-    return $proc.ExitCode -eq 0
+    try {
+        $prefix = @()
+        if ($PyCommand.Length -gt 1) { $prefix = $PyCommand[1..($PyCommand.Length - 1)] }
+        $prevErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
+        & $exe $prefix -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)"
+        $ErrorActionPreference = $prevErrorAction
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
 }
 
 function Invoke-PythonScript([string[]]$PyCommand, [string]$ScriptPath) {
     $pythonExe = [string]$PyCommand[0]
     $pythonArgs = @()
     if ($PyCommand.Length -gt 1) { $pythonArgs = $PyCommand[1..($PyCommand.Length - 1)] }
-    $proc = Start-Process -FilePath $pythonExe -ArgumentList @($pythonArgs + $ScriptPath) -Wait -PassThru -NoNewWindow
-    return $proc.ExitCode
+    & $pythonExe $pythonArgs $ScriptPath
+    return $LASTEXITCODE
 }
 
 function Get-PythonCandidates {
@@ -42,7 +48,7 @@ function Get-PythonCandidates {
         }
     }
 
-    foreach ($cmd in @(@("py", "-3.12"), @("py", "-3.11"), @("py", "-3"), @("python3"), @("python"))) {
+    foreach ($cmd in @(@("py", "-3.13"), @("py", "-3.12"), @("py", "-3.11"), @("py", "-3"), @("python3"), @("python"))) {
         $candidates.Add($cmd)
     }
 
@@ -61,7 +67,11 @@ function Get-PythonCandidates {
 
 function Find-Python {
     foreach ($cmd in Get-PythonCandidates) {
-        if (Test-PythonCommand $cmd) { return ,$cmd }
+        $name = $cmd -join ' '
+        Write-Log "Testing candidate: $name"
+        $ok = Test-PythonCommand $cmd
+        Write-Log "  -> Result: $ok"
+        if ($ok) { return ,$cmd }
     }
     return $null
 }
@@ -81,7 +91,7 @@ function Refresh-PythonPath {
 }
 
 function Install-PythonWindows {
-    Write-Log "No Python 3.11+ — installing..."
+    Write-Log "No Python 3.11+ - installing..."
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements --silent
         Start-Sleep -Seconds 5
@@ -116,7 +126,7 @@ if (-not $py) {
         Refresh-PythonPath
     }
 }
-if (-not $py) { throw "Python still not found after install — restart terminal and re-run" }
+if (-not $py) { throw "Python still not found after install - restart terminal and re-run" }
 
 Write-Log "Using Python: $($py -join ' ')"
 $exitCode = Invoke-PythonScript -PyCommand @($py) -ScriptPath $InstallPy
