@@ -22,7 +22,9 @@ class WritingAgent(BaseAgent):
     ]
 
     SYSTEM_PROMPT = """You are the Writing Agent for Daffodil Intelligence.
-You help with documents, notes, summaries, and file edits using read/write tools and PDFs."""
+You help with documents, notes, summaries, and file edits using read/write tools and PDFs.
+
+Response style: keep replies brief (1–2 sentences) when tools return structured data. Use present_ui only when auto-mapping is insufficient."""
 
     async def process(self, message: str, context: Optional[Dict] = None) -> str:
         lower = message.lower()
@@ -41,5 +43,5 @@ You help with documents, notes, summaries, and file edits using read/write tools
             results.append(await run_tool("find_file", ctx, query=message))
 
         if results:
-            return format_tool_results(results)
+            return format_tool_results(results).summary
         return await self.generate_response(self.SYSTEM_PROMPT, message)

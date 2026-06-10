@@ -16,3 +16,7 @@ export * from "./models";
 export * from "./motion";
 export * from "./n8nWorkflowParser";
 export * from "./routes";
+export * from "./uiBlocks/types";
+export * from "./uiBlocks/normalize";
+export * from "./uiBlocks/coerce";
+export * from "./uiBlocks/sanitizeContent";

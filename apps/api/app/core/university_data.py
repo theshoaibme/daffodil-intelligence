@@ -132,11 +132,15 @@ class UniversityDataConnector:
         day: str = None,
         department: str = None,
     ) -> Dict:
-        from ..automation.routines_data import get_uploaded_routine
+        from ..automation.routine_fetch import fetch_class_routine
 
         if not section:
             return {"error": "section_required", "hint": "Provide section from memory, skills, or uploads."}
-        return get_uploaded_routine(section, day, department=department)
+        return await fetch_class_routine(
+            section=section,
+            day=day,
+            department=department,
+        )
 
     async def get_exam_schedule(self, student_id: str, semester: str = None) -> List[Dict]:
         params = {"semester": semester} if semester else None

@@ -44,14 +44,34 @@ def _make_callable(tool: BaseTool) -> Callable[..., Any]:
     tool_name = tool.name
 
     async def _runner(**kwargs: Any) -> str:
-        from .task_events import stash_pending_tool_events, take_nested_events
+        from ..ui_blocks.mappers import enrich_tool_result
+        from ..ui_blocks.schemas import ui_block_to_dict
+        from .task_events import (
+            stash_pending_tool_events,
+            stash_pending_ui_events,
+            take_nested_events,
+        )
 
         take_nested_events()
-        result = await registry.execute(tool_name, **kwargs)
+        result = enrich_tool_result(await registry.execute(tool_name, **kwargs), tool_name)
         nested = take_nested_events()
         if nested:
             stash_pending_tool_events(nested)
+        if result.ui_blocks:
+            stash_pending_ui_events(
+                [
+                    {
+                        "type": "ui",
+                        "block": ui_block_to_dict(block),
+                        "source": "local",
+                        "tool_name": tool_name,
+                    }
+                    for block in result.ui_blocks
+                ]
+            )
         if result.success:
+            if result.summary:
+                return result.summary
             return _serialize(result.data)
         return f"ERROR ({tool_name}): {result.error}"
 

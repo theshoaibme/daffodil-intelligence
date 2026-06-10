@@ -15,6 +15,8 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
         "class routine",
         "class schedule",
         "my routine",
+        "today routine",
+        "daily routine",
         "section routine",
         "tomorrow class",
         "today class",
@@ -253,8 +255,17 @@ class RoutePlan:
             f"- Also consider: {agents}",
             f"- Prefer tools: {tools}",
         ]
+        if self.primary == "routine":
+            lines.append(
+                "- Class schedules: use invoke_agent(agent_type=\"routine\", message=...) or "
+                "get_class_routine(section, day). Data comes from data/routines/*.csv, memory, "
+                "uploads, or MCP PDF tools — never invent subjects or times."
+            )
         if self.section:
-            lines.append(f"- Section detected: `{self.section}` — call get_class_routine(section=\"{self.section}\")")
+            lines.append(
+                f"- Section detected: `{self.section}` — get_class_routine(section=\"{self.section}\", "
+                "day=today|tomorrow|Monday)"
+            )
         elif self.primary == "routine":
             lines.append(
                 "- If section is missing, ask once for the user's section code. "

@@ -15,6 +15,8 @@ import {
 } from "../lib/agentTasks";
 import { emitFlow, getFlow, resetFlow } from "../lib/flowBus";
 import type { ChatContextUsage } from "../lib/chatContext";
+import { coerceUiBlock, mergeUiBlocks } from "../lib/uiBlocks/coerce";
+import type { UiBlock } from "../lib/uiBlocks/types";
 
 function syncFlowFromTasks(tasks: AgentTaskNode[], inputId: string | null) {
   const activeAgents = activeAgentsFromTasks(tasks);
@@ -28,30 +30,10 @@ function syncFlowFromTasks(tasks: AgentTaskNode[], inputId: string | null) {
   });
 }
 
-function humanizeName(name: string): string {
-  return name
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
-}
-
 function normalizeStatus(status?: string): ThinkingStep["status"] {
   if (status === "success" || status === "done" || status === "completed") return "success";
   if (status === "active" || status === "running" || status === "start") return "active";
   return "active";
-}
-
-function upsertStep(
-  steps: ThinkingStep[],
-  id: string,
-  title: string,
-  status: ThinkingStep["status"]
-): ThinkingStep[] {
-  const existing = steps.find((s) => s.id === id);
-  if (!existing) {
-    return [...steps, { id, title, status }];
-  }
-  return steps.map((s) => (s.id === id ? { ...s, status } : s));
 }
 
 export interface ChatMessage {
@@ -63,8 +45,21 @@ export interface ChatMessage {
     agent?: string;
     tools_used?: string[];
     sources?: string[];
+    ui_blocks?: UiBlock[];
+    [key: string]: unknown;
   };
   isStreaming?: boolean;
+}
+
+function withCoercedUiBlocks(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((m) => {
+    const raw = m.metadata?.ui_blocks;
+    if (!Array.isArray(raw) || raw.length === 0) return m;
+    return {
+      ...m,
+      metadata: { ...m.metadata, ui_blocks: mergeUiBlocks(raw) },
+    };
+  });
 }
 
 export interface ThinkingStep {
@@ -112,7 +107,7 @@ export function useChat(options?: UseChatOptions) {
     resetFlow();
     thinkingStartRef.current = null;
     setChatId(nextChatId);
-    setMessages(nextMessages);
+    setMessages(withCoercedUiBlocks(nextMessages));
     setThinkingSteps([]);
     setAgentTasks([]);
     setThinkingText("");
@@ -173,6 +168,7 @@ export function useChat(options?: UseChatOptions) {
       setAgentTasks([]);
       setThinkingText("");
       setThinkingMs(0);
+      setLastContext(null);
       resetFlow();
       const channel = (metadata?.channel as string) || "chat";
       const inputId = channel === "telegram" ? "input-telegram" : "input-chat";
@@ -242,6 +238,25 @@ export function useChat(options?: UseChatOptions) {
             return;
           }
 
+          if (event.type === "ui" && event.block) {
+            const block = coerceUiBlock(event.block);
+            if (!block) return;
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== assistantMessageId) return m;
+                const existing = (m.metadata?.ui_blocks as UiBlock[] | undefined) ?? [];
+                return {
+                  ...m,
+                  metadata: {
+                    ...m.metadata,
+                    ui_blocks: mergeUiBlocks(existing, [block]),
+                  },
+                };
+              })
+            );
+            return;
+          }
+
           if (
             event.type === "task" ||
             event.type === "tool" ||
@@ -292,17 +307,25 @@ export function useChat(options?: UseChatOptions) {
         prev.map(s => ({ ...s, status: "success" }))
       );
 
-      setMessages(prev => 
-        prev.map(m => 
-          m.id === assistantMessageId 
-            ? { 
-                ...m, 
-                content: response.content,
-                metadata: response.metadata,
-                isStreaming: false,
-              } 
-            : m
-        )
+      setMessages(prev =>
+        prev.map((m) => {
+          if (m.id !== assistantMessageId) return m;
+          const streamedBlocks = (m.metadata?.ui_blocks as UiBlock[] | undefined) ?? [];
+          const finalBlocks = mergeUiBlocks(
+            streamedBlocks,
+            (response.metadata?.ui_blocks as UiBlock[] | undefined) ?? []
+          );
+          return {
+            ...m,
+            content: response.content,
+            metadata: {
+              ...m.metadata,
+              ...response.metadata,
+              ui_blocks: finalBlocks.length ? finalBlocks : undefined,
+            },
+            isStreaming: false,
+          };
+        })
       );
 
       setIsStreaming(false);

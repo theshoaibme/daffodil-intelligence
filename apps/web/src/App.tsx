@@ -217,7 +217,7 @@ function ChatDashboard() {
   });
 
   const fetchedContext = useChatContext(chatId, messages, prompt, selectedModelId);
-  const chatContext = lastContext ?? fetchedContext;
+  const chatContext = isStreaming && lastContext ? lastContext : fetchedContext;
 
   useEffect(() => {
     try {
@@ -353,11 +353,11 @@ function ChatDashboard() {
   const showAgentDashboard = agentModeActive && agentSimulationOpen;
 
   const agentLiveTasks = useMemo<TaskItem[] | null>(() => {
-    if (!showAgentDashboard || !isStreaming) return null;
+    if (!showAgentDashboard) return null;
     if (agentTasks.length > 0) {
       return tasksToPanelItems(agentTasks);
     }
-    if (thinkingSteps.length === 0) return null;
+    if (!isStreaming || thinkingSteps.length === 0) return null;
     return thinkingSteps.map((step) => ({
       id: step.id,
       text: step.title,

@@ -10,6 +10,7 @@ export interface AgentTaskNode {
   id: string;
   parentId?: string;
   title: string;
+  name?: string;
   kind: "agent" | "tool" | "plan" | "memory" | "status" | "model";
   status: TaskStatus;
   depth: number;
@@ -29,6 +30,8 @@ export interface TaskStreamEvent {
   parallel_group?: string;
   depth?: number;
   content?: string;
+  source?: string;
+  mcp_server?: string;
 }
 
 export function agentForTool(toolName: string, agentId?: string): string[] {
@@ -64,6 +67,7 @@ export function reduceAgentTasks(
       id: event.task_id,
       parentId: event.parent_id,
       title: event.title || humanize(event.name || "Task"),
+      name: event.name,
       kind: (event.kind as AgentTaskNode["kind"]) || "tool",
       status: normalizeStatus(event.status),
       depth: event.depth ?? 0,
@@ -74,12 +78,18 @@ export function reduceAgentTasks(
 
   if (event.type === "agent" || event.type === "subagent") {
     const agentId = event.agent_id || event.name || "main";
+    if (tasks.some((t) => t.kind === "agent" && t.agentId === agentId && t.id.startsWith("task-"))) {
+      return tasks;
+    }
     const id = `agent:${agentId}:${event.type}`;
     const parentId = event.type === "subagent" ? "root" : undefined;
     return upsertTask(tasks, {
       id,
       parentId,
-      title: `${event.type === "subagent" ? "Delegate" : "Run"} ${humanize(agentId)}`,
+      title:
+        event.type === "subagent" && agentId === "routine"
+          ? "Routine Agent"
+          : `${event.type === "subagent" ? "Delegate" : "Run"} ${humanize(agentId)}`,
       kind: "agent",
       status: normalizeStatus(event.status),
       depth: event.type === "subagent" ? 1 : 0,
@@ -88,20 +98,31 @@ export function reduceAgentTasks(
   }
 
   if (event.type === "tool" && event.name) {
+    if (tasks.some((t) => t.kind === "tool" && t.name === event.name)) {
+      return tasks;
+    }
     const id = `tool:${event.name}${event.agent_id ? `:${event.agent_id}` : ""}`;
-    const title =
+    let title =
       event.name === "invoke_agent" && event.agent_id
         ? `Delegate ${humanize(event.agent_id)}`
         : event.name === "parallel_invoke_agents"
           ? "Parallel agents"
-          : `Tool: ${humanize(event.name)}`;
+          : event.name === "get_class_routine"
+            ? "Load class routine"
+            : `Tool: ${humanize(event.name)}`;
+    if (event.source === "mcp") {
+      title = `MCP · ${humanize(event.mcp_server ?? "server")} · ${humanize(event.name)}`;
+    }
+    const parentId = event.agent_id ? `agent:${event.agent_id}:subagent` : "root";
+    const depth = event.agent_id ? 2 : 1;
     return upsertTask(tasks, {
       id,
-      parentId: "root",
+      parentId,
       title,
+      name: event.name,
       kind: "tool",
       status: normalizeStatus(event.status),
-      depth: 1,
+      depth,
       agentId: event.agent_id,
     });
   }
@@ -170,8 +191,10 @@ export function activeAgentsFromTasks(tasks: AgentTaskNode[]): string[] {
     if (t.kind === "agent" && t.agentId) active.add(t.agentId);
     if (t.kind === "tool" && t.agentId) active.add(t.agentId);
     if (t.kind === "tool") {
-      const toolName = t.id.replace(/^tool:/, "").split(":")[0];
-      for (const aid of agentsForTool(toolName, t.agentId)) active.add(aid);
+      const toolName = t.name || t.id.replace(/^tool:/, "").split(":")[0];
+      if (toolName) {
+        for (const aid of agentsForTool(toolName, t.agentId)) active.add(aid);
+      }
     }
   }
   if (tasks.some((t) => t.status === "active")) active.add("main");
@@ -181,7 +204,8 @@ export function activeAgentsFromTasks(tasks: AgentTaskNode[]): string[] {
 export function activeToolsFromTasks(tasks: AgentTaskNode[]): string[] {
   return tasks
     .filter((t) => t.kind === "tool" && t.status === "active")
-    .map((t) => t.id.replace(/^tool:/, "").split(":")[0]);
+    .map((t) => t.name || t.id.replace(/^tool:/, "").split(":")[0])
+    .filter(Boolean);
 }
 
 export function memoryActiveFromTasks(tasks: AgentTaskNode[]): boolean {

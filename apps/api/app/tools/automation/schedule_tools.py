@@ -38,26 +38,7 @@ class GetDailyScheduleTool(BaseTool):
         reminders = automation_store.list_reminders(uid) if uid else []
         routines = automation_store.list_personal_routines(uid) if uid else []
 
-        summary_lines = [f"📅 **Today ({today}) — section {sec}**"]
         items = classes.get("items") or []
-        if items:
-            summary_lines.append("\n**Classes**")
-            for it in items:
-                summary_lines.append(
-                    f"• {it['time']} — {it.get('course', '')} {it.get('title', '')}"
-                )
-        else:
-            summary_lines.append("\n_No classes scheduled today._")
-
-        if reminders:
-            summary_lines.append("\n**Reminders**")
-            for r in reminders[:8]:
-                summary_lines.append(f"• {r.title} @ {r.fire_at}")
-
-        if routines:
-            summary_lines.append("\n**Personal routines**")
-            for r in routines[:5]:
-                summary_lines.append(f"• {r.name} ({r.schedule})")
 
         return self.ok(
             {
@@ -66,7 +47,6 @@ class GetDailyScheduleTool(BaseTool):
                 "classes": items,
                 "reminders": [r.to_dict() for r in reminders],
                 "routines": [r.to_dict() for r in routines],
-                "summary": "\n".join(summary_lines),
             }
         )
 

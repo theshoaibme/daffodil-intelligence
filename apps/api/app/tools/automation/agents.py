@@ -10,7 +10,6 @@ from ...runtime.tool_context import get_user_id
 
 _STREAMING_AGENTS = frozenset(
     {
-        "routine",
         "planning",
         "academic",
         "exam",
@@ -60,7 +59,7 @@ async def _stream_agent_turn(
         etype = event.get("type")
         if etype == "content":
             content_parts.append(event.get("content") or "")
-        elif etype in ("tool", "subagent", "memory", "agent", "task"):
+        elif etype in ("tool", "subagent", "memory", "agent", "task", "ui"):
             child = dict(event)
             child["parent_id"] = task_id
             child["depth"] = int(child.get("depth") or 0) + 2
@@ -181,9 +180,30 @@ class InvokeAgentTool(BaseTool):
                     "section": get_section(default=""),
                     "department": get_department(),
                 }
+                if key == "routine":
+                    from ...automation.routine_mcp import merge_invoke_metadata
+                    from ...runtime.routine_turn import run_routine_for_invoke
+
+                    meta = merge_invoke_metadata(key, message, uid)
+                    nested = await run_routine_for_invoke(
+                        message, user_id=uid, metadata=meta
+                    )
+                    response = nested.get("content") or ""
+                    ui_blocks = nested.get("ui_blocks") or []
+                    return ToolResult(
+                        success=True,
+                        data={
+                            "agent_type": key,
+                            "agent_name": agent.name,
+                            "response": response,
+                        },
+                        ui_blocks=ui_blocks,
+                        summary=response,
+                        tool_name=self.name,
+                    )
                 if key in _STREAMING_AGENTS:
                     meta = None
-                    if key in ("routine", "planning", "academic", "exam", "library", "transport"):
+                    if key in ("planning", "academic", "exam", "library", "transport"):
                         from ...automation.routine_mcp import merge_invoke_metadata
 
                         meta = merge_invoke_metadata(key, message, uid)
@@ -192,6 +212,26 @@ class InvokeAgentTool(BaseTool):
                     )
                 else:
                     response = await agent.process(message, ctx)
+                    ui_blocks = _collect_pending_ui_blocks()
+                    append_nested_event(
+                        {
+                            "type": "subagent",
+                            "agent_id": key,
+                            "name": key,
+                            "status": "success",
+                        }
+                    )
+                    return ToolResult(
+                        success=True,
+                        data={
+                            "agent_type": key,
+                            "agent_name": agent.name,
+                            "response": response,
+                        },
+                        ui_blocks=ui_blocks,
+                        summary=response,
+                        tool_name=self.name,
+                    )
                 return self.ok(
                     {
                         "agent_type": key,
@@ -323,6 +363,19 @@ class ParallelInvokeAgentsTool(BaseTool):
             depth=1,
         )
         return self.ok({"parallel_group": group_id, "results": results, "agents": keys})
+
+
+def _collect_pending_ui_blocks() -> List[Any]:
+    """Attach UI blocks produced by agent.process() run_tool calls."""
+    from ...runtime.task_events import pop_pending_ui_events
+    from ...ui_blocks.schemas import UiBlock
+
+    blocks: List[Any] = []
+    for event in pop_pending_ui_events():
+        payload = event.get("block")
+        if isinstance(payload, dict):
+            blocks.append(UiBlock.model_validate(payload))
+    return blocks
 
 
 def _parse_agent_types(raw: str) -> List[str]:

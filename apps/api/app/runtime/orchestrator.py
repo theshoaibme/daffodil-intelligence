@@ -23,13 +23,23 @@ logger = logging.getLogger(__name__)
 async def _legacy_run(message: str, user_id: Any, metadata: Optional[dict] = None) -> dict:
     from ..agents.supervisor import detect_intent, process_with_agents, synthesize_response
     from .intent_router import route_message
+    from .task_events import pop_pending_ui_events
 
     plan = route_message(message)
     agents = detect_intent(message)
     ctx = {"user_id": user_id, "section": (metadata or {}).get("section") or plan.section}
     results = await process_with_agents(message, agents, ctx)
     content = await synthesize_response(results, message)
-    return {"content": content, "tool_calls": plan.tools, "agents": agents, "engine": "legacy"}
+    ui_events = pop_pending_ui_events()
+    ui_blocks = [e["block"] for e in ui_events if isinstance(e.get("block"), dict)]
+    return {
+        "content": content,
+        "tool_calls": plan.tools,
+        "agents": agents,
+        "engine": "legacy",
+        "ui_events": ui_events,
+        "ui_blocks": ui_blocks,
+    }
 
 
 async def run(
@@ -120,6 +130,8 @@ async def run_stream(
             logger.error(f"Groq stream failed, falling back to legacy: {e}")
 
     result = await _legacy_run(message, user_id, metadata)
+    for ui_event in result.get("ui_events") or []:
+        yield ui_event
     content = result["content"] or ""
     for word in content.split(" "):
         yield {"type": "content", "content": word + " "}

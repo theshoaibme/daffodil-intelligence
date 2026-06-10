@@ -4,6 +4,8 @@ import {
   readStoredToken,
 } from "./authSession";
 import type { ChatContextUsage } from "./chatContext";
+import { coerceUiBlock, mergeUiBlocks } from "./uiBlocks/coerce";
+import type { UiBlock } from "./uiBlocks/types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -286,7 +288,7 @@ interface StreamResult {
 }
 
 export interface StreamEvent {
-  type: "thinking" | "tool" | "agent" | "subagent" | "status" | "model" | "memory" | "task";
+  type: "thinking" | "tool" | "agent" | "subagent" | "status" | "model" | "memory" | "task" | "ui";
   content?: string;
   name?: string;
   status?: string;
@@ -297,6 +299,10 @@ export interface StreamEvent {
   title?: string;
   parallel_group?: string;
   depth?: number;
+  source?: string;
+  mcp_server?: string;
+  tool_name?: string;
+  block?: UiBlock;
 }
 
 async function consumeSSEStream(
@@ -309,6 +315,7 @@ async function consumeSSEStream(
   let buffer = "";
   let fullContent = "";
   let metadata: Record<string, unknown> | undefined;
+  const uiBlocks: UiBlock[] = [];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -344,14 +351,31 @@ async function consumeSSEStream(
           name?: string;
           status?: string;
           agent_id?: string;
+          source?: string;
+          mcp_server?: string;
+          tool_name?: string;
+          block?: UiBlock;
+          task_id?: string;
+          parent_id?: string;
+          kind?: string;
+          title?: string;
+          parallel_group?: string;
+          depth?: number;
         };
 
-        if (parsed.type === "context" && parsed.usage_ratio != null) {
+        if (
+          parsed.type === "context" &&
+          (parsed.usage_ratio != null || parsed.usage_percent != null)
+        ) {
+          const ratio =
+            parsed.usage_ratio != null
+              ? parsed.usage_ratio
+              : Math.min(1, Math.max(0, (parsed.usage_percent ?? 0) / 100));
           const ctx: ChatContextUsage = {
-            usage_ratio: parsed.usage_ratio,
+            usage_ratio: ratio,
             used_tokens: parsed.used_tokens ?? 0,
             max_tokens: parsed.max_tokens ?? 128_000,
-            usage_percent: parsed.usage_percent ?? 0,
+            usage_percent: parsed.usage_percent ?? Math.round(ratio * 100),
             breakdown: parsed.breakdown ?? {
               messages: 0,
               draft: 0,
@@ -391,12 +415,30 @@ async function consumeSSEStream(
           continue;
         }
 
+        if (parsed.type === "ui" && parsed.block) {
+          const block = coerceUiBlock(parsed.block);
+          if (block) {
+            const merged = mergeUiBlocks(uiBlocks, [block]);
+            uiBlocks.length = 0;
+            uiBlocks.push(...merged);
+            onEvent?.({
+              type: "ui",
+              block,
+              source: parsed.source,
+              tool_name: parsed.tool_name,
+            });
+          }
+          continue;
+        }
+
         if (parsed.type === "tool") {
           onEvent?.({
             type: "tool",
             name: parsed.name,
             status: parsed.status,
             agent_id: parsed.agent_id,
+            source: parsed.source,
+            mcp_server: parsed.mcp_server,
           });
           continue;
         }
@@ -437,7 +479,12 @@ async function consumeSSEStream(
 
         if (parsed.id != null && parsed.role === "assistant") {
           fullContent = parsed.content;
-          metadata = parsed.metadata;
+          metadata = {
+            ...parsed.metadata,
+            ui_blocks:
+              (parsed.metadata?.ui_blocks as UiBlock[] | undefined) ??
+              (uiBlocks.length ? uiBlocks : undefined),
+          };
           continue;
         }
 
@@ -447,6 +494,10 @@ async function consumeSSEStream(
         // Ignore malformed SSE JSON lines.
       }
     }
+  }
+
+  if (uiBlocks.length) {
+    metadata = { ...metadata, ui_blocks: uiBlocks };
   }
 
   return { content: fullContent, metadata };

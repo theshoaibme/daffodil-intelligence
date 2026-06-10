@@ -10,7 +10,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .routine_resolver import ROUTINE_DATA_ROOT, normalize_department_key, normalize_section
+from .routine_resolver import (
+    ROUTINE_DATA_ROOT,
+    normalize_department_key,
+    normalize_section,
+    resolve_routine_day,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -354,7 +359,7 @@ def get_csv_routine(
         if path not in paths:
             paths.append(path)
 
-    day_key = _title_case_day(day) if day else None
+    day_key = resolve_routine_day(day) if day else None
 
     for path in paths:
         parsed = load_parsed_csv(str(path.resolve()))

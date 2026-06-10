@@ -7,6 +7,11 @@ import { ResponseContent } from "./ResponseContent";
 import { parseResponseText } from "./responseParse";
 import { ActionButtons } from "./ActionButtons";
 import { UserMessageRow } from "./UserMessageRow";
+import { StructuredBlockRenderer } from "@components/ui/blocks";
+import { coerceUiBlocks } from "@lib/uiBlocks/coerce";
+import { normalizeUiBlocks } from "@lib/uiBlocks/normalize";
+import { sanitizeAssistantContent } from "@lib/uiBlocks/sanitizeContent";
+import type { UiBlock } from "@lib/uiBlocks/types";
 
 export interface ConversationThreadProps {
   messages: ChatMessage[];
@@ -40,8 +45,13 @@ export function ConversationThread({
   const scrollRef = useRef<HTMLDivElement>(null);
   const isPanel = variant === "panel";
   const lastAssistant = messages.filter((m) => m.role === "assistant").pop();
+  const lastAssistantHasUi =
+    ((lastAssistant?.metadata?.ui_blocks as UiBlock[] | undefined)?.length ?? 0) > 0;
   const isLastAssistantStreaming =
-    isStreaming && lastAssistant && (!lastAssistant.content.trim() || lastAssistant.isStreaming);
+    isStreaming &&
+    Boolean(lastAssistant?.isStreaming) &&
+    !lastAssistant?.content.trim() &&
+    !lastAssistantHasUi;
 
   useEffect(() => {
     if (!autoScroll || !scrollRef.current) return;
@@ -49,7 +59,10 @@ export function ConversationThread({
   }, [autoScroll, messages, isStreaming, thinkingText]);
 
   const showActions = (message: ChatMessage, isLast: boolean) => {
-    if (message.role !== "assistant" || !message.content.trim()) return false;
+    const blocks = coerceUiBlocks((message.metadata?.ui_blocks as UiBlock[] | undefined) ?? []);
+    const display = sanitizeAssistantContent(message.content, blocks);
+    const hasUi = blocks.length > 0;
+    if (message.role !== "assistant" || (!display.trim() && !hasUi)) return false;
     if (isLast && isStreaming) return false;
     return true;
   };
@@ -87,10 +100,15 @@ export function ConversationThread({
               );
             }
 
-            const responseData = parseResponseText(message.content);
+            const uiBlocks = normalizeUiBlocks(
+              coerceUiBlocks((message.metadata?.ui_blocks as UiBlock[] | undefined) ?? [])
+            );
+            const displayContent = sanitizeAssistantContent(message.content, uiBlocks);
+            const responseData = parseResponseText(displayContent);
+            const hasBlocks = uiBlocks.length > 0;
             const showThinking =
-              isLast && isLastAssistantStreaming && !message.content.trim();
-            const showStreaming = isLast && isStreaming && Boolean(message.content.trim());
+              isLast && isLastAssistantStreaming && !displayContent.trim() && !hasBlocks;
+            const showStreaming = isLast && isStreaming && Boolean(displayContent.trim());
 
             return (
               <div key={message.id} className="flex flex-col items-start w-full">
@@ -108,8 +126,18 @@ export function ConversationThread({
                     </div>
                   )}
 
-                  {message.content.trim() ? (
-                    <div className="min-h-[1.5rem] [&_.no-scrollbar]:max-h-none">
+                  {hasBlocks ? (
+                    <div className="mb-2">
+                      <StructuredBlockRenderer blocks={uiBlocks} />
+                    </div>
+                  ) : null}
+
+                  {displayContent.trim() ? (
+                    <div
+                      className={`min-h-[1.5rem] [&_.no-scrollbar]:max-h-none ${
+                        hasBlocks ? "text-sm text-on-surface-variant" : ""
+                      }`}
+                    >
                       <ResponseContent
                         isThinking={false}
                         isStreaming={showStreaming}
@@ -117,14 +145,14 @@ export function ConversationThread({
                         variant="chat"
                       />
                     </div>
-                  ) : !showThinking ? (
+                  ) : !showThinking && !hasBlocks ? (
                     <p className="text-sm text-on-surface-variant/70">No response yet.</p>
                   ) : null}
                 </div>
 
                 {showActions(message, isLast) && (
                   <ActionButtons
-                    textToCopy={message.content}
+                    textToCopy={displayContent || message.content}
                     embedded
                     showFullView={false}
                     showSidePanel={false}

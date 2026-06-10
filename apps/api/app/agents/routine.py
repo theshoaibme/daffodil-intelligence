@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
+import re
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Tuple
 
 from .base import BaseAgent
 from .tool_runner import format_tool_results, run_tool
@@ -32,18 +34,72 @@ ROUTINE_TOOLS = [
     "delete_automation_hook",
 ]
 
+_CLASS_TODAY_KEYS = (
+    "today's class",
+    "today class",
+    "class today",
+    "classes today",
+    "today class routine",
+    "today's class routine",
+)
+_CLASS_TOMORROW_KEYS = (
+    "tomorrow's class",
+    "tomorrow class",
+    "class tomorrow",
+    "classes tomorrow",
+    "tomorrow class routine",
+    "tomorrow's class routine",
+    "tomorrow routine",
+    "tomorrow's routine",
+)
+_CLASS_ROUTINE_KEYS = ("class routine", "class schedule", "weekly routine")
+_DAILY_KEYS = (
+    "today routine",
+    "daily routine",
+    "daily schedule",
+    "plan my day",
+    "my day",
+    "what's on",
+    "whats on",
+    "day plan",
+)
+
+_SECTION_PROMPT = (
+    "Which section's class routine do you need? "
+    "I can also look it up from your saved memory or routine skills."
+)
+
+_TOOL_CALL_RE = re.compile(
+    r"get_class_routine\s*\(\s*section\s*=\s*[\"']?([^\"',)]+)[\"']?"
+    r"(?:\s*,\s*day\s*=\s*[\"']?([^\"',)]+)[\"']?)?\s*\)",
+    re.I,
+)
+
+
+def _parse_get_class_routine_call(message: str) -> Optional[Tuple[str, Optional[str]]]:
+    match = _TOOL_CALL_RE.search(message or "")
+    if not match:
+        return None
+    section = (match.group(1) or "").strip()
+    day = (match.group(2) or "").strip() or None
+    return section, day
+
+
+def _weekday(offset_days: int = 0) -> str:
+    return (datetime.now(timezone.utc) + timedelta(days=offset_days)).strftime("%A")
+
+
+def _wants_class_routine(lower: str) -> bool:
+    return any(
+        k in lower
+        for k in _CLASS_TODAY_KEYS + _CLASS_TOMORROW_KEYS + _CLASS_ROUTINE_KEYS
+    )
+
 
 class RoutineAgent(BaseAgent):
     name = "Routine Agent"
     description = "Schedules, class routines, reminders, habits, and automation hooks"
     tools = ROUTINE_TOOLS
-
-    SYSTEM_PROMPT = """You are the Routine Agent for Daffodil Intelligence.
-Use tools for real data — never invent schedules.
-Class routines come from MCP tools, agent memory, skills, or department PDF uploads.
-Call get_class_routine, read_department_routine_pdf, and recall_notes before answering.
-Use store_note to save section or schedule facts. Use MCP integrations for external PDF/files.
-If section is missing, ask once. Do not repeat the generic greeting."""
 
     async def process(self, message: str, context: Optional[Dict] = None) -> str:
         ctx = context or {}
@@ -52,15 +108,55 @@ If section is missing, ask once. Do not repeat the generic greeting."""
         results: List = []
 
         try:
+            tool_call = _parse_get_class_routine_call(message)
+            if tool_call:
+                call_sec, call_day = tool_call
+                sec = normalize_section(call_sec) or await self._resolve_section(ctx, plan.section)
+                if not sec:
+                    return _SECTION_PROMPT
+                kwargs: Dict = {"section": sec}
+                if call_day:
+                    kwargs["day"] = call_day
+                results.append(await run_tool("get_class_routine", ctx, **kwargs))
+                return format_tool_results(results).summary
+
             sec = await self._resolve_section(ctx, plan.section)
 
-            if plan.section or any(k in lower for k in ("class routine", "class schedule", "my routine")):
+            if any(k in lower for k in _CLASS_TOMORROW_KEYS):
                 if not sec:
-                    return (
-                        "Which section's class routine do you need? "
-                        "I can also look it up from your saved memory or routine skills."
+                    return _SECTION_PROMPT
+                results.append(
+                    await run_tool("get_class_routine", ctx, section=sec, day=_weekday(1))
+                )
+
+            elif any(k in lower for k in _CLASS_TODAY_KEYS):
+                if not sec:
+                    return _SECTION_PROMPT
+                results.append(
+                    await run_tool("get_class_routine", ctx, section=sec, day=_weekday(0))
+                )
+
+            elif plan.section or any(k in lower for k in _CLASS_ROUTINE_KEYS):
+                if not sec:
+                    return _SECTION_PROMPT
+                day_hint = None
+                if "tomorrow" in lower:
+                    day_hint = _weekday(1)
+                elif "today" in lower:
+                    day_hint = _weekday(0)
+                results.append(
+                    await run_tool(
+                        "get_class_routine",
+                        ctx,
+                        section=sec,
+                        **({"day": day_hint} if day_hint else {}),
                     )
-                results.append(await run_tool("get_class_routine", ctx, section=sec))
+                )
+
+            elif not _wants_class_routine(lower) and (
+                lower.strip() == "today" or any(k in lower for k in _DAILY_KEYS)
+            ):
+                results.append(await run_tool("get_daily_schedule", ctx, section=sec or None))
 
             elif any(k in lower for k in ("list reminder", "my reminders", "show reminders")):
                 results.append(await run_tool("list_reminders", ctx))
@@ -70,9 +166,6 @@ If section is missing, ask once. Do not repeat the generic greeting."""
 
             elif any(k in lower for k in ("list hook", "automation hook", "my hooks")):
                 results.append(await run_tool("list_automation_hooks", ctx))
-
-            elif any(k in lower for k in ("today", "daily schedule", "plan my day")):
-                results.append(await run_tool("get_daily_schedule", ctx, section=sec or None))
 
             elif any(
                 k in lower
@@ -89,18 +182,33 @@ If section is missing, ask once. Do not repeat the generic greeting."""
             elif any(k in lower for k in ("pdf", "uploaded routine", "routine document")):
                 results.append(await run_tool("read_department_routine_pdf", ctx, section=sec or None))
 
-            if results and any(r.success for r in results):
-                return format_tool_results(results)
+            if not results and plan.primary == "routine" and sec and _wants_class_routine(lower):
+                results.append(await run_tool("get_class_routine", ctx, section=sec))
+
+            if not results and any(k in lower for k in ("pdf", "uploaded routine", "routine document")):
+                results.append(await run_tool("read_routine_pdf", ctx, section=sec or None))
+
+            if results:
+                return format_tool_results(results).summary
 
             if plan.primary == "routine" and plan.tools:
                 return (
-                    f"I can help with: {', '.join(plan.tools)}. "
-                    "Tell me what you need — class routine, reminders, or automation."
+                    "Class routines load from data/routines (CSV/PDF) via get_class_routine — "
+                    "tell me your section and day (today/tomorrow)."
                 )
         except Exception as e:
             logger.warning("RoutineAgent tool path failed: %s", e)
 
-        return await self.generate_response(self.SYSTEM_PROMPT, message)
+        if _wants_class_routine(lower) or plan.primary == "routine":
+            return (
+                "No routine in data/routines for that section/day. "
+                "Add CSV to data/routines/ or set your section (e.g. 64_I) with store_note."
+            )
+
+        return (
+            "I load schedules from data/routines and tools only — "
+            "ask for a class routine, reminders, or automation."
+        )
 
     async def _resolve_section(self, ctx: Dict, plan_section: Optional[str]) -> str:
         explicit = normalize_section(plan_section) or self._section_from_context(ctx)

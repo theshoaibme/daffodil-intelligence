@@ -23,7 +23,9 @@ class TasksAgent(BaseAgent):
     ]
 
     SYSTEM_PROMPT = """You are the Tasks Agent for Daffodil Intelligence.
-You manage personal productivity: daily schedules, task lists, habits, and reminders."""
+You manage personal productivity: daily schedules, task lists, habits, and reminders.
+
+Response style: reply in 1–2 short sentences. Task and schedule details are rendered in UI blocks — do not duplicate rows in prose."""
 
     async def process(self, message: str, context: Optional[Dict] = None) -> str:
         lower = message.lower()
@@ -40,5 +42,5 @@ You manage personal productivity: daily schedules, task lists, habits, and remin
             results.append(await run_tool("schedule_task", ctx, title=message))
 
         if results:
-            return format_tool_results(results)
+            return format_tool_results(results).summary
         return await self.generate_response(self.SYSTEM_PROMPT, message)

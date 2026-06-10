@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from ..base import BaseTool, ToolParameter, ToolResult
-from ...automation.routine_memory import recall_class_routine, recall_user_section
-from ...automation.routines_data import get_uploaded_routine
+from ...automation.routine_fetch import fetch_class_routine, routine_has_schedule
+from ...automation.routine_memory import recall_user_section
 from ...automation.routine_pdf_reader import read_routine_pdf_fast
 from ...automation.routine_resolver import resolve_section
 from ...automation.store import automation_store
@@ -15,8 +15,9 @@ from ...runtime.tool_context import get_department, get_section, get_user_id
 class GetClassRoutineTool(BaseTool):
     name = "get_class_routine"
     description = (
-        "Get class routine for a section. Uses agent memory first, then bundled "
-        "CSV routines in data/routines/, then uploaded PDF/JSON. Ask for section if unknown."
+        "Get class routine for a section from data/routines/*.csv, section uploads, "
+        "or department PDFs under data/routines/{department}/. MCP mode uses the same "
+        "registry tools (no invented schedules). Day: weekday or today/tomorrow/yesterday."
     )
     category = "automation"
     parameters = [
@@ -29,7 +30,7 @@ class GetClassRoutineTool(BaseTool):
         ToolParameter(
             name="day",
             type="string",
-            description="Weekday name e.g. Monday (optional; omit for full week)",
+            description="Weekday (Monday) or relative: today, tomorrow, yesterday (optional; omit for full week)",
             required=False,
         ),
         ToolParameter(
@@ -59,33 +60,24 @@ class GetClassRoutineTool(BaseTool):
                 "store_note (tag=section) / assign a routine skill."
             )
 
-        day_name = day.strip() if day else None
-
-        memory_data = await recall_class_routine(
-            uid, section=sec, department=dept, day=day_name
+        data = await fetch_class_routine(
+            user_id=uid,
+            section=sec,
+            day=day,
+            department=dept,
         )
-        if memory_data and (memory_data.get("weekly") or memory_data.get("items")):
-            return self.ok(memory_data)
-
-        data = get_uploaded_routine(sec, day_name, department=dept)
-        if data.get("weekly") and any(data["weekly"].values()):
+        if data.get("error") == "section_required":
+            return self.fail(data.get("hint") or "Section required")
+        if routine_has_schedule(data):
             return self.ok(data)
-        if data.get("items"):
-            return self.ok(data)
-        if data.get("source") == "csv":
-            return self.ok(data)
-        if data.get("pdf_excerpt"):
+        if data.get("source") == "csv" and data.get("day"):
             return self.ok(data)
 
-        pdf_result = read_routine_pdf_fast(dept, sec, max_chars=6000)
-        if pdf_result.get("text"):
-            return self.ok({**pdf_result, "section": sec, "department": dept})
-
-        return self.fail(
-            f"No routine data for section `{sec}`. "
-            "Add a routine skill, store schedule in memory (store_note), "
-            "or upload a department PDF/JSON."
+        hint = data.get("hint") or (
+            f"No routine in data/routines for section `{sec}`. "
+            "Upload CSV/PDF to data/routines/ or save section with store_note."
         )
+        return self.fail(hint)
 
 
 class ReadDepartmentRoutinePdfTool(BaseTool):

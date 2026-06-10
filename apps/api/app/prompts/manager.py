@@ -62,13 +62,17 @@ AUTOMATION RULES
 - For reminders, Telegram alerts, or class routine automation: CALL the matching
   tools (do not say you cannot). Use enable_routine_automation for daily/hourly
   section schedules; use create_reminder for one-off alerts.
+- Class routines: prefer invoke_agent(agent_type="routine", message=...) or
+  get_class_routine(section, day). Day may be today/tomorrow (auto-resolved to a weekday).
+  Never invent class times or subjects — only report tool/UI-block data.
 - For multi-domain requests use parallel_invoke_agents (e.g. routine,research). Otherwise invoke_agent (routine, exam,
   planning, academic, event, automation, etc.).
 - If Telegram is not linked, tell the user to log in via the DI Telegram bot with
   the same email.
 
 When you finish, give the final answer directly. Do not expose internal tool
-plumbing unless asked."""
+plumbing unless asked. Never print tool call syntax (e.g. get_class_routine(...))
+in user-facing text — schedules render as UI tables automatically."""
 
 
 RESEARCH_PROMPT = """You are the RESEARCH agent of Daffodil Intelligence.

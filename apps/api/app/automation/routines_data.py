@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from .routine_csv import get_csv_routine
 from .routine_pdf_reader import read_department_routine_source
-from .routine_resolver import load_uploaded_catalog, normalize_section
+from .routine_resolver import load_uploaded_catalog, normalize_section, resolve_routine_day
 
 
 def get_uploaded_routine(
@@ -26,6 +26,8 @@ def get_uploaded_routine(
             "hint": "Ask the user for their section, or save it with store_note (tag=section).",
         }
 
+    day_name = resolve_routine_day(day)
+
     uploaded = load_uploaded_catalog(key, department)
     weekly: Dict[str, List[Dict[str, Any]]] = {}
     if uploaded and key in uploaded:
@@ -37,16 +39,18 @@ def get_uploaded_routine(
             "department": department or None,
             "source": "department_upload",
         }
-        if day:
-            payload.update({"day": day, "items": weekly.get(day, [])})
+        if day_name:
+            payload.update({"day": day_name, "items": weekly.get(day_name, [])})
         else:
             payload["weekly"] = weekly
         return payload
 
-    csv_data = get_csv_routine(key, day, department=department)
+    csv_data = get_csv_routine(key, day_name, department=department)
     if csv_data.get("weekly") and any(csv_data["weekly"].values()):
         return csv_data
     if csv_data.get("items"):
+        return csv_data
+    if csv_data.get("source") == "csv":
         return csv_data
 
     source_text = read_department_routine_source(department, key)
@@ -60,8 +64,8 @@ def get_uploaded_routine(
         payload["pdf_excerpt"] = source_text[:1200]
         payload["source"] = "department_pdf"
 
-    if day:
-        payload.update({"day": day, "items": []})
+    if day_name:
+        payload.update({"day": day_name, "items": []})
 
     if csv_data.get("error") == "section_not_in_csv":
         payload["hint"] = csv_data.get("hint")

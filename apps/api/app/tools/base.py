@@ -6,8 +6,11 @@ Provides consistent schema validation and execution contract.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from ..ui_blocks.schemas import UiBlock
 
 
 class ToolParameter(BaseModel):
@@ -24,6 +27,8 @@ class ToolResult(BaseModel):
     error: Optional[str] = None
     tool_name: str = ""
     duration_ms: float = 0.0
+    ui_blocks: List[Any] = Field(default_factory=list)
+    summary: Optional[str] = None
 
 
 class BaseTool(ABC):

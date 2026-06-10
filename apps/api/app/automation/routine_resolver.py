@@ -5,12 +5,22 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 _SECTION_CODE = re.compile(r"\b(\d{2}_[A-Za-z0-9]+|6[Cc]\d+)\b", re.I)
+_WEEKDAYS = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
 
 ROUTINE_DATA_ROOT = Path(__file__).resolve().parents[2] / "data" / "routines"
 
@@ -32,6 +42,24 @@ def normalize_section(section: Optional[str]) -> str:
     raw = section.strip().upper().replace(" ", "_")
     match = _SECTION_CODE.search(raw)
     return match.group(1).upper() if match else raw
+
+
+def resolve_routine_day(day: Optional[str], *, now: Optional[datetime] = None) -> Optional[str]:
+    """Map relative day labels (today/tomorrow) to a weekday name for CSV lookup."""
+    if not day or not str(day).strip():
+        return None
+    ref = now or datetime.now(timezone.utc)
+    raw = str(day).strip().lower()
+    if raw in ("today", "now"):
+        return ref.strftime("%A")
+    if raw == "tomorrow":
+        return (ref + timedelta(days=1)).strftime("%A")
+    if raw == "yesterday":
+        return (ref - timedelta(days=1)).strftime("%A")
+    title = str(day).strip().capitalize()
+    if raw in _WEEKDAYS:
+        return title
+    return title
 
 
 def resolve_section(

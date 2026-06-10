@@ -17,6 +17,7 @@ from ..skills.resolver import resolve_runtime_config
 from . import groq_chat, hf_chat, orchestrator
 from .chat_router import groq_model_for_routing, should_use_fast_groq, should_use_hf_chat
 from .intent_router import route_message
+from .routine_turn import run_routine_fast_path, should_use_routine_fast_path, stream_routine_fast_path
 from .stream_signals import stream_turn_preamble
 from .tool_context import clear_turn_context, set_turn_context
 from .task_events import emit_task, reset_turn_tasks, turn_root_id
@@ -155,6 +156,10 @@ async def run_turn(
     resolved_metadata = await _resolve_turn_metadata(user_id, metadata, message)
     _apply_turn_context(user_id=user_id, metadata=resolved_metadata)
     try:
+        if should_use_routine_fast_path(message, agent_id):
+            return await run_routine_fast_path(
+                message, user_id=user_id, metadata=resolved_metadata
+            )
         return await _run_turn_inner(
             message,
             user_id=user_id,
@@ -284,6 +289,12 @@ async def run_turn_stream(
     resolved_metadata = await _resolve_turn_metadata(user_id, metadata, message)
     _apply_turn_context(user_id=user_id, metadata=resolved_metadata)
     try:
+        if should_use_routine_fast_path(message, agent_id):
+            async for event in stream_routine_fast_path(
+                message, user_id=user_id, metadata=resolved_metadata
+            ):
+                yield event
+            return
         async for event in _run_turn_stream_inner(
             message,
             user_id=user_id,
@@ -430,7 +441,7 @@ async def _run_turn_stream_inner(
             etype = event.get("type") if isinstance(event, dict) else None
             if etype == "content":
                 trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
-            elif etype in ("tool", "thinking", "subagent", "status", "memory", "task"):
+            elif etype in ("tool", "thinking", "subagent", "status", "memory", "task", "ui"):
                 trace_recorder.event(
                     turn_id,
                     type=etype,

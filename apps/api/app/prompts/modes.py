@@ -17,12 +17,12 @@ _MODE_INSTRUCTIONS: dict[str, str] = {
 - Call out uncertainty when evidence is thin.""",
     "MCP": """MODE: MCP TOOLS
 - Use configured MCP integrations when they help answer the request.
-- For class schedules: get_class_routine(section, day) — uses data/routines/*.csv. PDFs: read_pdf / read_routine_pdf.
-- Prefer tool results over invented data.
-- Explain which tool was used and what it returned.""",
+- Class schedules: get_class_routine(section, day) or invoke_agent(routine) — reads data/routines/*.csv and department PDFs only.
+- Never invent class times or subjects; MCP tools mirror the same data/routines sources.
+- MCP tool output renders in UI blocks; reply with one short sentence naming the action taken.""",
     "Agent": """MODE: MULTI-AGENT
 - Coordinate specialized agents when the task spans domains.
-- For class schedules: get_class_routine(section, day) uses data/routines/*.csv.
+- Class schedules: invoke_agent(agent_type="routine", message=...) or get_class_routine — data/routines CSV/PDF only.
 - Delegate specialists with invoke_agent(agent_type=...) or parallel_invoke_agents(agent_types="routine,research", message=...) when domains overlap.
 - Deep web research: deep_research(query). Academic papers: invoke_agent(agent_type="research").
 - Synthesize agent outputs into one clear answer.""",
@@ -31,7 +31,8 @@ _MODE_INSTRUCTIONS: dict[str, str] = {
 _CHAT_DEFAULT = """MODE: CHAT
 - Answer directly and concisely unless the user asks for detail.
 - Be accurate; say when you are unsure.
-- Use Markdown when it improves readability."""
+- Tool results render as structured UI blocks (tables, cards). Keep text to 1–2 sentences; do not duplicate table rows in prose.
+- Use present_ui only when structured output cannot be produced by other tools."""
 
 _ROUTING_HINTS: dict[str, str] = {
     "groq_fast": "Runtime: fast Groq model for quick replies.",

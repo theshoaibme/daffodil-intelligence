@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^@lib$/, replacement: resolve(__dirname, './src/lib/index.ts') },
+      { find: /^@lib\//, replacement: resolve(__dirname, './src/lib') + '/' },
       { find: /^@hooks$/, replacement: resolve(__dirname, './src/hooks/index.ts') },
       { find: /^@context$/, replacement: resolve(__dirname, './src/context/index.ts') },
       { find: /^@styles$/, replacement: resolve(__dirname, './src/styles/index.ts') },

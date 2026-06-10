@@ -10,6 +10,7 @@ _nested_events: ContextVar[List[Dict[str, Any]]] = ContextVar(
     "nested_task_events", default=[]
 )
 _pending_tool_events: List[Dict[str, Any]] = []
+_pending_ui_events: List[Dict[str, Any]] = []
 _turn_root_id: ContextVar[Optional[str]] = ContextVar("turn_root_task_id", default=None)
 
 
@@ -80,4 +81,16 @@ def pop_pending_tool_events() -> List[Dict[str, Any]]:
     global _pending_tool_events
     events = list(_pending_tool_events)
     _pending_tool_events = []
+    return events
+
+
+def stash_pending_ui_events(events: List[Dict[str, Any]]) -> None:
+    global _pending_ui_events
+    _pending_ui_events.extend(events)
+
+
+def pop_pending_ui_events() -> List[Dict[str, Any]]:
+    global _pending_ui_events
+    events = list(_pending_ui_events)
+    _pending_ui_events = []
     return events

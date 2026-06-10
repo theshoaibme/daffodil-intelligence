@@ -19,7 +19,15 @@ def routine_turn(message: Optional[str]) -> bool:
             return True
         if any(
             k in message.lower()
-            for k in ("class routine", "class schedule", "my routine", "daily schedule")
+            for k in (
+                "class routine",
+                "class schedule",
+                "my routine",
+                "daily schedule",
+                "tomorrow class",
+                "tomorrow routine",
+                "today class",
+            )
         ):
             return True
     return False

@@ -7,7 +7,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from ..memory import memory_service
-from .routine_resolver import normalize_section
+from .routine_resolver import normalize_section, resolve_routine_day
 
 _SECTION_CODE = re.compile(r"\b(\d{2}_[A-Za-z0-9]+|6[Cc]\d+)\b", re.I)
 _ROUTINE_AGENT = "routine"
@@ -84,6 +84,7 @@ async def recall_class_routine(
     )
 
     sec = normalize_section(section)
+    day_name = resolve_routine_day(day)
     for note in notes:
         meta = note.get("metadata") or {}
         note_section = normalize_section(str(meta.get("section") or ""))
@@ -103,8 +104,8 @@ async def recall_class_routine(
             "source": "memory",
             "memory_id": note.get("id"),
         }
-        if day:
-            payload.update({"day": day, "items": weekly.get(day, [])})
+        if day_name:
+            payload.update({"day": day_name, "items": weekly.get(day_name, [])})
         else:
             payload["weekly"] = weekly
         return payload

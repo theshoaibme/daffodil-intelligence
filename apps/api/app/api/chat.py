@@ -132,6 +132,7 @@ async def add_message(
     async def generate():
         full_response = ""
         tool_calls = []
+        ui_blocks = []
         engine = "antigravity"
         resolved_agent = agent_id
         resolved_model = message.model_id
@@ -180,6 +181,12 @@ async def add_message(
                     status_msg = event.get("content") or ""
                     if status_msg:
                         yield f'data: {json.dumps({"type": "status", "content": status_msg})}\n\n'
+                elif event_type == "ui":
+                    block = event.get("block")
+                    if not isinstance(block, dict):
+                        continue
+                    ui_blocks.append(block)
+                    yield f'data: {json.dumps({"type": "ui", "block": block, "source": event.get("source"), "tool_name": event.get("tool_name")})}\n\n'
                 elif event_type == "tool":
                     tool_name = event.get("name")
                     if not tool_name:
@@ -194,6 +201,10 @@ async def add_message(
                     }
                     if event.get("agent_id"):
                         tool_payload["agent_id"] = event.get("agent_id")
+                    if event.get("source"):
+                        tool_payload["source"] = event.get("source")
+                    if event.get("mcp_server"):
+                        tool_payload["mcp_server"] = event.get("mcp_server")
                     yield f'data: {json.dumps(tool_payload)}\n\n'
                 elif event_type == "agent":
                     resolved_agent = event.get("agent_id", resolved_agent)
@@ -221,6 +232,10 @@ async def add_message(
                 resolved_model = result.get("model_id", resolved_model)
                 model_mode = result.get("model_mode", model_mode)
                 model_routing = result.get("model_routing", model_routing)
+                for block in result.get("ui_blocks") or []:
+                    if isinstance(block, dict):
+                        ui_blocks.append(block)
+                        yield f'data: {json.dumps({"type": "ui", "block": block})}\n\n'
                 if full_response:
                     yield f'data: {json.dumps({"content": full_response})}\n\n'
         except Exception as e:
@@ -243,6 +258,7 @@ async def add_message(
             "engine": engine,
             "agent_id": resolved_agent,
             "tools_used": tool_calls,
+            "ui_blocks": ui_blocks,
             "sources": [],
             "model_id": resolved_model,
             "model_mode": model_mode,
