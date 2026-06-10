@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   createChat,
   sendMessage,
+  type VoiceAttachmentPayload,
 } from "../lib/api";
 import type { StreamEvent } from "../lib/api";
 import {
@@ -33,12 +34,6 @@ function syncFlowFromTasks(tasks: AgentTaskNode[], inputId: string | null) {
     activeInputId: inputId ?? current.activeInputId,
     activeModelId: modelLabel || current.activeModelId,
   });
-}
-
-function finalizeAgentTasks(tasks: AgentTaskNode[]): AgentTaskNode[] {
-  return tasks.map((t) =>
-    t.status === "active" ? { ...t, status: "success" as const } : t
-  );
 }
 
 function pruneLegacyTasks(tasks: AgentTaskNode[]): AgentTaskNode[] {
@@ -176,7 +171,8 @@ export function useChat(options?: UseChatOptions) {
   const send = useCallback(async (
     content: string,
     modelId?: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
+    voice?: VoiceAttachmentPayload
   ) => {
     const generation = sendGenerationRef.current;
 
@@ -197,8 +193,16 @@ export function useChat(options?: UseChatOptions) {
       const userMessage: ChatMessage = {
         id: `user-${Date.now()}`,
         role: "user",
-        content,
+        content: voice ? "" : content,
         timestamp: new Date(),
+        ...(voice
+          ? {
+              metadata: {
+                voice_message: true,
+                voice_duration_ms: voice.duration_ms,
+              },
+            }
+          : {}),
       };
       
       setMessages(prev => [...prev, userMessage]);
@@ -270,6 +274,21 @@ export function useChat(options?: UseChatOptions) {
             return;
           }
 
+          if (event.type === "status" && event.content?.trim()) {
+            const line = event.content.trim();
+            const prefix = thinkingAccumRef.current.trim();
+            if (!prefix.includes(line)) {
+              thinkingAccumRef.current = prefix ? `${prefix}\n${line}` : line;
+              const nextThinking = thinkingAccumRef.current;
+              setThinkingText(nextThinking);
+              patchAssistantMessage(assistantMessageId, (message) => ({
+                ...message,
+                metadata: { ...message.metadata, thinking_text: nextThinking },
+              }));
+            }
+            return;
+          }
+
           if (event.type === "ui" && event.block) {
             const block = coerceUiBlock(event.block);
             if (!block) return;
@@ -302,7 +321,8 @@ export function useChat(options?: UseChatOptions) {
               return next;
             });
           }
-        }
+        },
+        voice
       );
 
       if (isSendStale(generation)) return;
@@ -314,11 +334,7 @@ export function useChat(options?: UseChatOptions) {
         }
       }
 
-      setAgentTasks((prev) => {
-        const finalized = finalizeAgentTasks(prev);
-        syncFlowFromTasks(finalized, getFlow().activeInputId ?? null);
-        return finalized;
-      });
+      setAgentTasks([]);
 
       const finalThinking = thinkingAccumRef.current.trim();
       const finalThinkingMs =
@@ -355,6 +371,7 @@ export function useChat(options?: UseChatOptions) {
       stopThinkingTimer();
       resetFlow();
       if (isSendStale(generation)) return;
+      setAgentTasks([]);
       setError(err instanceof Error ? err.message : "Failed to send message");
       setIsStreaming(false);
       throw err;

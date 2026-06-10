@@ -255,6 +255,7 @@ export interface ChatResponse {
   id: number;
   title: string;
   agent_type: string;
+  created_at: string;
 }
 
 export async function fetchChatContextUsage(
@@ -278,6 +279,30 @@ export async function createChat(agentType: string): Promise<ChatResponse> {
     method: "POST",
     body: JSON.stringify({ title: "New Chat", agent_type: agentType }),
   });
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export interface ApiMessage {
+  id: number;
+  role: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export async function fetchChats(search?: string): Promise<ChatResponse[]> {
+  const params = new URLSearchParams();
+  const q = search?.trim();
+  if (q) params.set("q", q);
+  const qs = params.toString();
+  const res = await authFetch(apiUrl(`/api/chats${qs ? `?${qs}` : ""}`));
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function fetchChatMessages(chatId: number): Promise<ApiMessage[]> {
+  const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`));
   if (!res.ok) throw new ApiError(await parseError(res), res.status);
   return res.json();
 }
@@ -360,6 +385,7 @@ async function consumeSSEStream(
           parent_id?: string;
           kind?: string;
           title?: string;
+          short_title?: string;
           parallel_group?: string;
           depth?: number;
         };
@@ -513,6 +539,34 @@ async function consumeSSEStream(
   return { content: fullContent, metadata };
 }
 
+export interface VoiceAttachmentPayload {
+  data: string;
+  mime_type: string;
+  duration_ms?: number;
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+export async function voiceBlobToPayload(
+  blob: Blob,
+  mimeType: string,
+  durationMs?: number
+): Promise<VoiceAttachmentPayload> {
+  return {
+    data: await blobToBase64(blob),
+    mime_type: mimeType,
+    ...(durationMs != null ? { duration_ms: durationMs } : {}),
+  };
+}
+
 export async function sendMessage(
   chatId: number,
   content: string,
@@ -520,14 +574,20 @@ export async function sendMessage(
   modelId?: string,
   onContext?: (context: ChatContextUsage) => void,
   metadata?: Record<string, unknown>,
-  onEvent?: (event: StreamEvent) => void
+  onEvent?: (event: StreamEvent) => void,
+  voice?: VoiceAttachmentPayload
 ): Promise<{ content: string; metadata?: Record<string, unknown> }> {
+  const mergedMetadata = { ...(metadata ?? {}) };
+  if (voice) {
+    mergedMetadata.voice = voice;
+  }
+
   const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`), {
     method: "POST",
     body: JSON.stringify({
       content,
       model_id: modelId,
-      metadata: metadata ?? {},
+      metadata: mergedMetadata,
     }),
   });
   if (!res.ok) throw new ApiError(await parseError(res), res.status);

@@ -6,6 +6,7 @@ export * from "./agentSimulation";
 export * from "./chatInputLayout";
 export * from "./chatContext";
 export * from "./chatHistoryStorage";
+export * from "./chatSearch";
 export * from "./chatStorage";
 export * from "./formStyles";
 export * from "./hubApi";

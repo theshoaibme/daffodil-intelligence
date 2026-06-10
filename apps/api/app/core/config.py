@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     GEMINI_MODEL_NAME: str = "gemini-2.0-flash"
     GEMINI_VOICE: str = "Charon"
 
+    # === Speech-to-text (faster-whisper) ===
+    WHISPER_MODEL: str = "base"
+    WHISPER_DEVICE: str = "cpu"
+    WHISPER_COMPUTE_TYPE: str = "int8"
+    WHISPER_MOCK: bool = False
+
     # === Antigravity agent runtime ===
     ANTIGRAVITY_MODEL: str = "gemini-2.0-flash"
     ANTIGRAVITY_SAVE_DIR: str = "conversations"

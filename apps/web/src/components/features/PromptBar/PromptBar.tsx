@@ -1,11 +1,15 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Network } from "lucide-react";
 import { AgentSelector } from "./AgentSelector";
 import { McpConfigureDialog } from "./McpConfigureDialog";
 import { ModelSelector } from "./ModelSelector";
 import { ContextUseRing } from "./ContextUseRing";
 import { FileAttachmentButton, MicButton, SendButton, StopButton } from "./ActionButtons";
+import { VoiceRecordingBadge } from "./VoiceRecordingBadge";
+import { VoiceRecordingControls } from "./VoiceRecordingControls";
+import { useVoiceRecorder } from "@hooks";
+import { voiceBlobToPayload, type VoiceAttachmentPayload } from "@lib/api";
 import {
   AGENT_MODE_PLACEHOLDERS,
   CHAT_INPUT_SHELL_CLASS,
@@ -22,8 +26,7 @@ import { useMcpStatus } from "@hooks";
 interface PromptBarProps {
   prompt: string;
   setPrompt: (val: string) => void;
-  isSent?: boolean;
-  handleSend: (modelId: string) => void;
+  handleSend: (modelId: string, voice?: VoiceAttachmentPayload) => void;
   agentMenuOpen: boolean;
   setAgentMenuOpen: (open: boolean) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
@@ -66,11 +69,45 @@ export function PromptBar({
     GLM_5_1_MODEL_ID
   );
 
-  const submit = () => handleSend(selectedModelId);
+  const {
+    isRecording,
+    recording,
+    levels,
+    devices,
+    selectedDeviceId,
+    setSelectedDeviceId,
+    startRecording,
+    stopRecording,
+    discardRecording,
+  } = useVoiceRecorder();
+
+  const submit = () => {
+    if (recording) {
+      void (async () => {
+        const voice = await voiceBlobToPayload(
+          recording.blob,
+          recording.mimeType,
+          recording.durationMs
+        );
+        handleSend(selectedModelId, voice);
+        discardRecording();
+      })();
+      return;
+    }
+    handleSend(selectedModelId);
+  };
+
   const hasText = Boolean(prompt.trim());
-  const showSend = hasText && !isStreaming;
-  const showMic = !hasText && !isStreaming;
+  const hasVoice = Boolean(recording);
+  const showSend = (hasText || hasVoice) && !isStreaming && !isRecording;
+  const showMic = !hasText && !hasVoice && !isStreaming && !isRecording;
   const showStop = isStreaming;
+
+  const handleMicClick = () => {
+    void startRecording().catch((err) => {
+      console.error("Failed to start recording:", err);
+    });
+  };
 
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
   const {
@@ -89,22 +126,52 @@ export function PromptBar({
 
   const promptBarInner = (
     <>
-      <textarea
-        ref={textareaRef}
-        rows={1}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (hasText && !isStreaming) {
-              submit();
-            }
-          }
-        }}
-        placeholder={AGENT_MODE_PLACEHOLDERS[selectedAgentMode]}
-        className="w-full min-w-0 bg-transparent border-none outline-none resize-none text-sm text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
-      />
+      <AnimatePresence mode="wait" initial={false}>
+        {hasVoice && recording ? (
+          <motion.div
+            key="voice-badge"
+            initial={{ opacity: 0, scale: 0.96, y: 4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: -4 }}
+            transition={{ duration: 0.18 }}
+            className="min-h-[36px] flex items-center"
+          >
+            <VoiceRecordingBadge durationMs={recording.durationMs} onDiscard={discardRecording} />
+          </motion.div>
+        ) : isRecording ? (
+          <motion.div
+            key="recording"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="px-1.5 py-1 min-h-[36px] text-sm text-on-surface-variant"
+          >
+            Recording…
+          </motion.div>
+        ) : (
+          <motion.textarea
+            key="textarea"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18 }}
+            ref={textareaRef}
+            rows={1}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (hasText && !isStreaming) {
+                  submit();
+                }
+              }
+            }}
+            placeholder={AGENT_MODE_PLACEHOLDERS[selectedAgentMode]}
+            className="w-full min-w-0 bg-transparent border-none outline-none resize-none text-sm text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
+          />
+        )}
+      </AnimatePresence>
 
       <div className="flex items-center justify-between px-0.5">
         <div className="flex items-center gap-1">
@@ -125,10 +192,10 @@ export function PromptBar({
               onClick={onToggleAgentVisualize}
               aria-pressed={agentVisualizeOpen}
               aria-label="Toggle agent visualization"
-              className={`flex items-center gap-1 rounded-full cursor-pointer outline-none border-0 pl-2 pr-1.5 py-1 text-xs font-medium leading-none transition-colors bg-surface-container-highest text-on-surface-variant ${
+              className={`flex items-center gap-1 rounded-full cursor-pointer outline-none border-0 pl-2 pr-1.5 py-1 text-xs font-medium leading-none transition-colors ${
                 agentVisualizeOpen
-                  ? ""
-                  : "hover:bg-surface-container-high hover:text-on-surface"
+                  ? "bg-primary/15 text-primary ring-1 ring-primary/30"
+                  : "bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
               }`}
             >
               <span className="shrink-0 [&>svg]:size-3.5">
@@ -143,14 +210,25 @@ export function PromptBar({
 
         <div className="flex items-center gap-2.5">
           {context && <ContextUseRing context={context} />}
-          <FileAttachmentButton />
+          {!isRecording && <FileAttachmentButton />}
+          {isRecording && (
+            <VoiceRecordingControls
+              levels={levels}
+              devices={devices}
+              selectedDeviceId={selectedDeviceId}
+              onSelectDevice={setSelectedDeviceId}
+              onStop={stopRecording}
+            />
+          )}
           {showStop && <StopButton />}
           {showSend && <SendButton onClick={submit} />}
-          {showMic && <MicButton />}
+          {showMic && <MicButton onClick={handleMicClick} />}
         </div>
       </div>
     </>
   );
+
+  const shellClasses = `${CHAT_INPUT_SHELL_CLASS} glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto ${shellClassName}`;
 
   return (
     <>
@@ -171,11 +249,16 @@ export function PromptBar({
       {embedded ? (
         <motion.div
           layoutId={BOTTOM_BAR_LAYOUT_ID}
+          layout
           initial={enterOrSkip(uiReady, { opacity: 0, y: 14, scale: 0.96 })}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            scale: 1,
+          }}
           exit={{ opacity: 0, y: 10, scale: 0.94 }}
           transition={modeSpring}
-          className={`${CHAT_INPUT_SHELL_CLASS} glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto ${shellClassName}`}
+          className={shellClasses}
         >
           {promptBarInner}
         </motion.div>
@@ -183,11 +266,12 @@ export function PromptBar({
         <div className="fixed bottom-6 left-0 right-0 z-30 flex justify-center w-full px-3 sm:px-4 pointer-events-none">
           <motion.div
             layoutId={BOTTOM_BAR_LAYOUT_ID}
+            layout
             initial={enterOrSkip(uiReady, { opacity: 0, y: 14, scale: 0.96 })}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.94 }}
             transition={modeSpring}
-            className={`${CHAT_INPUT_SHELL_CLASS} glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto`}
+            className={shellClasses}
           >
             {promptBarInner}
           </motion.div>

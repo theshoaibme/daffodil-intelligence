@@ -149,7 +149,7 @@ body {
   }
 
   .thinking-message {
-    color: color-mix(in srgb, var(--color-on-surface-variant) 88%, var(--color-outline-variant));
+    color: color-mix(in srgb, var(--color-on-surface) 72%, var(--color-on-surface-variant));
   }
 
   @keyframes thinking-shimmer {

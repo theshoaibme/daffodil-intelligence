@@ -60,7 +60,7 @@ export function ThinkingProcess({
   };
 
   return (
-    <div className="flex w-full flex-col gap-1 select-text">
+    <div className="flex w-full flex-col gap-1.5 select-text">
       <button
         type="button"
         onClick={toggle}
@@ -84,10 +84,16 @@ export function ThinkingProcess({
         </motion.span>
       </button>
 
-      {expanded && hasThinkingText ? (
-        <p className="thinking-message text-xs leading-relaxed whitespace-pre-wrap break-words font-normal">
-          {displayText}
-        </p>
+      {expanded ? (
+        hasThinkingText ? (
+          <p className="thinking-message text-xs leading-relaxed whitespace-pre-wrap break-words font-normal">
+            {displayText}
+          </p>
+        ) : isThinking ? (
+          <p className="thinking-message text-xs leading-relaxed text-on-surface-variant/80 italic">
+            Working through your request…
+          </p>
+        ) : null
       ) : null}
     </div>
   );

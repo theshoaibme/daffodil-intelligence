@@ -141,14 +141,14 @@ export function ChatHistoryItem({
         <button
           type="button"
           onClick={onSelect}
-          className={`flex items-center gap-2 px-2 py-1 pr-8 rounded-xl cursor-pointer transition-all text-left w-full border-0 min-h-[32px] ${
+          className={`flex items-center gap-2 px-2 py-0.5 pr-8 rounded-lg cursor-pointer transition-all text-left w-full border-0 min-h-[28px] ${
             active
               ? "bg-surface-container-highest text-on-surface"
               : "bg-transparent text-on-surface hover:bg-surface-container-high"
           }`}
         >
-          <div className="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center border border-outline-variant/10 shrink-0">
-            <MessageSquare size={14} className="text-on-surface-variant" strokeWidth={1.75} />
+          <div className="w-6 h-6 rounded-md bg-surface-container-highest flex items-center justify-center border border-outline-variant/10 shrink-0">
+            <MessageSquare size={12} className="text-on-surface-variant" strokeWidth={1.75} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs truncate leading-4">

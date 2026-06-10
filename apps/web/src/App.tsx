@@ -24,6 +24,7 @@ import {
   hasActivePanelWork,
   tasksToPanelItems,
   type AgentMode,
+  type VoiceAttachmentPayload,
 } from "@lib";
 import { useChat, useChatContext, useIsLgUp, useIsMdUp, useLocalStorageState } from "@hooks";
 import {
@@ -172,10 +173,7 @@ function ChatDashboard() {
     DASHBOARD_STORAGE_KEYS.sidebarOpen,
     true
   );
-  const [searchQuery, setSearchQuery] = useLocalStorageState(
-    "di-dashboard-sidebar-search",
-    ""
-  );
+  const [searchQuery, setSearchQuery] = useState("");
   const [copycatMode, setCopycatMode] = useState(false);
   const [selectedAgentMode, setSelectedAgentMode] = useLocalStorageState<AgentMode>(
     DASHBOARD_STORAGE_KEYS.agentMode,
@@ -297,8 +295,9 @@ function ChatDashboard() {
     if (lastUrlChatRef.current === chatParam) return;
     lastUrlChatRef.current = chatParam;
 
-    const session = selectHistory(chatParam);
-    loadSession(session.chatId, session.messages);
+    void selectHistory(chatParam).then((session) => {
+      loadSession(session.chatId, session.messages);
+    });
   }, [searchParams, selectHistory, loadSession]);
 
   // Keep ?chat= in sync with the active sidebar session (no searchParams in deps — avoids loops).
@@ -350,10 +349,11 @@ function ChatDashboard() {
     if (id === activeHistoryId) return;
     flushCurrentSession();
     lastUrlChatRef.current = id;
-    const session = selectHistory(id);
-    loadSession(session.chatId, session.messages);
-    setPrompt("");
-    if (!isLgUp) setSidebarOpen(false);
+    void selectHistory(id).then((session) => {
+      loadSession(session.chatId, session.messages);
+      setPrompt("");
+      if (!isLgUp) setSidebarOpen(false);
+    });
   };
 
   const handleNewChat = () => {
@@ -396,9 +396,8 @@ function ChatDashboard() {
     showAgentDashboard && (useSidePanel || !showResponsePanel);
 
   const taskPanelLiveTasks = useMemo<TaskItem[] | null>(() => {
-    const items = tasksToPanelItems(agentTasks);
-    if (isStreaming) return items;
-    return items.length > 0 ? items : null;
+    if (!isStreaming) return null;
+    return tasksToPanelItems(agentTasks);
   }, [agentTasks, isStreaming]);
 
   const hasActiveWork = useMemo(
@@ -408,12 +407,8 @@ function ChatDashboard() {
 
   const taskPanelLive = taskPanelLiveTasks !== null;
 
-  const showTaskPanel = useMemo(
-    () =>
-      hasActivePanelWork(agentTasks) ||
-      (taskPanelLiveTasks !== null && taskPanelLiveTasks.length > 0),
-    [agentTasks, taskPanelLiveTasks]
-  );
+  /** Only while streaming and agent steps are actively running — hide when idle or done. */
+  const showTaskPanel = hasActiveWork;
 
   const prevPanelActiveWorkRef = useRef(false);
   useEffect(() => {
@@ -431,8 +426,8 @@ function ChatDashboard() {
     }
   }, [prompt]);
 
-  const sendPrompt = async (text: string, modelId?: string) => {
-    if (!text.trim()) return;
+  const sendPrompt = async (text: string, modelId?: string, voice?: VoiceAttachmentPayload) => {
+    if (!text.trim() && !voice) return;
 
     if (!activeHistoryId) {
       const session = startNewChat();
@@ -473,11 +468,11 @@ function ChatDashboard() {
     }
 
     setPrompt("");
-    await send(text, modelId, chatMetadata);
+    await send(text, modelId, chatMetadata, voice);
   };
 
-  const handleSend = (modelId: string) => {
-    sendPrompt(prompt, modelId);
+  const handleSend = (modelId: string, voice?: VoiceAttachmentPayload) => {
+    sendPrompt(prompt, modelId, voice);
   };
 
   const handleEditUserMessage = (messageId: string, content: string) => {
@@ -494,7 +489,13 @@ function ChatDashboard() {
   const showWelcomeHero = !showAgentGraph && !showMainConversation;
 
   const toggleAgentVisualize = () => {
-    setAgentSimulationOpen((open) => !open);
+    setAgentSimulationOpen((open) => {
+      const next = !open;
+      if (next) {
+        setPreferSidePanel(false);
+      }
+      return next;
+    });
   };
 
   return (
@@ -599,12 +600,12 @@ function ChatDashboard() {
               <div
                 className={`w-full mx-auto min-w-0 h-full min-h-0 max-h-full pointer-events-auto px-1 ${
                   showSplitAgentAndChat
-                    ? "max-w-4xl grid grid-rows-[minmax(280px,50%)_minmax(0,1fr)] gap-2"
+                    ? "max-w-4xl grid grid-rows-[minmax(240px,48%)_minmax(0,1fr)] gap-2"
                     : "max-w-3xl flex flex-col justify-center"
                 }`}
               >
                 {showSplitAgentAndChat && (
-                  <div className="min-h-0 w-full self-start overflow-hidden rounded-2xl border border-outline-variant/30 shadow-sm">
+                  <div className="min-h-0 h-full w-full overflow-hidden rounded-2xl border border-outline-variant/30 shadow-sm bg-[#f4f2ff]">
                     <AgentDashboard embedded onClose={handleCloseAgentView} />
                   </div>
                 )}
@@ -635,8 +636,10 @@ function ChatDashboard() {
                 transition={overlayFade}
                 className={`${MAIN_STAGE_STACK} z-20`}
               >
-                <div className="w-full max-w-4xl mx-auto h-[min(560px,calc(100%-1rem))] min-h-[300px] sm:min-h-[360px] pointer-events-auto px-1 sm:px-0 self-start pt-2">
-                  <AgentDashboard embedded onClose={handleCloseAgentView} />
+                <div className="w-full max-w-4xl mx-auto flex-1 min-h-[min(560px,calc(100%-1rem))] h-full max-h-full pointer-events-auto px-1 sm:px-0 pt-2">
+                  <div className="h-full min-h-[320px] overflow-hidden rounded-2xl border border-outline-variant/30 shadow-sm bg-[#f4f2ff]">
+                    <AgentDashboard embedded onClose={handleCloseAgentView} />
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -678,7 +681,6 @@ function ChatDashboard() {
                         uiReady={uiReady}
                         prompt={prompt}
                         setPrompt={setPrompt}
-                        isSent={hasMessages}
                         handleSend={handleSend}
                         agentMenuOpen={agentMenuOpen}
                         setAgentMenuOpen={setAgentMenuOpen}
@@ -691,7 +693,7 @@ function ChatDashboard() {
                         onSelectAgentMode={handleSelectAgentMode}
                         agentVisualizeOpen={agentSimulationOpen}
                         onToggleAgentVisualize={toggleAgentVisualize}
-                        shellClassName={MOBILE_INPUT_WIDTH_CLASS}
+                        shellClassName={hasMessages ? "" : MOBILE_INPUT_WIDTH_CLASS}
                       />
                     </div>
                   </div>

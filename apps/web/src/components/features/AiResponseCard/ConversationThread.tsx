@@ -94,6 +94,12 @@ export function ConversationThread({
                 <UserMessageRow
                   key={message.id}
                   content={message.content}
+                  voiceMessage={Boolean(message.metadata?.voice_message)}
+                  voiceDurationMs={
+                    typeof message.metadata?.voice_duration_ms === "number"
+                      ? message.metadata.voice_duration_ms
+                      : undefined
+                  }
                   isPanel={isPanel}
                   disabled={isStreaming}
                   onEdit={
@@ -112,11 +118,8 @@ export function ConversationThread({
             const responseData = parseResponseText(displayContent);
             const hasBlocks = uiBlocks.length > 0;
             const rawThinking = messageThinkingText(message, isLast, thinkingText);
-            const awaitingAnswer =
-              isLast && isStreaming && !displayContent.trim();
             const showThinking =
-              hasThinkingContent(rawThinking) ||
-              (awaitingAnswer && (hasActiveWork || Boolean(message.isStreaming)));
+              hasThinkingContent(rawThinking) || (isLast && isStreaming);
             const showStreaming = isLast && isStreaming && Boolean(displayContent.trim());
 
             return (
@@ -126,7 +129,7 @@ export function ConversationThread({
                     <div className="mb-2">
                       <ThinkingProcess
                         key={`thinking-${message.id}`}
-                        isThinking={awaitingAnswer}
+                        isThinking={isLast && isStreaming}
                         thinkingText={rawThinking}
                         thinkingMs={
                           isLast

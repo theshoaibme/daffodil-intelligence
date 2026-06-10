@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
+from sqlalchemy import or_, select
+from typing import List, Optional
 import json
 import asyncio
 import logging
@@ -20,6 +20,7 @@ from ..schemas.user import (
 from ..core.context_usage import compute_chat_context_usage
 from ..memory import memory_service
 from ..runtime.pipeline import run_turn, run_turn_stream
+from ..voice.chat_voice import resolve_voice_message
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +43,26 @@ async def create_chat(
 
 @router.get("/", response_model=List[ChatResponse])
 async def get_chats(
+    q: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user),
 ):
     user_id = int(user.get("sub"))
-    result = await db.execute(select(Chat).where(Chat.user_id == user_id).order_by(Chat.created_at.desc()))
+    stmt = select(Chat).where(Chat.user_id == user_id)
+    term = (q or "").strip()
+    if term:
+        pattern = f"%{term}%"
+        stmt = (
+            select(Chat)
+            .distinct()
+            .outerjoin(Message, Message.chat_id == Chat.id)
+            .where(
+                Chat.user_id == user_id,
+                or_(Chat.title.ilike(pattern), Message.content.ilike(pattern)),
+            )
+        )
+    stmt = stmt.order_by(Chat.created_at.desc())
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
@@ -115,7 +131,21 @@ async def add_message(
     chat_obj = chat_row.scalar_one_or_none()
     agent_id = chat_obj.agent_type if chat_obj else "main"
 
-    user_message = Message(chat_id=chat_id, role="user", content=message.content, meta=message.metadata)
+    turn_content = message.content
+    turn_metadata = dict(message.metadata or {})
+    try:
+        turn_content, turn_metadata = await resolve_voice_message(turn_content, turn_metadata)
+    except ValueError as voice_err:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail=str(voice_err)) from voice_err
+
+    if not (turn_content or "").strip():
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail="Message content is required")
+
+    user_message = Message(chat_id=chat_id, role="user", content=turn_content, meta=turn_metadata)
     db.add(user_message)
     await db.commit()
     await db.refresh(user_message)
@@ -125,9 +155,7 @@ async def add_message(
     )
     turn_index = len(turn_count_result.scalars().all())
 
-    has_attachments = bool(
-        message.metadata and message.metadata.get("attachments")
-    )
+    has_attachments = bool(turn_metadata.get("attachments"))
 
     async def generate():
         full_response = ""
@@ -142,19 +170,19 @@ async def add_message(
             db,
             chat_id=chat_id,
             user_id=user_id,
-            draft_message=message.content,
+            draft_message=turn_content,
             model_id=message.model_id,
         )
         yield f'data: {json.dumps({"type": "context", **context_usage})}\n\n'
         try:
             async for event in run_turn_stream(
-                message.content,
+                turn_content,
                 user_id=user_id,
                 chat_id=chat_id,
                 agent_id=agent_id,
                 model_id=message.model_id,
-                attachments=(message.metadata or {}).get("attachments") if has_attachments else None,
-                metadata=message.metadata,
+                attachments=turn_metadata.get("attachments") if has_attachments else None,
+                metadata=turn_metadata,
             ):
                 if not event:
                     continue
@@ -230,13 +258,13 @@ async def add_message(
                     yield f"data: {json.dumps({k: v for k, v in task_payload.items() if v is not None})}\n\n"
             if not full_response.strip() and not ui_blocks and not tool_calls:
                 result = await run_turn(
-                    message.content,
+                    turn_content,
                     user_id=user_id,
                     chat_id=chat_id,
                     agent_id=agent_id,
                     model_id=message.model_id,
-                    attachments=(message.metadata or {}).get("attachments") if has_attachments else None,
-                    metadata=message.metadata,
+                    attachments=turn_metadata.get("attachments") if has_attachments else None,
+                    metadata=turn_metadata,
                 )
                 full_response = result.get("content", "")
                 tool_calls = result.get("tool_calls", [])
@@ -299,7 +327,7 @@ async def add_message(
                     user_id=user_id,
                     agent_id=resolved_agent,
                     chat_id=chat_id,
-                    user_msg=message.content,
+                    user_msg=turn_content,
                     assistant_msg=full_response,
                     turn_index=turn_index,
                 )

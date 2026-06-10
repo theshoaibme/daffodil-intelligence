@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Check, Copy, Pencil } from "lucide-react";
+import { Check, Copy, Mic, Pencil } from "lucide-react";
+import { WaveformBars } from "../PromptBar/WaveformBars";
 
 interface UserMessageRowProps {
   content: string;
   isPanel?: boolean;
   disabled?: boolean;
+  voiceMessage?: boolean;
+  voiceDurationMs?: number;
   onEdit?: () => void;
 }
 
@@ -12,6 +15,8 @@ export function UserMessageRow({
   content,
   isPanel = false,
   disabled = false,
+  voiceMessage = false,
+  voiceDurationMs,
   onEdit,
 }: UserMessageRowProps) {
   const [copied, setCopied] = useState(false);
@@ -63,12 +68,28 @@ export function UserMessageRow({
 
       <div
         className={`rounded-3xl chat-bubble-user px-3 py-2 sm:px-3.5 sm:py-2.5 ${
-          isPanel ? "max-w-[92%]" : "max-w-[88%] sm:max-w-[78%]"
+          voiceMessage
+            ? "max-w-[50%] min-w-0"
+            : isPanel
+              ? "max-w-[92%]"
+              : "max-w-[88%] sm:max-w-[78%]"
         }`}
       >
-        <p className="text-sm text-on-surface whitespace-pre-wrap break-words leading-relaxed">
-          {content}
-        </p>
+        {voiceMessage ? (
+          <div className="flex min-w-0 items-center gap-2 text-sm text-on-surface">
+            <Mic size={14} className="shrink-0 text-on-surface-variant" />
+            <WaveformBars levels={[0.25, 0.55, 0.85, 0.45, 0.3]} />
+            {voiceDurationMs != null && (
+              <span className="text-xs text-on-surface-variant tabular-nums">
+                {Math.max(1, Math.round(voiceDurationMs / 1000))}s
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-on-surface whitespace-pre-wrap break-words leading-relaxed">
+            {content}
+          </p>
+        )}
       </div>
     </div>
   );
