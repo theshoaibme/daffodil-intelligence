@@ -158,6 +158,8 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
 AGENT_TOOLS: dict[str, List[str]] = {
     "routine": [
         "get_class_routine",
+        "read_pdf",
+        "read_routine_pdf",
         "read_department_routine_pdf",
         "recall_notes",
         "store_note",
@@ -174,7 +176,7 @@ AGENT_TOOLS: dict[str, List[str]] = {
     ],
     "academic": ["get_cgpa", "get_courses", "get_results", "get_attendance"],
     "exam": ["get_exam_schedule"],
-    "library": ["search_books", "get_book_availability"],
+    "library": ["search_books", "get_book_availability", "read_pdf"],
     "transport": ["get_shuttle_schedule"],
     "career": ["search_jobs", "get_internships"],
 }

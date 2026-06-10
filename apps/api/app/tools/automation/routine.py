@@ -5,7 +5,8 @@ from __future__ import annotations
 from ..base import BaseTool, ToolParameter, ToolResult
 from ...automation.routine_memory import recall_class_routine, recall_user_section
 from ...automation.routines_data import get_uploaded_routine
-from ...automation.routine_resolver import read_department_routine_source, resolve_section
+from ...automation.routine_pdf_reader import read_routine_pdf_fast
+from ...automation.routine_resolver import resolve_section
 from ...automation.store import automation_store
 from ...automation.telegram_notify import resolve_telegram_chat_id_for_user
 from ...runtime.tool_context import get_department, get_section, get_user_id
@@ -74,16 +75,9 @@ class GetClassRoutineTool(BaseTool):
         if data.get("pdf_excerpt"):
             return self.ok(data)
 
-        pdf_text = read_department_routine_source(dept, sec)
-        if pdf_text:
-            return self.ok(
-                {
-                    "section": sec,
-                    "department": dept,
-                    "source": "department_pdf",
-                    "text": pdf_text[:6000],
-                }
-            )
+        pdf_result = read_routine_pdf_fast(dept, sec, max_chars=6000)
+        if pdf_result.get("text"):
+            return self.ok({**pdf_result, "section": sec, "department": dept})
 
         return self.fail(
             f"No routine data for section `{sec}`. "
@@ -95,8 +89,7 @@ class GetClassRoutineTool(BaseTool):
 class ReadDepartmentRoutinePdfTool(BaseTool):
     name = "read_department_routine_pdf"
     description = (
-        "Read uploaded department routine PDF/text. Use with MCP or when "
-        "structured schedule is not in memory yet."
+        "Legacy alias for department routine PDFs. Prefer read_routine_pdf or read_pdf."
     )
     category = "automation"
     parameters = [
@@ -120,10 +113,10 @@ class ReadDepartmentRoutinePdfTool(BaseTool):
                 sec = await recall_user_section(uid)
         if not sec:
             return self.fail("Section required for department routine PDF lookup")
-        text = read_department_routine_source(dept, sec)
-        if not text:
+        result = read_routine_pdf_fast(dept, sec, max_chars=6000)
+        if not result.get("text"):
             return self.fail(f"No routine PDF/text uploaded for {dept} section {sec}")
-        return self.ok({"department": dept, "section": sec, "text": text[:6000], "chars": len(text)})
+        return self.ok({**result, "department": dept, "section": sec})
 
 
 class EnableRoutineAutomationTool(BaseTool):

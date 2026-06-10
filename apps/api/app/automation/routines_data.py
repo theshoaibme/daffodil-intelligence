@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from .routine_resolver import (
-    load_uploaded_catalog,
-    normalize_section,
-    read_department_routine_source,
-)
+from .routine_pdf_reader import read_department_routine_source
+from .routine_resolver import load_uploaded_catalog, normalize_section
 
 
 def get_uploaded_routine(

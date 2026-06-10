@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 ROUTINE_TOOLS = [
     "get_class_routine",
+    "read_pdf",
+    "read_routine_pdf",
     "read_department_routine_pdf",
     "recall_notes",
     "store_note",

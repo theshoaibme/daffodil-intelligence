@@ -101,58 +101,6 @@ def load_uploaded_catalog(
     return None
 
 
-def read_department_routine_source(
-    department: Optional[str],
-    section: Optional[str] = None,
-) -> Optional[str]:
-    dept_dir = department_data_dir(department)
-    if not dept_dir.is_dir():
-        return None
-
-    sec = normalize_section(section) if section else ""
-    names: List[str] = []
-    if sec:
-        names.extend([f"{sec}.txt", f"{sec}.pdf.txt", f"{sec}.pdf"])
-    names.extend(["routine.txt", "routine.pdf.txt", "routine.pdf"])
-
-    seen: set[str] = set()
-    for name in names:
-        path = dept_dir / name
-        key = str(path)
-        if key in seen or not path.is_file():
-            continue
-        seen.add(key)
-
-        if path.suffix.lower() == ".pdf":
-            text = _extract_pdf_text(path)
-        else:
-            try:
-                text = path.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
-                text = ""
-        text = (text or "").strip()
-        if text:
-            return text[:12000]
-    return None
-
-
-def _extract_pdf_text(path: Path) -> str:
-    try:
-        from pypdf import PdfReader  # type: ignore[import-untyped]
-
-        reader = PdfReader(str(path))
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
-    except Exception:
-        pass
-    sidecar = path.with_suffix(path.suffix + ".txt")
-    if sidecar.is_file():
-        try:
-            return sidecar.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
-            return ""
-    return ""
-
-
 def save_routine_upload(
     *,
     department: str,
