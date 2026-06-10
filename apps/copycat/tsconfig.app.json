@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lib": ["../web/src/lib/index.ts"],
+      "@hooks": ["../web/src/hooks/index.ts"],
+      "@context": ["../web/src/context/index.ts"],
+      "@styles": ["../web/src/styles/index.ts"],
+      "@ui": ["../web/src/components/ui/index.ts"],
+      "@features": ["../web/src/components/features/index.ts"],
+      "@features/*": ["../web/src/components/features/*"],
+      "@components/*": ["../web/src/components/*"]
+    },
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src", "../web/src"]
+}

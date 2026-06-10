@@ -63,6 +63,7 @@ class ActionRecorder:
     """
 
     RECORDINGS_DIR = Path("recordings")
+    DB_PATH = Path("recordings/copycat.db")
 
     def __init__(self):
         self._recording: Optional[Recording] = None
@@ -72,6 +73,56 @@ class ActionRecorder:
         self._start_time: float = 0
         self._last_action_time: float = 0
         self.RECORDINGS_DIR.mkdir(exist_ok=True)
+        self._init_db()
+        self._migrate_json_files()
+
+    def _init_db(self):
+        import sqlite3
+        with self._lock:
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS recordings (
+                    name TEXT PRIMARY KEY,
+                    created_at REAL,
+                    duration REAL,
+                    action_count INTEGER,
+                    actions TEXT
+                )
+            """)
+            conn.commit()
+            conn.close()
+
+    def _migrate_json_files(self):
+        """Migrate any existing legacy JSON recordings into SQLite database."""
+        import sqlite3
+        for path in self.RECORDINGS_DIR.glob("*.json"):
+            if path.name == "copycat.db":
+                continue
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                name = data.get("name", path.stem)
+                created_at = data.get("created_at", 0.0)
+                duration = data.get("duration", 0.0)
+                action_count = data.get("action_count", 0)
+                actions_str = json.dumps(data.get("actions", []))
+
+                conn = sqlite3.connect(self.DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT OR REPLACE INTO recordings (name, created_at, duration, action_count, actions) VALUES (?, ?, ?, ?, ?)",
+                    (name, created_at, duration, action_count, actions_str)
+                )
+                conn.commit()
+                conn.close()
+
+                # Delete migrated JSON file
+                path.unlink()
+                logger.info(f"Successfully migrated legacy JSON recording '{name}' into SQLite.")
+            except Exception as e:
+                logger.error(f"Failed to migrate legacy JSON recording {path}: {e}")
 
     @property
     def is_recording(self) -> bool:
@@ -147,71 +198,81 @@ class ActionRecorder:
         logger.info(f"Recording stopped: {recording.name}, {recording.action_count} actions, {recording.duration:.1f}s")
         return recording
 
-    def save(self, recording: Recording, path: Optional[Path] = None) -> Path:
-        """Save a recording to JSON file."""
-        if path is None:
-            path = self.RECORDINGS_DIR / f"{recording.name}.json"
+    def save(self, recording: Recording, _path: Optional[Path] = None) -> Path:
+        """Save a recording to the SQLite database."""
+        import sqlite3
+        actions_str = json.dumps([asdict(a) for a in recording.actions])
 
-        data = {
-            "name": recording.name,
-            "created_at": recording.created_at,
-            "duration": recording.duration,
-            "action_count": recording.action_count,
-            "actions": [asdict(a) for a in recording.actions],
-        }
+        with self._lock:
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT OR REPLACE INTO recordings (name, created_at, duration, action_count, actions) VALUES (?, ?, ?, ?, ?)",
+                (recording.name, recording.created_at, recording.duration, recording.action_count, actions_str)
+            )
+            conn.commit()
+            conn.close()
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-
-        logger.info(f"Recording saved to {path}")
-        return path
+        logger.info(f"Recording '{recording.name}' saved to SQLite database")
+        return self.DB_PATH
 
     def load(self, name: str) -> Optional[Recording]:
-        """Load a recording from JSON file by name."""
-        path = self.RECORDINGS_DIR / f"{name}.json"
-        if not path.exists():
-            logger.error(f"Recording not found: {path}")
+        """Load a recording from SQLite database by name."""
+        import sqlite3
+        with self._lock:
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name, created_at, duration, action_count, actions FROM recordings WHERE name = ?", (name,))
+            row = cursor.fetchone()
+            conn.close()
+
+        if not row:
+            logger.error(f"Recording not found in SQLite: {name}")
             return None
 
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        actions = [Action(**a) for a in data.get("actions", [])]
+        actions_list = json.loads(row[4])
+        actions = [Action(**a) for a in actions_list]
         recording = Recording(
-            name=data["name"],
-            created_at=data["created_at"],
-            duration=data["duration"],
-            action_count=data["action_count"],
+            name=row[0],
+            created_at=row[1],
+            duration=row[2],
+            action_count=row[3],
             actions=actions,
         )
         return recording
 
     def list_recordings(self) -> List[Dict]:
-        """List all saved recordings with metadata."""
+        """List all saved recordings with metadata from SQLite database."""
+        import sqlite3
         recordings = []
-        for path in self.RECORDINGS_DIR.glob("*.json"):
-            try:
-                with open(path, "r") as f:
-                    data = json.load(f)
-                recordings.append({
-                    "name": data.get("name", path.stem),
-                    "created_at": data.get("created_at", 0),
-                    "duration": data.get("duration", 0),
-                    "action_count": data.get("action_count", 0),
-                    "file": str(path),
-                })
-            except Exception as e:
-                logger.error(f"Failed to read recording {path}: {e}")
+        with self._lock:
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name, created_at, duration, action_count FROM recordings ORDER BY created_at DESC")
+            rows = cursor.fetchall()
+            conn.close()
 
-        return sorted(recordings, key=lambda r: r["created_at"], reverse=True)
+        for row in rows:
+            recordings.append({
+                "name": row[0],
+                "created_at": row[1],
+                "duration": row[2],
+                "action_count": row[3],
+                "file": str(self.DB_PATH),
+            })
+        return recordings
 
     def delete(self, name: str) -> bool:
-        """Delete a saved recording by name."""
-        path = self.RECORDINGS_DIR / f"{name}.json"
-        if path.exists():
-            path.unlink()
-            return True
-        return False
+        """Delete a saved recording by name from SQLite database."""
+        import sqlite3
+        with self._lock:
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM recordings WHERE name = ?", (name,))
+            deleted = cursor.rowcount > 0
+            conn.commit()
+            conn.close()
+        return deleted
 
     # ─── Event handlers (run in pynput background threads) ──────────────────
 

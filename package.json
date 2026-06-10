@@ -9,6 +9,7 @@
     "dev": "pnpm docker:infra && turbo dev --ui=tui",
     "dev:api": "pnpm docker:infra && pnpm --filter daffodil-api dev",
     "dev:web": "pnpm --filter daffodil-web dev",
+    "dev:copycat": "pnpm --filter copycat dev",
     "dev:stack": "pnpm docker:infra && turbo dev --ui=tui",
     "build": "turbo build",
     "lint": "turbo lint",
