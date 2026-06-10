@@ -7,34 +7,34 @@ from typing import Dict, List
 # Multiple agents may legitimately use the same tool.
 TOOL_AGENTS: Dict[str, List[str]] = {
     # Orchestration / delegation
-    "invoke_agent": ["planning", "antigravity", "automation"],
-    "parallel_invoke_agents": ["planning", "antigravity", "automation"],
-    "list_agents": ["planning", "antigravity", "automation"],
-    "create_automation_hook": ["event", "automation"],
-    "list_automation_hooks": ["event", "automation"],
-    "delete_automation_hook": ["event", "automation"],
+    "invoke_agent": ["planning", "automation"],
+    "parallel_invoke_agents": ["planning", "automation"],
+    "list_agents": ["planning", "automation"],
+    "create_automation_hook": ["event"],
+    "list_automation_hooks": ["event"],
+    "delete_automation_hook": ["event"],
     # Research & web
-    "deep_research": ["research", "notebooklm"],
+    "deep_research": ["research"],
     "google_web_search": ["research"],
     "web_search": ["research"],
     "fetch_url": ["research"],
     "search_papers": ["research"],
     "get_citations": ["research"],
     # Coding & shell
-    "run_shell_command": ["coding", "cursor", "cloudcode", "copilot"],
-    "run_python": ["coding", "cursor", "cloudcode", "copilot"],
+    "run_shell_command": ["coding"],
+    "run_python": ["coding"],
     # Writing & files
-    "read_file": ["writing", "cursor", "copilot", "notebooklm", "cloudcode"],
-    "write_file": ["writing", "cursor", "cloudcode"],
-    "edit_file": ["writing", "cursor", "copilot"],
+    "read_file": ["writing"],
+    "write_file": ["writing"],
+    "edit_file": ["writing"],
     "list_directory": ["writing"],
     "search_directory": ["writing"],
     "find_file": ["writing"],
     "delete_file": ["writing"],
-    "read_pdf": ["writing", "routine", "notebooklm"],
+    "read_pdf": ["writing", "routine"],
     # Tasks & schedules (personal productivity)
     "schedule_task": ["tasks"],
-    "get_daily_schedule": ["tasks"],
+    "get_daily_schedule": ["tasks", "event"],
     "create_routine": ["tasks"],
     "list_routines": ["tasks"],
     "delete_routine": ["tasks"],
@@ -42,12 +42,12 @@ TOOL_AGENTS: Dict[str, List[str]] = {
     "get_class_routine": ["routine"],
     "read_routine_pdf": ["routine"],
     "read_department_routine_pdf": ["routine"],
-    "enable_routine_automation": ["routine"],
+    "enable_routine_automation": ["routine", "event"],
     "create_reminder": ["event", "routine", "tasks"],
     "list_reminders": ["event", "routine", "tasks"],
     "delete_reminder": ["event", "routine", "tasks"],
-    # Alerts & automation delivery
-    "send_telegram_message": ["event", "automation"],
+    # Delivery
+    "send_telegram_message": ["event"],
     # Memory
     "recall_notes": ["planning"],
     "store_note": ["planning"],
@@ -74,21 +74,9 @@ TOOL_AGENTS: Dict[str, List[str]] = {
     "get_internships": ["career"],
 }
 
-PRODUCTIVITY_AGENT_IDS = frozenset(
-    {"coding", "research", "writing", "tasks"}
-)
+PRODUCTIVITY_AGENT_IDS = frozenset({"coding", "research", "writing", "tasks"})
 
-GENERAL_AGENT_IDS = frozenset(
-    {
-        "event",
-        "automation",
-        "cursor",
-        "antigravity",
-        "copilot",
-        "notebooklm",
-        "cloudcode",
-    }
-)
+GENERAL_AGENT_IDS = frozenset({"event", "automation", "general"})
 
 
 def agents_for_tool(tool_name: str, *, invoke_agent_id: str | None = None) -> List[str]:
@@ -102,11 +90,10 @@ def agents_for_tool(tool_name: str, *, invoke_agent_id: str | None = None) -> Li
     if key.startswith("memory_") or key in ("recall_notes", "store_note"):
         if "planning" not in found:
             found.append("planning")
-    # Heuristic fallbacks
     if "research" in key and "research" not in found:
         found.append("research")
     if "routine" in key or "reminder" in key:
-        for aid in ("routine", "tasks"):
+        for aid in ("routine", "tasks", "event"):
             if aid not in found:
                 found.append(aid)
     if key in ("read_pdf", "read_file", "write_file", "edit_file") and "writing" not in found:

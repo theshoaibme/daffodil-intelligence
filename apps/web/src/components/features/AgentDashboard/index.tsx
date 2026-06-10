@@ -110,7 +110,7 @@ export default function AgentDashboard({
               onClick={resetLayout}
               className="px-3 py-2 rounded-xl text-xs font-medium text-on-surface-variant hover:bg-surface-container-lowest/80"
             >
-              Reset layout
+              Reset to default
             </button>
             <button
               type="button"

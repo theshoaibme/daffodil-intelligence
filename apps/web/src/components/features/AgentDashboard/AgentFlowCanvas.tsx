@@ -20,7 +20,7 @@ import { FlowZoomControls } from "./FlowZoomControls";
 import { flowNodeTypes } from "./FlowNodes";
 import { FitViewOnUpdate } from "./FitViewOnUpdate";
 import { buildAgentGraph } from "./graphBuilder";
-import { loadLayout, saveLayout } from "./layoutStorage";
+import { loadLayout, saveDefaultLayout, saveLayout } from "./layoutStorage";
 const edgeTypes = { activeBeam: ActiveBeamEdge };
 
 const IDLE_OVERLAY = {
@@ -71,7 +71,11 @@ export function AgentFlowCanvas({
   const hoverLeaveTimer = useRef<number | null>(null);
   const resizeTimer = useRef<number | null>(null);
 
-  const live = flow.modelActive || flow.activeAgentIds.length > 0;
+  const live =
+    flow.modelActive ||
+    flow.activeAgentIds.length > 0 ||
+    flow.activeTools.length > 0 ||
+    flow.memoryActive;
   const graph = useMemo(
     () =>
       buildAgentGraph(agents, savedLayout, {
@@ -119,6 +123,7 @@ export function AgentFlowCanvas({
   useEffect(() => {
     if (saveSignal === 0) return;
     saveLayout(nodesRef.current);
+    saveDefaultLayout(nodesRef.current);
     onSave();
   }, [saveSignal, onSave]);
 

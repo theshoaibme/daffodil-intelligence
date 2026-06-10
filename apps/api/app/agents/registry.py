@@ -14,14 +14,7 @@ from .exam import ExamAgent
 from .hostel import HostelAgent
 from .transport import TransportAgent
 from .event import CampusEventsAgent
-from .platform import (
-    AntigravityAgent,
-    AutomationAgent,
-    CloudCodeAgent,
-    CopilotAgent,
-    CursorAgent,
-    NotebookLmAgent,
-)
+from .automation import AutomationAgent
 from .complaint import ComplaintAgent
 from .event_manager import EventAgent
 from .fee_agent import FeeAgent
@@ -53,11 +46,6 @@ AGENT_MAP = {
     "complaint": ComplaintAgent(),
     "event": EventAgent(),
     "automation": AutomationAgent(),
-    "cursor": CursorAgent(),
-    "antigravity": AntigravityAgent(),
-    "copilot": CopilotAgent(),
-    "notebooklm": NotebookLmAgent(),
-    "cloudcode": CloudCodeAgent(),
     "fee": FeeAgent(),
     "general": GeneralAgent(),
     "computer_use": ComputerUseAgent(),

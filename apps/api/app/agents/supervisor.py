@@ -46,12 +46,7 @@ Available agents (30+ total):
 - campus_events: workshops, clubs, seminars
 - event: dynamic event manager — hooks, triggers, schedules, reminders, delivery
 - complaint: grievances, feedback, escalations
-- automation: hooks, delegated agents, Telegram
-- cursor: agentic IDE, codebase edits, terminal
-- antigravity: multi-agent orchestration
-- copilot: inline pair-programming assists
-- notebooklm: document-grounded Q&A
-- cloudcode: cloud sandbox execution
+- automation: delegate agents, parallel workflows
 - fee: tuition, installments, payment status
 - routine: reminders, daily/weekly routines, schedules, alarms, habit tracking
 
@@ -79,12 +74,7 @@ If query is complex (multiple topics), call multiple agents in parallel.
             "- campus_events: workshops, seminars, university events, clubs\n"
             "- event: dynamic events — hooks, triggers, schedules, reminders, Telegram delivery\n"
             "- complaint: grievances, issues, feedback, escalation\n"
-            "- automation: hooks, delegated agents, Telegram delivery\n"
-            "- cursor: agentic IDE, codebase edits, terminal\n"
-            "- antigravity: multi-agent orchestration runtime\n"
-            "- copilot: inline pair-programming assists\n"
-            "- notebooklm: document-grounded Q&A from PDFs and notes\n"
-            "- cloudcode: cloud sandbox scripts and remote dev\n"
+            "- automation: delegate agents and parallel workflows\n"
             "- fee: tuition fee, installments, payment status\n"
             "- routine: reminders, alarms, daily/weekly/monthly routines, habit tracking, schedule my day\n"
         )

@@ -1,7 +1,13 @@
 import { memo, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Brain } from "lucide-react";
-import { RiBrainFill, RiChat3Fill, RiDatabase2Fill, RiQuestionAnswerFill, RiTelegramFill } from "react-icons/ri";
+import {
+  RiBrainFill,
+  RiChat3Fill,
+  RiDatabase2Fill,
+  RiQuestionAnswerFill,
+  RiTelegramFill,
+} from "react-icons/ri";
 import { getAgentIconStyle } from "./agentIcons";
 import { ICON_SIZE, ROOT_CARD_HEIGHT, ROOT_HUB_Y, rootOutputHandleY } from "./flowLayout";
 import {

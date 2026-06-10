@@ -63,7 +63,7 @@ AUTOMATION RULES
   tools (do not say you cannot). Use enable_routine_automation for daily/hourly
   section schedules; use create_reminder for one-off alerts.
 - For multi-domain requests use parallel_invoke_agents (e.g. routine,research). Otherwise invoke_agent (routine, exam,
-  planning, academic, event, automation, cursor, etc.).
+  planning, academic, event, automation, etc.).
 - If Telegram is not linked, tell the user to log in via the DI Telegram bot with
   the same email.
 

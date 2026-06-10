@@ -1,7 +1,8 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { Agent } from "@hooks";
 import { CATEGORY_LABELS } from "./agentConstants";
-import { DASHBOARD_MODELS, isAgentActiveFromTools, modelNodeId } from "@lib";
+import { isAgentActiveFromTools } from "../../../lib/agentSimulation";
+import { DASHBOARD_MODELS, modelNodeId } from "../../../lib/models";
 import {
   ROOT_DEFAULT_X,
   ROOT_DEFAULT_Y,

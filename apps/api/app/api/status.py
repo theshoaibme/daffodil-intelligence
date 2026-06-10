@@ -31,11 +31,6 @@ _AGENT_CATEGORIES = {
     "tasks": "productivity",
     "event": "general",
     "automation": "general",
-    "cursor": "general",
-    "antigravity": "general",
-    "copilot": "general",
-    "notebooklm": "general",
-    "cloudcode": "general",
     "vision": "ai",
     "voice": "ai",
     "computer_use": "computer",
@@ -44,6 +39,10 @@ _AGENT_CATEGORIES = {
     "routine": "university",
     "general": "general",
 }
+
+_HUB_CATEGORIES = frozenset(
+    {"orchestration", "computer", "productivity", "university", "ai", "general"}
+)
 
 
 def _agent_catalog() -> list[dict]:

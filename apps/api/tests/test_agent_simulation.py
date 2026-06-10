@@ -1,8 +1,8 @@
 """Agent simulation tool → agent mapping."""
 
 from app.runtime.agent_simulation import (
-    GENERAL_AGENT_IDS,
     PRODUCTIVITY_AGENT_IDS,
+    GENERAL_AGENT_IDS,
     agents_for_tool,
 )
 

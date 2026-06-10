@@ -56,7 +56,9 @@ function AgentHubCard({
   onDelete?: () => void;
 }) {
   const { icon: Icon, iconColor } = getAgentIconStyle(agent.id, agent.category);
-  const categoryLabel = CATEGORY_LABELS[agent.category || "general"] ?? agent.category;
+  const categoryLabel =
+    CATEGORY_LABELS[agent.category || "general"] ??
+    agent.category;
 
   return (
     <li className="min-w-0">

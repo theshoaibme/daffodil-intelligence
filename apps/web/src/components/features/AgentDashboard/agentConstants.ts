@@ -19,11 +19,6 @@ export const AGENT_DESCRIPTION_FALLBACKS: Record<string, string> = {
   event: "Dynamic event manager — hooks, triggers, schedules, reminders, and delivery.",
   complaint: "Handles student complaints, feedback, suggestions, and grievance resolution.",
   automation: "Workflow automation — delegate to specialists and parallel agent runbooks.",
-  cursor: "Agentic IDE — codebase edits, terminal, and multi-step coding tasks.",
-  antigravity: "Multi-agent orchestration runtime with tools and sub-agent delegation.",
-  copilot: "Inline pair-programming assists, explanations, and quick code patches.",
-  notebooklm: "Grounded answers from PDFs, notes, and uploaded sources.",
-  cloudcode: "Cloud sandbox execution — scripts, shells, and remote dev tasks.",
   fee: "Handles tuition fees, payments, scholarships, waivers, and financial matters.",
   general: "Handles greetings, unknown queries, and basic clarification questions.",
   computer_use: "Controls mouse, keyboard, and screen for desktop automation tasks.",
@@ -41,7 +36,7 @@ export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   productivity: "Coding, research, writing, tasks, alerts, and productivity tools.",
   university: "Campus services — academic, library, career, finance, routines, and more.",
   ai: "Vision, voice, and multimodal AI capabilities.",
-  general: "Event manager, automation, Cursor, Antigravity, Copilot, NotebookLM, Cloud Code, and open-ended queries.",
+  general: "Event manager, automation, and open-ended queries.",
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
