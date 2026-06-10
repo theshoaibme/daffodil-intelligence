@@ -38,6 +38,20 @@ daffodil-kit start --no-update
 
 Disable: `DAFFODIL_KIT_AUTO_UPDATE=0` or `"auto_update": false` in `~/.daffodil-kit/config.json`
 
+## SQLite Database Storage
+
+The agent automatically stores all recorded macro sequences inside a centralized local SQLite database file located at:
+* `recordings/copycat.db`
+
+Legacy JSON recordings are migrated into SQLite automatically on daemon startup.
+
+## Standalone UI Application
+
+You can run Copycat's control dashboard as a standalone web application on port `3001` (independent of the main workspace interface):
+```bash
+pnpm dev:copycat
+```
+
 ## Environment
 
 | Variable | Purpose |
@@ -46,6 +60,7 @@ Disable: `DAFFODIL_KIT_AUTO_UPDATE=0` or `"auto_update": false` in `~/.daffodil-
 | `DAFFODIL_KIT_NATIVE` | `1` = build Rust capture backend |
 | `DAFFODIL_KIT_INSTALL_SERVICE` | `1` = systemd / launchd / Task Scheduler |
 | `DAFFODIL_KIT_AUTO_UPDATE` | `0` = disable auto-update on start |
+| `PYTHONIOENCODING` | Set to `utf-8` on Windows to resolve console character encoding errors |
 
 ## Verify
 
