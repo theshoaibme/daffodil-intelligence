@@ -1,62 +1,101 @@
 import React from "react";
-import { Shield, KeyRound, ArrowRight } from "lucide-react";
+import { Shield, ArrowRight, ShieldCheck } from "lucide-react";
 
 interface LoginPageProps {
   onLogin: () => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  const handleOpenTerms = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const url = "http://localhost:3000/terms";
+    const api = window.electronAPI as any;
+    if (api?.openExternal) {
+      api.openExternal(url);
+    } else {
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleOpenPrivacy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const url = "http://localhost:3000/privacy";
+    const api = window.electronAPI as any;
+    if (api?.openExternal) {
+      api.openExternal(url);
+    } else {
+      window.open(url, "_blank");
+    }
+  };
+
   return (
     <div 
       className="flex flex-col items-center justify-center w-full h-full min-h-screen text-on-surface p-6 relative select-none"
       style={{
-        background: "radial-gradient(circle at 50% 50%, var(--color-surface-container-low) 0%, var(--color-background) 100%)"
+        background: "radial-gradient(circle at 50% 50%, var(--color-surface-container-low, #eeecfa) 0%, var(--color-background, #fbf8ff) 100%)",
+        fontFamily: "'Roboto Flex', system-ui, -apple-system, sans-serif"
       }}
     >
-      {/* Decorative Blur Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-secondary/15 rounded-full blur-[100px] pointer-events-none" />
+      {/* Premium Glassmorphic Ambient Orbs */}
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-secondary/15 rounded-full blur-[120px] pointer-events-none" />
 
+      {/* Main Single Dialog Container */}
       <div 
-        className="w-full max-w-[400px] border border-outline-variant/50 rounded-[32px] p-8 shadow-2xl flex flex-col gap-6 items-center text-center backdrop-blur-xl pointer-events-auto"
+        className="w-full max-w-[420px] border border-outline-variant/60 rounded-[48px] p-8 sm:p-10 shadow-2xl flex flex-col gap-8 items-center text-center backdrop-blur-2xl pointer-events-auto transition-all duration-300 hover:shadow-primary/5"
         style={{
-          backgroundColor: "color-mix(in srgb, var(--color-surface-container-lowest) 75%, transparent)"
+          backgroundColor: "rgba(255, 255, 255, 0.85)"
         }}
       >
         {/* App Logo */}
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/20">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-inner">
           <Shield size={32} className="animate-pulse" />
         </div>
 
-        {/* Text */}
+        {/* Dynamic Typography Header */}
         <div className="flex flex-col gap-2">
-          <h2 className="text-2xl font-bold tracking-tight">CopyCat Desktop</h2>
-          <p className="text-sm text-on-surface-variant/80 px-2">
-            AI-driven macro recording & playback companion. Please authenticate with your Daffodil Intelligence account to proceed.
+          <h2 className="text-2xl font-bold tracking-tight text-on-surface">CopyCat Desktop</h2>
+          <p className="text-sm text-on-surface-variant leading-relaxed">
+            Secure Single Sign-on
           </p>
         </div>
 
-        {/* Feature list */}
-        <div className="w-full flex flex-col gap-3 py-2 text-left text-xs text-on-surface-variant">
-          <div className="flex items-center gap-3 bg-surface-container/40 p-3 rounded-2xl border border-outline-variant/15">
-            <KeyRound size={16} className="text-primary shrink-0" />
-            <span>Secure single-sign-on (SSO) with your active web session</span>
-          </div>
+        {/* Feature Highlights */}
+        <div className="w-full flex items-center gap-3 bg-surface-container/60 p-4 rounded-[20px] border border-outline-variant/30 text-left text-xs text-on-surface-variant leading-relaxed">
+          <ShieldCheck size={18} className="text-primary shrink-0" />
+          <span>Authenticate instantly using your active web dashboard session.</span>
         </div>
 
-        {/* Login Button */}
-        <button
-          onClick={onLogin}
-          className="w-full py-4 px-6 rounded-full bg-primary text-on-primary font-semibold text-sm hover:bg-primary/95 transition-all shadow-lg hover:shadow-primary/25 flex items-center justify-center gap-2 group cursor-pointer"
-        >
-          <span>Authenticate with Web Dashboard</span>
-          <ArrowRight size={16} className="transform transition-transform group-hover:translate-x-1" />
-        </button>
+        {/* Action Button Group */}
+        <div className="w-full flex flex-col gap-3">
+          <button
+            onClick={onLogin}
+            className="w-full py-4 px-6 rounded-full bg-primary text-on-primary font-semibold text-sm hover:opacity-95 active:scale-[0.99] transition-all shadow-lg hover:shadow-primary/25 flex items-center justify-center gap-2 group cursor-pointer border-0"
+            style={{ backgroundColor: "var(--color-primary, #213be7)" }}
+          >
+            <span>Login to Workspace</span>
+            <ArrowRight size={16} className="transform transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
 
-        {/* Footer info */}
-        <span className="text-[10px] text-on-surface-variant/60">
-          Connection port: 3001 · Daemon online
-        </span>
+        {/* Terms & Conditions Footer Links */}
+        <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-on-surface-variant/70 mt-2">
+          <a 
+            href="http://localhost:3000/terms" 
+            onClick={handleOpenTerms}
+            className="hover:text-primary transition-colors hover:underline"
+          >
+            Terms of Service
+          </a>
+          <span>·</span>
+          <a 
+            href="http://localhost:3000/privacy" 
+            onClick={handleOpenPrivacy}
+            className="hover:text-primary transition-colors hover:underline"
+          >
+            Privacy Policy
+          </a>
+        </div>
       </div>
     </div>
   );

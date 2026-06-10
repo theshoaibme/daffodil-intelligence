@@ -56,8 +56,9 @@ export function CopycatAuthProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const login = () => {
+    const webBase = import.meta.env.VITE_WEB_URL || "http://localhost:3000";
     // Redirect to web app copycat authentication bridge
-    window.location.href = "http://localhost:3000/copycat";
+    window.location.href = `${webBase}/copycat`;
   };
 
   const logout = () => {

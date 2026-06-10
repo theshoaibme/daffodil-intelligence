@@ -1,8 +1,12 @@
-const { app, BrowserWindow, screen, ipcMain, desktopCapturer } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, desktopCapturer, shell } = require('electron');
 const path = require('path');
 
 ipcMain.on('close-app', () => {
   app.quit();
+});
+
+ipcMain.on('open-external', (event, url) => {
+  shell.openExternal(url);
 });
 
 ipcMain.on('set-ignore-mouse', (event, ignore) => {

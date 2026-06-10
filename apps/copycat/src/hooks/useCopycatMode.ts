@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
-import { useComputerStream } from "@hooks";
-import { useKit } from "@hooks";
-import { useMouseTracker } from "@hooks";
-import type { ActionLogEntry, ScreenFrame } from "@hooks";
-import type { KitPermissions } from "@hooks";
+import { useComputerStream } from "./useComputerStream";
+import { useKit } from "./useKit";
+import { useMouseTracker } from "./useMouseTracker";
+import type { ActionLogEntry, ScreenFrame } from "./useComputerStream";
+import type { KitPermissions } from "./useKit";
 
 export interface CopycatModeState {
   // Connection

@@ -16,8 +16,8 @@ import {
   Focus,
   MessageSquare,
 } from "lucide-react";
-import { BOTTOM_BAR_LAYOUT_ID, modeSpring } from "@lib";
-import type { KitPermissions } from "@hooks";
+import { BOTTOM_BAR_LAYOUT_ID, modeSpring } from "../../../web/src/lib";
+import type { KitPermissions } from "../../../web/src/hooks";
 
 interface ElectronAPI {
   isElectron?: boolean;
