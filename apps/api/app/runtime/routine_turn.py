@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
 from ..agents.routine import RoutineAgent
+from ..automation.routine_intent import is_improvement_exam_routine, wants_class_routine
 from ..automation.routine_mcp import ensure_mcp_in_metadata
 from .intent_router import route_message
 from .task_events import (
@@ -21,6 +22,7 @@ _CLASS_ROUTINE_SIGNALS = (
     "class routine",
     "class schedule",
     "weekly routine",
+    "weekly class routine",
     "today class",
     "tomorrow class",
     "today's class",
@@ -29,6 +31,9 @@ _CLASS_ROUTINE_SIGNALS = (
     "tomorrow routine",
     "tomorrow's routine",
     "today's routine",
+    "improvement exam",
+    "improvement routine",
+    "final improvement",
 )
 
 
@@ -45,7 +50,15 @@ def should_use_routine_fast_path(message: str, agent_id: Optional[str] = None) -
         return True
     if plan.primary == "routine":
         return True
+    if wants_class_routine(message):
+        return True
     return False
+
+
+def _routine_tool_title(message: str) -> str:
+    if is_improvement_exam_routine(message):
+        return "Load improvement exam routine"
+    return "Load class routine"
 
 
 def _build_context(user_id: Any, metadata: Optional[dict]) -> Dict[str, Any]:
@@ -57,8 +70,11 @@ def _build_context(user_id: Any, metadata: Optional[dict]) -> Dict[str, Any]:
     }
 
 
-def _start_task_tree(*, orchestrator: str = "main") -> Dict[str, Dict[str, Any]]:
+def _start_task_tree(
+    *, orchestrator: str = "main", message: str = ""
+) -> Dict[str, Dict[str, Any]]:
     """Create root → routine agent → get_class_routine tool task chain."""
+    tool_title = _routine_tool_title(message)
     reset_turn_tasks()
     root = emit_task(
         kind="agent",
@@ -81,12 +97,12 @@ def _start_task_tree(*, orchestrator: str = "main") -> Dict[str, Dict[str, Any]]
         parent_id=routine["task_id"],
         kind="tool",
         name="get_class_routine",
-        title="Load class routine",
+        title=tool_title,
         status="active",
         agent_id="routine",
         depth=2,
     )
-    return {"root": root, "routine": routine, "tool": tool}
+    return {"root": root, "routine": routine, "tool": tool, "tool_title": tool_title}
 
 
 def _complete_task_tree(tasks: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -95,13 +111,14 @@ def _complete_task_tree(tasks: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]
     tool = tasks["tool"]
     routine = tasks["routine"]
     root = tasks["root"]
+    tool_title = tasks.get("tool_title") or "Load class routine"
     events.append(
         emit_task(
             task_id=tool["task_id"],
             parent_id=tool.get("parent_id"),
             kind="tool",
             name="get_class_routine",
-            title="Load class routine",
+            title=tool_title,
             status="success",
             agent_id="routine",
             depth=2,
@@ -141,7 +158,7 @@ async def _execute_routine(
     metadata: Optional[dict] = None,
     orchestrator: str = "main",
 ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
-    tasks = _start_task_tree(orchestrator=orchestrator)
+    tasks = _start_task_tree(orchestrator=orchestrator, message=message)
     ctx = _build_context(user_id, metadata)
     content = await RoutineAgent().process(message, ctx)
     ui_events = pop_pending_ui_events()
@@ -181,7 +198,10 @@ async def stream_routine_fast_path(
 ) -> AsyncIterator[dict]:
     """Stream task tree + routine agent + UI blocks + summary."""
     meta = ensure_mcp_in_metadata(dict(metadata or {}), message)
-    tasks = _start_task_tree(orchestrator=orchestrator)
+    tasks = _start_task_tree(orchestrator=orchestrator, message=message)
+
+    yield {"type": "status", "content": "Routing to Routine Agent…"}
+    yield {"type": "thinking", "content": "Loading schedule from data/routines…\n"}
 
     yield tasks["root"]
     yield tasks["routine"]
@@ -201,14 +221,20 @@ async def stream_routine_fast_path(
     for done in _complete_task_tree(tasks):
         yield done
 
-    has_table = any(
+    has_tabs = any(
+        isinstance(b, dict) and b.get("schema") == "tabs" and (b.get("data") or {}).get("tabs")
+        for b in ui_blocks
+    )
+    has_table = has_tabs or any(
         isinstance(b, dict)
         and b.get("schema") == "data_table"
         and (b.get("data") or {}).get("rows")
         for b in ui_blocks
     )
-    text = (content or "").strip()
-    if text and (not has_table or len(text) < 120):
+    from .response_validate import validate_assistant_response
+
+    text = validate_assistant_response((content or "").strip(), ui_blocks)
+    if text and not has_table:
         yield {"type": "content", "content": text}
 
 
@@ -220,7 +246,8 @@ async def run_routine_for_invoke(
 ) -> Dict[str, Any]:
     """Routine agent turn nested under invoke_agent — queues task events for the parent turn."""
     meta = ensure_mcp_in_metadata(dict(metadata or {}), message)
-    tasks = _start_task_tree(orchestrator="automation")
+    tasks = _start_task_tree(orchestrator="automation", message=message)
+    tool_title = tasks.get("tool_title") or "Load class routine"
 
     append_nested_event(tasks["routine"])
     append_nested_event(tasks["tool"])
@@ -228,6 +255,7 @@ async def run_routine_for_invoke(
         {
             "type": "tool",
             "name": "get_class_routine",
+            "title": tool_title,
             "status": "active",
             "agent_id": "routine",
             "source": "local",

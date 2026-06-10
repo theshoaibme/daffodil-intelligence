@@ -27,6 +27,9 @@ def routine_turn(message: Optional[str]) -> bool:
                 "tomorrow class",
                 "tomorrow routine",
                 "today class",
+                "improvement exam",
+                "improvement routine",
+                "weekly class routine",
             )
         ):
             return True

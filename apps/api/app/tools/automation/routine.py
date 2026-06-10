@@ -39,6 +39,12 @@ class GetClassRoutineTool(BaseTool):
             description="Department e.g. CSE (optional — from user profile)",
             required=False,
         ),
+        ToolParameter(
+            name="routine_kind",
+            type="string",
+            description="Special routine bundle: improvement_exam (no section required)",
+            required=False,
+        ),
     ]
 
     async def execute(
@@ -46,10 +52,26 @@ class GetClassRoutineTool(BaseTool):
         section: str = None,
         day: str = None,
         department: str = None,
+        routine_kind: str = None,
         **kwargs,
     ) -> ToolResult:
         uid = get_user_id()
         dept = (department or get_department() or "").strip() or None
+        kind = (routine_kind or kwargs.get("routine_kind") or "").strip().lower()
+        turn_message = str(kwargs.get("message") or "")
+
+        if kind in ("improvement_exam", "improvement"):
+            data = await fetch_class_routine(
+                user_id=uid,
+                day=day,
+                routine_kind="improvement_exam",
+                message=turn_message,
+            )
+            if routine_has_schedule(data):
+                return self.ok(data)
+            hint = data.get("hint") or "Improvement exam routine not found in data/routines/."
+            return self.fail(hint)
+
         explicit = (section or get_section(default="") or "").strip()
         sec = resolve_section(section=explicit, department=dept) if explicit else ""
         if not sec and uid:
@@ -65,6 +87,7 @@ class GetClassRoutineTool(BaseTool):
             section=sec,
             day=day,
             department=dept,
+            message=turn_message,
         )
         if data.get("error") == "section_required":
             return self.fail(data.get("hint") or "Section required")

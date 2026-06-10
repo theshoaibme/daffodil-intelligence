@@ -58,6 +58,54 @@ function humanize(name: string): string {
   return name.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function isStructuredTaskGraph(tasks: AgentTaskNode[]): boolean {
+  return tasks.some((t) => t.id.startsWith("task-") || t.id.startsWith("root-"));
+}
+
+function orderTasksTree(tasks: AgentTaskNode[]): AgentTaskNode[] {
+  if (tasks.length <= 1) return tasks;
+
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const childrenOf = new Map<string, AgentTaskNode[]>();
+  const roots: AgentTaskNode[] = [];
+
+  for (const task of tasks) {
+    const parentId = task.parentId;
+    if (parentId && byId.has(parentId)) {
+      const siblings = childrenOf.get(parentId) ?? [];
+      siblings.push(task);
+      childrenOf.set(parentId, siblings);
+    } else {
+      roots.push(task);
+    }
+  }
+
+  const ordered: AgentTaskNode[] = [];
+  const seen = new Set<string>();
+
+  const visit = (node: AgentTaskNode) => {
+    if (seen.has(node.id)) return;
+    seen.add(node.id);
+    ordered.push(node);
+    for (const child of childrenOf.get(node.id) ?? []) {
+      visit(child);
+    }
+  };
+
+  const rootOrder = [...roots].sort((a, b) => a.depth - b.depth || tasks.indexOf(a) - tasks.indexOf(b));
+  for (const root of rootOrder) {
+    visit(root);
+  }
+
+  for (const task of tasks) {
+    if (!seen.has(task.id)) {
+      ordered.push(task);
+    }
+  }
+
+  return ordered;
+}
+
 export function reduceAgentTasks(
   tasks: AgentTaskNode[],
   event: TaskStreamEvent
@@ -77,6 +125,9 @@ export function reduceAgentTasks(
   }
 
   if (event.type === "agent" || event.type === "subagent") {
+    if (isStructuredTaskGraph(tasks)) {
+      return tasks;
+    }
     const agentId = event.agent_id || event.name || "main";
     if (tasks.some((t) => t.kind === "agent" && t.agentId === agentId && t.id.startsWith("task-"))) {
       return tasks;
@@ -98,6 +149,16 @@ export function reduceAgentTasks(
   }
 
   if (event.type === "tool" && event.name) {
+    if (isStructuredTaskGraph(tasks)) {
+      const match = tasks.find((t) => t.kind === "tool" && t.name === event.name);
+      if (match) {
+        return upsertTask(tasks, {
+          ...match,
+          status: normalizeStatus(event.status),
+        });
+      }
+      return tasks;
+    }
     if (tasks.some((t) => t.kind === "tool" && t.name === event.name)) {
       return tasks;
     }
@@ -162,24 +223,26 @@ export function reduceAgentTasks(
   return tasks;
 }
 
-/** Flat list for TaskPanel with tree indentation via depth. */
-export function tasksToPanelItems(tasks: AgentTaskNode[]): {
+export interface TaskPanelItem {
   id: string;
   text: string;
   active?: boolean;
   depth?: number;
   parallelGroup?: string;
-}[] {
-  const sorted = [...tasks].sort((a, b) => {
-    if (a.depth !== b.depth) return a.depth - b.depth;
-    return a.id.localeCompare(b.id);
-  });
-  return sorted.map((t) => ({
+  kind?: AgentTaskNode["kind"];
+  status?: TaskStatus;
+}
+
+/** Flat list for TaskPanel — parent → child order, indentation via depth only. */
+export function tasksToPanelItems(tasks: AgentTaskNode[]): TaskPanelItem[] {
+  return orderTasksTree(tasks).map((t) => ({
     id: t.id,
-    text: `${"  ".repeat(Math.max(0, t.depth))}${t.parallelGroup ? "⇉ " : ""}${t.title}`,
+    text: t.parallelGroup ? `⇉ ${t.title}` : t.title,
     active: t.status === "active",
     depth: t.depth,
     parallelGroup: t.parallelGroup,
+    kind: t.kind,
+    status: t.status,
   }));
 }
 

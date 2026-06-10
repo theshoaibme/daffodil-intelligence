@@ -215,7 +215,7 @@ async def add_message(
                     yield f'data: {json.dumps({"type": "memory", "name": event.get("name", "memory"), "status": event.get("status", "active")})}\n\n'
                 elif event_type == "task":
                     yield f'data: {json.dumps({"type": "task", "task_id": event.get("task_id"), "parent_id": event.get("parent_id"), "kind": event.get("kind"), "name": event.get("name"), "title": event.get("title"), "status": event.get("status", "active"), "agent_id": event.get("agent_id"), "parallel_group": event.get("parallel_group"), "depth": event.get("depth", 0)})}\n\n'
-            if not full_response.strip():
+            if not full_response.strip() and not ui_blocks and not tool_calls:
                 result = await run_turn(
                     message.content,
                     user_id=user_id,
@@ -242,6 +242,10 @@ async def add_message(
             logger.error(f"Error processing turn: {e}")
             full_response = f"I encountered an error while processing your request: {str(e)}"
             yield f'data: {json.dumps({"content": full_response})}\n\n'
+
+        from ..runtime.response_validate import validate_assistant_response
+
+        full_response = validate_assistant_response(full_response, ui_blocks)
 
         # Save assistant message to the database
         try:

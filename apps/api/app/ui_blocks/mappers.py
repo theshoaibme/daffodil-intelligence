@@ -8,9 +8,11 @@ from typing import Any, Dict, List, Optional
 _TIME_SORT_RE = re.compile(r"(\d{1,2})[:.](\d{2})")
 
 from ..tools.base import ToolResult
-from .schemas import TurnPresentation, UiBlock
+from .schemas import TurnPresentation, UiBlock, ui_block_to_dict
 
 _ROUTINE_COL_ORDER = ("time", "course", "room", "teacher", "type", "day")
+_EXAM_COL_ORDER = ("date", "day", "time", "course", "room")
+_EXAM_TAB_COL_ORDER = ("time", "course", "room")
 _ROUTINE_COL_LABELS = {
     "time": "Time",
     "course": "Course",
@@ -18,6 +20,7 @@ _ROUTINE_COL_LABELS = {
     "teacher": "Teacher",
     "type": "Type",
     "day": "Day",
+    "date": "Date",
 }
 
 
@@ -56,6 +59,126 @@ def _block(
     source: Optional[str] = None,
 ) -> UiBlock:
     return UiBlock(block_type=schema, title=title, data=data, source=source)
+
+
+def _exam_table_from_rows(
+    rows: List[Dict[str, Any]],
+    *,
+    title: Optional[str],
+    source: Optional[str],
+    empty_message: str,
+    compact: bool = False,
+) -> UiBlock:
+    col_order = _EXAM_TAB_COL_ORDER if compact else _EXAM_COL_ORDER
+    display_rows = [
+        {k: row.get(k, "") for k in col_order if k in row}
+        for row in rows
+    ]
+    columns = [
+        {"key": k, "label": _ROUTINE_COL_LABELS.get(k, k.title())}
+        for k in col_order
+        if any(k in row for row in display_rows)
+    ]
+    if not display_rows:
+        return _block(
+            "status_card",
+            {"tone": "info", "message": empty_message},
+            title=title,
+            source=source,
+        )
+    return _block(
+        "data_table",
+        {"columns": columns, "rows": display_rows},
+        title=title,
+        source=source,
+    )
+
+
+def _sort_exam_days(weekly: Dict[str, Any]) -> List[str]:
+    def _date_key(day: str) -> tuple:
+        items = weekly.get(day) or []
+        raw = (items[0].get("date") if items else "") or ""
+        parts = raw.split("-")
+        if len(parts) == 3:
+            try:
+                return (int(parts[2]), int(parts[1]), int(parts[0]))
+            except ValueError:
+                pass
+        return (99, 99, 99)
+
+    return sorted(weekly.keys(), key=_date_key)
+
+
+def _improvement_exam_blocks(
+    data: Dict[str, Any], source: Optional[str]
+) -> List[UiBlock]:
+    title = data.get("title") or "Final Improvement Exam Routine"
+    items = data.get("items")
+    if data.get("course_query") and isinstance(items, list) and len(items) == 1:
+        row = items[0]
+        course = (row.get("course") or "Course").split("[")[0].strip()
+        return [
+            _exam_table_from_rows(
+                items,
+                title=f"{title} — {course}",
+                source=source,
+                empty_message="No matching exam entry.",
+                compact=False,
+            )
+        ]
+
+    weekly = data.get("weekly")
+    if not isinstance(weekly, dict) or not weekly:
+        items = data.get("items")
+        if isinstance(items, list) and items:
+            day = data.get("day")
+            return [
+                _exam_table_from_rows(
+                    items,
+                    title=f"{title} — {day}" if day else title,
+                    source=source,
+                    empty_message="No courses for that exam day.",
+                )
+            ]
+        return []
+
+    sessions_by_day = {
+        (s.get("day") or ""): s for s in (data.get("sessions") or []) if isinstance(s, dict)
+    }
+    tabs: List[Dict[str, Any]] = []
+    for day in _sort_exam_days(weekly):
+        items = weekly.get(day) or []
+        if not items:
+            continue
+        date = (items[0].get("date") if items else "") or ""
+        label = f"{day} · {date}" if date else day
+        sess = sessions_by_day.get(day) or {}
+        table_title = (sess.get("time") or "").strip()
+        reporting = (sess.get("reporting_time") or "").strip()
+        if reporting:
+            table_title = (
+                f"{table_title} · Reporting {reporting}" if table_title else f"Reporting {reporting}"
+            )
+        table = _exam_table_from_rows(
+            items,
+            title=table_title or None,
+            source=source,
+            empty_message="No courses scheduled.",
+            compact=True,
+        )
+        tabs.append(
+            {
+                "id": day.lower(),
+                "label": label,
+                "block": ui_block_to_dict(table),
+            }
+        )
+
+    if len(tabs) == 1:
+        only = tabs[0]["block"]
+        return [UiBlock.model_validate(only)]
+
+    return [_block("tabs", {"tabs": tabs}, title=title, source=source)]
 
 
 def _table_from_rows(
@@ -104,6 +227,9 @@ def _flatten_weekly(weekly: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def _map_dict_to_blocks(data: Dict[str, Any], source: Optional[str], tool_name: str) -> List[UiBlock]:
     blocks: List[UiBlock] = []
+
+    if data.get("routine_type") == "improvement_exam":
+        return _improvement_exam_blocks(data, source)
 
     weekly = data.get("weekly")
     if isinstance(weekly, dict) and weekly:
@@ -270,6 +396,20 @@ def _summary_for_data(tool_name: str, data: Dict[str, Any]) -> str:
             parts.append(f"{n_rem} reminder{'s' if n_rem != 1 else ''}")
         return f"{prefix}: {', '.join(parts)}." if parts else f"{prefix}: nothing scheduled."
 
+    if data.get("routine_type") == "improvement_exam":
+        items = data.get("items") or []
+        weekly = data.get("weekly") or {}
+        day_count = len([d for d, rows in weekly.items() if rows]) if weekly else 0
+        if len(items) == 1:
+            return ""
+        if day_count > 1:
+            return ""
+        day = data.get("day")
+        if day:
+            return f"Final improvement exam — {day}: {len(items)} courses."
+        total = sum(len(rows) for rows in weekly.values()) if weekly else len(items)
+        return f"Final improvement exam routine — {total} courses."
+
     if "weekly" in data:
         sec = data.get("section") or ""
         weekly = data.get("weekly") or {}
@@ -356,6 +496,8 @@ def map_tool_result(tool_name: str, result: ToolResult, *, source: Optional[str]
 
 
 def enrich_tool_result(result: ToolResult, tool_name: Optional[str] = None) -> ToolResult:
+    from ..runtime.response_validate import validate_assistant_response
+
     name = tool_name or result.tool_name
     blocks = map_tool_result(name, result)
     result.ui_blocks = blocks
@@ -366,10 +508,14 @@ def enrich_tool_result(result: ToolResult, tool_name: Optional[str] = None) -> T
             result.summary = _summary_for_data(name, result.data)
         else:
             result.summary = _summary_for_data(name, {})
+    block_dicts = [ui_block_to_dict(b) for b in blocks]
+    result.summary = validate_assistant_response(result.summary or "", block_dicts)
     return result
 
 
 def format_tool_results(results: List[ToolResult]) -> TurnPresentation:
+    from ..runtime.response_validate import validate_assistant_response
+
     summaries: List[str] = []
     blocks: List[UiBlock] = []
 
@@ -379,7 +525,11 @@ def format_tool_results(results: List[ToolResult]) -> TurnPresentation:
             summaries.append(enriched.summary)
         blocks.extend(enriched.ui_blocks)
 
+    block_dicts = [ui_block_to_dict(b) for b in blocks]
+    summary = "\n".join(s for s in summaries if s).strip()
+    summary = validate_assistant_response(summary, block_dicts)
+
     return TurnPresentation(
-        summary="\n".join(s for s in summaries if s).strip(),
+        summary=summary,
         blocks=blocks,
     )

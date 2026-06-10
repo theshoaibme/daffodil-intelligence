@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
+from .routine_csv import get_improvement_exam_routine
+from .routine_intent import extract_course_search_query, is_improvement_exam_routine
 from .routine_memory import recall_class_routine
 from .routine_pdf_reader import read_routine_pdf_fast
 from .routine_resolver import normalize_section, resolve_routine_day
@@ -14,9 +16,12 @@ from ..runtime.tool_context import get_user_id
 async def fetch_class_routine(
     *,
     user_id: Optional[int] = None,
-    section: str,
+    section: str = "",
     day: Optional[str] = None,
     department: Optional[str] = None,
+    routine_kind: Optional[str] = None,
+    message: Optional[str] = None,
+    course_query: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Load a class routine from real sources only (never synthesized):
@@ -25,6 +30,13 @@ async def fetch_class_routine(
     3. data/routines/{department}/{section}.pdf (or .txt)
     """
     uid = int(user_id or 0) or get_user_id()
+    kind = (routine_kind or "").strip().lower()
+    if kind in ("improvement_exam", "improvement") or is_improvement_exam_routine(
+        message or ""
+    ):
+        query = (course_query or "").strip() or extract_course_search_query(message or "")
+        return get_improvement_exam_routine(day=day, course_query=query or None)
+
     sec = normalize_section(section)
     if not sec:
         return {
@@ -88,6 +100,8 @@ async def fetch_class_routine(
 
 
 def routine_has_schedule(data: Dict[str, Any]) -> bool:
+    if data.get("routine_type") == "improvement_exam" and data.get("items"):
+        return True
     if data.get("weekly") and any(data["weekly"].values()):
         return True
     if data.get("items"):

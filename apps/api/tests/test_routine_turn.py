@@ -78,8 +78,8 @@ def test_stream_routine_fast_path_emits_ui():
         types = [e.get("type") for e in events]
         assert "task" in types
         assert any(e.get("type") == "ui" for e in events)
-        assert any(e.get("type") == "content" for e in events)
-        assert any(e.get("type") == "content" for e in events)
+        # Table present — redundant summary text is not streamed
+        assert not any(e.get("type") == "content" for e in events)
     finally:
         clear_turn_context()
 

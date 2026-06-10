@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .base import BaseAgent
 from .tool_runner import format_tool_results, run_tool
+from ..automation.routine_intent import is_improvement_exam_routine, wants_class_routine
 from ..automation.routine_memory import recall_user_section
 from ..automation.routine_resolver import normalize_section, resolve_section
 from ..runtime.intent_router import route_message
@@ -89,13 +90,6 @@ def _weekday(offset_days: int = 0) -> str:
     return (datetime.now(timezone.utc) + timedelta(days=offset_days)).strftime("%A")
 
 
-def _wants_class_routine(lower: str) -> bool:
-    return any(
-        k in lower
-        for k in _CLASS_TODAY_KEYS + _CLASS_TOMORROW_KEYS + _CLASS_ROUTINE_KEYS
-    )
-
-
 class RoutineAgent(BaseAgent):
     name = "Routine Agent"
     description = "Schedules, class routines, reminders, habits, and automation hooks"
@@ -117,6 +111,18 @@ class RoutineAgent(BaseAgent):
                 kwargs: Dict = {"section": sec}
                 if call_day:
                     kwargs["day"] = call_day
+                results.append(await run_tool("get_class_routine", ctx, **kwargs))
+                return format_tool_results(results).summary
+
+            if is_improvement_exam_routine(lower):
+                day_hint = None
+                if "tomorrow" in lower:
+                    day_hint = _weekday(1)
+                elif "today" in lower:
+                    day_hint = _weekday(0)
+                kwargs: Dict = {"routine_kind": "improvement_exam", "message": message}
+                if day_hint:
+                    kwargs["day"] = day_hint
                 results.append(await run_tool("get_class_routine", ctx, **kwargs))
                 return format_tool_results(results).summary
 
@@ -153,7 +159,7 @@ class RoutineAgent(BaseAgent):
                     )
                 )
 
-            elif not _wants_class_routine(lower) and (
+            elif not wants_class_routine(lower) and (
                 lower.strip() == "today" or any(k in lower for k in _DAILY_KEYS)
             ):
                 results.append(await run_tool("get_daily_schedule", ctx, section=sec or None))
@@ -182,7 +188,7 @@ class RoutineAgent(BaseAgent):
             elif any(k in lower for k in ("pdf", "uploaded routine", "routine document")):
                 results.append(await run_tool("read_department_routine_pdf", ctx, section=sec or None))
 
-            if not results and plan.primary == "routine" and sec and _wants_class_routine(lower):
+            if not results and plan.primary == "routine" and sec and wants_class_routine(lower):
                 results.append(await run_tool("get_class_routine", ctx, section=sec))
 
             if not results and any(k in lower for k in ("pdf", "uploaded routine", "routine document")):
@@ -199,7 +205,7 @@ class RoutineAgent(BaseAgent):
         except Exception as e:
             logger.warning("RoutineAgent tool path failed: %s", e)
 
-        if _wants_class_routine(lower) or plan.primary == "routine":
+        if wants_class_routine(lower) or plan.primary == "routine":
             return (
                 "No routine in data/routines for that section/day. "
                 "Add CSV to data/routines/ or set your section (e.g. 64_I) with store_note."

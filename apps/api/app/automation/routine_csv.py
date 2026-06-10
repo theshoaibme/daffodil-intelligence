@@ -10,6 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from .routine_intent import course_matches_query
 from .routine_resolver import (
     ROUTINE_DATA_ROOT,
     normalize_department_key,
@@ -397,6 +398,326 @@ def get_csv_routine(
         "csv_files_searched": [p.name for p in paths],
         "sample_sections": sorted(set(available))[:15],
     }
+
+
+_IMPROVEMENT_EXAM_TITLE_RE = re.compile(
+    r"Final\s+Improvement\s+Exam\s+Routine",
+    re.I,
+)
+_IMPROVEMENT_DATE_RE = re.compile(
+    r"Date:\s*([\d-]+)\s*\(([^)]+)\)",
+    re.I,
+)
+_IMPROVEMENT_TIME_RE = re.compile(r"Time:\s*([^,]+)", re.I)
+_COURSE_CODE_ROW_RE = re.compile(r"^([A-Z]{2,4}\d{3})", re.I)
+_ROOM_HEADER_WORDS = frozenset({"number", "room"})
+
+
+def find_improvement_exam_csv() -> Optional[Path]:
+    for path in list_csv_routine_files():
+        if "improvement" in path.name.lower():
+            return path
+    return None
+
+
+def _append_room_fragment(room: str, fragment: str) -> str:
+    frag = (fragment or "").strip()
+    if not frag:
+        return room
+    return f"{room} {frag}".strip() if room else frag
+
+
+def _row_cells(row: List[str]) -> List[str]:
+    return [(c or "").strip() for c in row]
+
+
+def _is_course_header_row(line: str) -> bool:
+    return "Course Code" in line and "Course Title" in line
+
+
+def _room_fragments(cells: List[str]) -> List[str]:
+    out: List[str] = []
+    for cell in cells:
+        if not cell or cell.lower() in _ROOM_HEADER_WORDS:
+            continue
+        if _COURSE_CODE_ROW_RE.match(cell):
+            continue
+        if "Course Code" in cell or "Students" in cell:
+            continue
+        out.append(cell)
+    return out
+
+
+def _is_room_fragment_text(text: str) -> bool:
+    lower = text.lower()
+    return lower in {"knowledge", "tower", "number"} or text.isdigit()
+
+
+def _build_default_room(fragments: List[str]) -> str:
+    nums: List[str] = []
+    words: List[str] = []
+    for frag in fragments:
+        if frag.isdigit():
+            if frag not in nums:
+                nums.append(frag)
+        elif frag.lower() not in _ROOM_HEADER_WORDS and frag.lower() not in {
+            w.lower() for w in words
+        }:
+            words.append(frag)
+    return " ".join(nums + words).strip()
+
+
+def _finalize_improvement_session(session: Dict[str, Any]) -> None:
+    """Apply session hall to rows and drop orphan code-only lines."""
+    header_frags = list(session.get("room_fragments") or [])
+    item_frags: List[str] = []
+    for item in session.get("items") or []:
+        room = (item.get("room") or "").strip()
+        if room:
+            for part in room.split():
+                if part not in item_frags:
+                    item_frags.append(part)
+
+    default_room = _build_default_room(header_frags + item_frags)
+    session["default_room"] = default_room
+
+    cleaned: List[Dict[str, Any]] = []
+    for item in session.get("items") or []:
+        course = (item.get("course") or "").strip()
+        if not course:
+            continue
+        parts = course.split(None, 1)
+        if len(parts) == 1 and _COURSE_CODE_ROW_RE.fullmatch(parts[0].replace("/", "")):
+            continue
+
+        room = (item.get("room") or "").strip()
+        if not room or room in {"Tower", "Knowledge"} or room.isdigit():
+            room = default_room
+        elif default_room and len(room.split()) < len(default_room.split()):
+            room = default_room
+
+        cleaned.append(
+            {
+                "date": item.get("date") or "",
+                "day": item.get("day") or "",
+                "time": item.get("time") or "",
+                "course": course,
+                "room": room or default_room,
+            }
+        )
+    session["items"] = cleaned
+
+
+def parse_improvement_exam_sessions(path: Path) -> List[Dict[str, Any]]:
+    """Parse bundled improvement-exam CSV into dated exam sessions."""
+    try:
+        with path.open(encoding="utf-8", errors="ignore", newline="") as handle:
+            rows = list(csv.reader(handle))
+    except Exception as e:
+        logger.warning("Failed to read improvement exam CSV %s: %s", path, e)
+        return []
+
+    sessions: List[Dict[str, Any]] = []
+    current: Optional[Dict[str, Any]] = None
+    title = path.stem.replace("-", " ").title()
+    after_course_header = False
+
+    for row in rows:
+        cells = _row_cells(row)
+        col0 = cells[0] if cells else ""
+        col1 = cells[1] if len(cells) > 1 else ""
+        col2 = cells[2] if len(cells) > 2 else ""
+        line = ",".join(row)
+
+        if _IMPROVEMENT_EXAM_TITLE_RE.search(line):
+            if current and current.get("items"):
+                _finalize_improvement_session(current)
+                sessions.append(current)
+            current = {
+                "title": "Final Improvement Exam Routine",
+                "time": "",
+                "reporting_time": "",
+                "date": "",
+                "day": "",
+                "room_fragments": [],
+                "items": [],
+            }
+            after_course_header = False
+            if "Spring" in line or "Fall" in line:
+                current["title"] = line.strip('", ')
+            continue
+
+        if not current:
+            continue
+
+        date_match = _IMPROVEMENT_DATE_RE.search(line)
+        if date_match:
+            current["date"] = date_match.group(1).strip()
+            current["day"] = _title_case_day(date_match.group(2))
+            continue
+
+        time_match = _IMPROVEMENT_TIME_RE.search(line)
+        if time_match and "Reporting" not in line:
+            current["time"] = time_match.group(1).strip()
+            continue
+
+        if "Reporting time" in line:
+            current["reporting_time"] = line.split("Reporting time", 1)[-1].strip(" ,")
+            continue
+
+        if col0.startswith("***"):
+            continue
+
+        if _is_course_header_row(line):
+            current["room_fragments"] = []
+            after_course_header = True
+            continue
+
+        course_match = _COURSE_CODE_ROW_RE.match(col0) if col0 else None
+
+        if not col0 and col1 and current["items"] and not _is_room_fragment_text(col1):
+            if not col2 and not col1.lower().startswith("course"):
+                current["items"][-1]["course"] = (
+                    f"{current['items'][-1]['course']} {col1}".strip()
+                )
+                continue
+
+        if course_match and not col1.strip() and current["items"]:
+            prev = current["items"][-1]
+            prev_code = (prev.get("course") or "").split()[0]
+            if "/" in prev_code or prev_code.endswith("/"):
+                title_rest = " ".join((prev.get("course") or "").split()[1:])
+                merged = f"{prev_code.rstrip('/')}/{col0.strip().upper()} {title_rest}".strip()
+                prev["course"] = merged
+                continue
+
+        if course_match:
+            after_course_header = False
+            code = course_match.group(1).upper()
+            title_cell = col1
+            if col0.endswith("/"):
+                course_name = f"{col0.upper()} {title_cell}".strip()
+            else:
+                course_name = f"{code} {title_cell}".strip()
+
+            current["items"].append(
+                {
+                    "course": course_name,
+                    "room": col2,
+                    "time": current.get("time") or "",
+                    "date": current.get("date") or "",
+                    "day": current.get("day") or "",
+                }
+            )
+            continue
+
+        frags = _room_fragments(cells)
+        if not frags:
+            continue
+
+        if after_course_header and not current["items"]:
+            current["room_fragments"].extend(frags)
+            continue
+
+        if current["items"] and all(_is_room_fragment_text(f) for f in frags):
+            last = current["items"][-1]
+            last["room"] = _append_room_fragment(last.get("room") or "", " ".join(frags))
+
+    if current and current.get("items"):
+        _finalize_improvement_session(current)
+        sessions.append(current)
+
+    if not title and sessions:
+        title = sessions[0].get("title") or title
+    for sess in sessions:
+        sess.setdefault("title", title)
+    return sessions
+
+
+def _filter_improvement_items(
+    items: List[Dict[str, Any]], course_query: Optional[str]
+) -> List[Dict[str, Any]]:
+    if not course_query:
+        return items
+    return [
+        item
+        for item in items
+        if course_matches_query(str(item.get("course") or ""), course_query)
+    ]
+
+
+def get_improvement_exam_routine(
+    day: Optional[str] = None,
+    course_query: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Load improvement exam routine from data/routines/*improvement*.csv (no section)."""
+    path = find_improvement_exam_csv()
+    if not path:
+        return {
+            "source": "none",
+            "routine_type": "improvement_exam",
+            "error": "not_found",
+            "hint": "No improvement exam CSV in data/routines/.",
+        }
+
+    sessions = parse_improvement_exam_sessions(path)
+    if not sessions:
+        return {
+            "source": "none",
+            "routine_type": "improvement_exam",
+            "csv_file": path.name,
+            "error": "parse_failed",
+            "hint": f"Could not parse {path.name}.",
+        }
+
+    title = sessions[0].get("title") or "Final Improvement Exam Routine"
+    all_items: List[Dict[str, Any]] = []
+    weekly: Dict[str, List[Dict[str, Any]]] = {}
+    for sess in sessions:
+        for item in sess["items"]:
+            row = dict(item)
+            row.setdefault("time", sess.get("time") or "")
+            row.setdefault("date", sess.get("date") or "")
+            row.setdefault("day", sess.get("day") or "")
+            all_items.append(row)
+            day_key = row.get("day") or "Unknown"
+            weekly.setdefault(day_key, []).append(row)
+
+    query = (course_query or "").strip() or None
+    if query:
+        all_items = _filter_improvement_items(all_items, query)
+        weekly = {}
+        for item in all_items:
+            day_name = item.get("day") or "Unknown"
+            weekly.setdefault(day_name, []).append(item)
+        if not all_items:
+            return {
+                "source": "none",
+                "routine_type": "improvement_exam",
+                "course_query": query,
+                "error": "course_not_found",
+                "hint": f"No improvement exam entry matching '{query}' in {path.name}.",
+                "csv_file": path.name,
+            }
+
+    day_key = resolve_routine_day(day) if day else None
+    payload: Dict[str, Any] = {
+        "source": "csv",
+        "routine_type": "improvement_exam",
+        "csv_file": path.name,
+        "title": title,
+        "sessions": sessions,
+        "weekly": weekly,
+    }
+    if query:
+        payload["course_query"] = query
+    if day_key:
+        payload["day"] = day_key
+        payload["items"] = weekly.get(day_key, [])
+        return payload
+
+    payload["items"] = all_items
+    return payload
 
 
 def list_csv_routine_catalog(department: Optional[str] = None) -> Dict[str, Any]:

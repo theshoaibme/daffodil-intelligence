@@ -351,6 +351,8 @@ function ChatDashboard() {
   }, [agentModeActive, isStreaming]);
 
   const showAgentDashboard = agentModeActive && agentSimulationOpen;
+  /** Agent flow visualization in the center — hidden when the user opens full-view chat. */
+  const showAgentDashboardView = showAgentDashboard && preferSidePanel;
 
   const agentLiveTasks = useMemo<TaskItem[] | null>(() => {
     if (!showAgentDashboard) return null;
@@ -432,10 +434,9 @@ function ChatDashboard() {
 
   const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
   const showResponsePanel = hasMessages && !copycatMode;
-  const showCenterConversation =
-    showResponsePanel && !preferSidePanel && !showAgentDashboard;
-  const showSideResponse = showResponsePanel && !showCenterConversation;
-  const showWelcomeHero = !showAgentDashboard && !showCenterConversation;
+  const showCenterConversation = showResponsePanel && !preferSidePanel;
+  const showSideResponse = showResponsePanel && preferSidePanel;
+  const showWelcomeHero = !showAgentDashboardView && !showCenterConversation;
 
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
@@ -571,7 +572,7 @@ function ChatDashboard() {
           )}
 
           <AnimatePresence>
-            {showAgentDashboard && (
+            {showAgentDashboardView && (
               <motion.div
                 key="agent-mode-shell"
                 initial={{ opacity: 0 }}
