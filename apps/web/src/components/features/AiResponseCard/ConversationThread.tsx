@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { AlertCircle } from "lucide-react";
 import type { ChatMessage } from "@hooks";
 import type { ThinkingStep } from "./ThinkingProcess";
@@ -19,6 +19,7 @@ export interface ConversationThreadProps {
   thinkingSteps?: ThinkingStep[];
   thinkingText?: string;
   thinkingMs?: number | null;
+  hasActiveWork?: boolean;
   error?: string | null;
   variant?: "center" | "panel";
   onFullView?: () => void;
@@ -28,12 +29,22 @@ export interface ConversationThreadProps {
   onEditUserMessage?: (messageId: string, content: string) => void;
 }
 
+function messageThinkingText(
+  message: ChatMessage,
+  isLast: boolean,
+  liveThinking: string
+): string {
+  const stored = String(message.metadata?.thinking_text ?? "").trim();
+  if (isLast && liveThinking.trim()) return liveThinking.trim();
+  return stored;
+}
+
 export function ConversationThread({
   messages,
   isStreaming = false,
-  thinkingSteps = [],
   thinkingText = "",
   thinkingMs = null,
+  hasActiveWork = false,
   error = null,
   variant = "center",
   onFullView,
@@ -43,27 +54,13 @@ export function ConversationThread({
   onEditUserMessage,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [thinkingExpanded, setThinkingExpanded] = useState(false);
   const isPanel = variant === "panel";
   const lastAssistant = messages.filter((m) => m.role === "assistant").pop();
-  const lastAssistantHasUi =
-    ((lastAssistant?.metadata?.ui_blocks as UiBlock[] | undefined)?.length ?? 0) > 0;
-  const isLastAssistantStreaming =
-    isStreaming &&
-    Boolean(lastAssistant?.isStreaming) &&
-    !lastAssistant?.content.trim() &&
-    !lastAssistantHasUi;
 
   useEffect(() => {
     if (!autoScroll || !scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [autoScroll, messages, isStreaming, thinkingText]);
-
-  useEffect(() => {
-    if (isStreaming) {
-      setThinkingExpanded(false);
-    }
-  }, [isStreaming]);
+  }, [autoScroll, messages, isStreaming, thinkingText, hasActiveWork]);
 
   const showActions = (message: ChatMessage, isLast: boolean) => {
     const blocks = coerceUiBlocks((message.metadata?.ui_blocks as UiBlock[] | undefined) ?? []);
@@ -113,12 +110,12 @@ export function ConversationThread({
             const displayContent = sanitizeAssistantContent(message.content, uiBlocks);
             const responseData = parseResponseText(displayContent);
             const hasBlocks = uiBlocks.length > 0;
+            const combinedThinking = messageThinkingText(message, isLast, thinkingText);
+            const awaitingAnswer =
+              isLast && isStreaming && !displayContent.trim();
             const showThinking =
-              isLast &&
-              isStreaming &&
-              !displayContent.trim() &&
-              !hasBlocks &&
-              (isLastAssistantStreaming || thinkingText.trim().length > 0);
+              combinedThinking.length > 0 ||
+              (awaitingAnswer && (hasActiveWork || Boolean(message.isStreaming)));
             const showStreaming = isLast && isStreaming && Boolean(displayContent.trim());
 
             return (
@@ -127,11 +124,13 @@ export function ConversationThread({
                   {showThinking && (
                     <div className="mb-2">
                       <ThinkingProcess
-                        isThinking={isLastAssistantStreaming}
-                        thinkingText={thinkingText}
-                        thinkingMs={thinkingMs}
-                        isExpanded={thinkingExpanded}
-                        onToggleExpand={() => setThinkingExpanded((open) => !open)}
+                        isThinking={awaitingAnswer}
+                        thinkingText={combinedThinking}
+                        thinkingMs={
+                          isLast
+                            ? thinkingMs
+                            : (message.metadata?.thinking_ms as number | null)
+                        }
                       />
                     </div>
                   )}

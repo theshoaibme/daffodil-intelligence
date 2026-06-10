@@ -9,6 +9,7 @@ interface AiResponseCardProps {
   thinkingSteps?: ThinkingStep[];
   thinkingText?: string;
   thinkingMs?: number | null;
+  hasActiveWork?: boolean;
   error?: string | null;
   fillHeight?: boolean;
   onFullView?: () => void;
@@ -21,6 +22,7 @@ export function AiResponseCard({
   thinkingSteps = [],
   thinkingText = "",
   thinkingMs = null,
+  hasActiveWork = false,
   error,
   fillHeight = false,
   onFullView,
@@ -49,6 +51,7 @@ export function AiResponseCard({
           thinkingSteps={thinkingSteps}
           thinkingText={thinkingText}
           thinkingMs={thinkingMs}
+          hasActiveWork={hasActiveWork}
           error={error}
           variant="panel"
           onFullView={onFullView}

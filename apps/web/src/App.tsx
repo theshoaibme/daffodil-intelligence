@@ -18,6 +18,7 @@ import {
   readLocalMcpServers,
   ROUTES,
   sidebarWidthTransition,
+  hasActivePanelWork,
   tasksToPanelItems,
   type AgentMode,
 } from "@lib";
@@ -369,6 +370,11 @@ function ChatDashboard() {
     return items.length > 0 ? items : null;
   }, [agentTasks]);
 
+  const hasActiveWork = useMemo(
+    () => isStreaming && hasActivePanelWork(agentTasks),
+    [agentTasks, isStreaming]
+  );
+
   const taskPanelLive = taskPanelLiveTasks !== null;
 
   useEffect(() => {
@@ -556,6 +562,7 @@ function ChatDashboard() {
                     thinkingSteps={thinkingSteps}
                     thinkingText={thinkingText}
                     thinkingMs={thinkingMs}
+                    hasActiveWork={hasActiveWork}
                     error={error}
                     onClose={() => setPreferSidePanel(true)}
                     onEditUserMessage={handleEditUserMessage}
@@ -574,6 +581,7 @@ function ChatDashboard() {
                   thinkingSteps={thinkingSteps}
                   thinkingText={thinkingText}
                   thinkingMs={thinkingMs}
+                  hasActiveWork={hasActiveWork}
                   error={error}
                   onFullView={() => setPreferSidePanel(false)}
                   onEditUserMessage={handleEditUserMessage}
@@ -661,6 +669,7 @@ function ChatDashboard() {
                     thinkingSteps={thinkingSteps}
                     thinkingText={thinkingText}
                     thinkingMs={thinkingMs}
+                    hasActiveWork={hasActiveWork}
                     error={error}
                     fillHeight
                     onFullView={() => setPreferSidePanel(false)}

@@ -97,6 +97,22 @@ export function useChat(options?: UseChatOptions) {
   const sendGenerationRef = useRef(0);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const thinkingStartRef = useRef<number | null>(null);
+  const thinkingAccumRef = useRef("");
+
+  const patchAssistantMessage = useCallback(
+    (
+      assistantMessageId: string,
+      patch: Partial<ChatMessage> | ((message: ChatMessage) => ChatMessage)
+    ) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== assistantMessageId) return m;
+          return typeof patch === "function" ? patch(m) : { ...m, ...patch };
+        })
+      );
+    },
+    []
+  );
 
   useEffect(() => {
     const panel = tasksToPanelItems(agentTasks);
@@ -187,6 +203,7 @@ export function useChat(options?: UseChatOptions) {
       setThinkingSteps([]);
       setAgentTasks([]);
       setThinkingText("");
+      thinkingAccumRef.current = "";
       setThinkingMs(0);
       setLastContext(null);
       resetFlow();
@@ -228,12 +245,7 @@ export function useChat(options?: UseChatOptions) {
           if (isSendStale(generation)) return;
           fullContent += chunk;
           setCurrentStreamingContent(fullContent);
-
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMessageId ? { ...m, content: fullContent } : m
-            )
-          );
+          patchAssistantMessage(assistantMessageId, { content: fullContent });
         },
         modelId,
         (ctx) => {
@@ -245,26 +257,29 @@ export function useChat(options?: UseChatOptions) {
           const inputId = getFlow().activeInputId ?? "input-chat";
 
           if (event.type === "thinking" && event.content) {
-            setThinkingText((prev) => prev + event.content);
+            thinkingAccumRef.current += event.content;
+            const nextThinking = thinkingAccumRef.current;
+            setThinkingText(nextThinking);
+            patchAssistantMessage(assistantMessageId, (message) => ({
+              ...message,
+              metadata: { ...message.metadata, thinking_text: nextThinking },
+            }));
             return;
           }
 
           if (event.type === "ui" && event.block) {
             const block = coerceUiBlock(event.block);
             if (!block) return;
-            setMessages((prev) =>
-              prev.map((m) => {
-                if (m.id !== assistantMessageId) return m;
-                const existing = (m.metadata?.ui_blocks as UiBlock[] | undefined) ?? [];
-                return {
-                  ...m,
-                  metadata: {
-                    ...m.metadata,
-                    ui_blocks: mergeUiBlocks(existing, [block]),
-                  },
-                };
-              })
-            );
+            patchAssistantMessage(assistantMessageId, (message) => {
+              const existing = (message.metadata?.ui_blocks as UiBlock[] | undefined) ?? [];
+              return {
+                ...message,
+                metadata: {
+                  ...message.metadata,
+                  ui_blocks: mergeUiBlocks(existing, [block]),
+                },
+              };
+            });
             return;
           }
 
@@ -298,26 +313,31 @@ export function useChat(options?: UseChatOptions) {
 
       setAgentTasks((prev) => finalizeAgentTasks(prev));
 
-      setMessages(prev =>
-        prev.map((m) => {
-          if (m.id !== assistantMessageId) return m;
-          const streamedBlocks = (m.metadata?.ui_blocks as UiBlock[] | undefined) ?? [];
-          const finalBlocks = mergeUiBlocks(
-            streamedBlocks,
-            (response.metadata?.ui_blocks as UiBlock[] | undefined) ?? []
-          );
-          return {
-            ...m,
-            content: response.content,
-            metadata: {
-              ...m.metadata,
-              ...response.metadata,
-              ui_blocks: finalBlocks.length ? finalBlocks : undefined,
-            },
-            isStreaming: false,
-          };
-        })
-      );
+      const finalThinking = thinkingAccumRef.current.trim();
+      const finalThinkingMs =
+        thinkingStartRef.current != null
+          ? Date.now() - thinkingStartRef.current
+          : null;
+
+      patchAssistantMessage(assistantMessageId, (message) => {
+        const streamedBlocks = (message.metadata?.ui_blocks as UiBlock[] | undefined) ?? [];
+        const finalBlocks = mergeUiBlocks(
+          streamedBlocks,
+          (response.metadata?.ui_blocks as UiBlock[] | undefined) ?? []
+        );
+        return {
+          ...message,
+          content: response.content || message.content,
+          metadata: {
+            ...message.metadata,
+            ...response.metadata,
+            ...(finalThinking ? { thinking_text: finalThinking } : {}),
+            ...(finalThinkingMs != null ? { thinking_ms: finalThinkingMs } : {}),
+            ui_blocks: finalBlocks.length ? finalBlocks : undefined,
+          },
+          isStreaming: false,
+        };
+      });
 
       setIsStreaming(false);
       setCurrentStreamingContent("");
@@ -336,7 +356,7 @@ export function useChat(options?: UseChatOptions) {
         setIsLoading(false);
       }
     }
-  }, [chatId, isSendStale, stopThinkingTimer]);
+  }, [chatId, isSendStale, patchAssistantMessage, stopThinkingTimer]);
 
   const clearChat = useCallback(() => {
     loadSession(null, []);

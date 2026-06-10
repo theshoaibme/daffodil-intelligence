@@ -415,6 +415,14 @@ async function consumeSSEStream(
           continue;
         }
 
+        if (parsed.type === "content" && typeof parsed.content === "string") {
+          if (parsed.content) {
+            fullContent += parsed.content;
+            onChunk?.(parsed.content);
+          }
+          continue;
+        }
+
         if (parsed.type === "ui" && parsed.block) {
           const block = coerceUiBlock(parsed.block);
           if (block) {

@@ -9,6 +9,7 @@ interface ResponseFullViewProps {
   thinkingSteps?: ThinkingStep[];
   thinkingText?: string;
   thinkingMs?: number | null;
+  hasActiveWork?: boolean;
   error?: string | null;
   onClose?: () => void;
   onEditUserMessage?: (messageId: string, content: string) => void;
@@ -21,6 +22,7 @@ export function ResponseFullView({
   thinkingSteps = [],
   thinkingText = "",
   thinkingMs = null,
+  hasActiveWork = false,
   error = null,
   onClose,
   onEditUserMessage,
@@ -42,6 +44,7 @@ export function ResponseFullView({
         thinkingSteps={thinkingSteps}
         thinkingText={thinkingText}
         thinkingMs={thinkingMs}
+        hasActiveWork={hasActiveWork}
         error={error}
         variant="center"
         showSidePanelFooter={Boolean(onClose)}

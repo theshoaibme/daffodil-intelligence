@@ -238,6 +238,10 @@ export interface TaskPanelItem {
 const PANEL_HIDDEN_KINDS = new Set<AgentTaskNode["kind"]>(["model", "memory", "status"]);
 
 /** True when a task row should appear in the Task manager UI (not trace/metadata). */
+export function hasActivePanelWork(tasks: AgentTaskNode[]): boolean {
+  return tasks.some((task) => task.status === "active" && isPanelVisibleTask(task));
+}
+
 export function isPanelVisibleTask(task: AgentTaskNode): boolean {
   if (PANEL_HIDDEN_KINDS.has(task.kind)) return false;
 
