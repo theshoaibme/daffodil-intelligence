@@ -16,6 +16,7 @@ export const ROUTES = {
   model: "/intelligence/model",
   googleCallback: "/intelligence/auth/google/callback",
   telegramAuth: "/intelligence/auth/telegram",
+  copycat: "/copycat",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

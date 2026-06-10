@@ -64,6 +64,22 @@ function createWindow() {
 
   mainWindow.webContents.openDevTools({ mode: 'detach' });
 
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('http://localhost:3001')) {
+      const parsedUrl = new URL(url);
+      const token = parsedUrl.searchParams.get('token');
+      if (token) {
+        event.preventDefault();
+        const isDev = !app.isPackaged;
+        if (isDev) {
+          mainWindow.loadURL(`http://localhost:3001/?token=${token}`);
+        } else {
+          mainWindow.loadFile(path.join(__dirname, 'dist/index.html'), { query: { token } });
+        }
+      }
+    }
+  });
+
   const isDev = !app.isPackaged;
   if (isDev) {
     mainWindow.loadURL('http://localhost:3001');

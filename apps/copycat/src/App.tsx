@@ -1,10 +1,24 @@
+import { useEffect } from "react";
 import { CopycatToolbar } from "./components/CopycatToolbar";
 import { useCopycatMode } from "./hooks/useCopycatMode";
-import { AuthProvider } from "@context";
+import { CopycatAuthProvider, useCopycatAuth } from "./context/AuthContext";
+import { LoginPage } from "./components/LoginPage";
 import { HashRouter } from "react-router-dom";
 
 function CopycatDock() {
-  const state = useCopycatMode(true); // Auto-connect to daemon
+  const { isAuthenticated, login } = useCopycatAuth();
+  const state = useCopycatMode(isAuthenticated); // Only connect if authenticated
+
+  // Ensure Electron window allows mouse interactions on the Login screen
+  useEffect(() => {
+    if (!isAuthenticated && typeof window !== "undefined") {
+      window.electronAPI?.setIgnoreMouse?.(false);
+    }
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={login} />;
+  }
 
   return (
     <div className="relative w-full h-full bg-transparent overflow-hidden">
@@ -24,9 +38,9 @@ function CopycatDock() {
         onKeyboardToggle={state.toggleKeyboard}
         onRecordToggle={() => {
           if (state.isRecording) {
-            state.stopRecording();
+            void state.stopRecording();
           } else {
-            state.startRecording();
+            void state.startRecording();
           }
         }}
         onReplay={state.replayRecording}
@@ -40,9 +54,9 @@ function CopycatDock() {
 function App() {
   return (
     <HashRouter>
-      <AuthProvider>
+      <CopycatAuthProvider>
         <CopycatDock />
-      </AuthProvider>
+      </CopycatAuthProvider>
     </HashRouter>
   );
 }
