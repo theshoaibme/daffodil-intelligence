@@ -19,7 +19,13 @@ _STREAMING_AGENTS = frozenset(
         "research",
         "writing",
         "tasks",
-        "notification",
+        "event",
+        "automation",
+        "cursor",
+        "antigravity",
+        "copilot",
+        "notebooklm",
+        "cloudcode",
         "career",
         "coding",
         "computer_use",
@@ -135,7 +141,7 @@ class InvokeAgentTool(BaseTool):
             name="agent_type",
             type="string",
             description=(
-                "Agent key e.g. routine, exam, planning, academic, notification, research"
+                "Agent key e.g. routine, exam, planning, academic, event, automation, cursor, research"
             ),
         ),
         ToolParameter(

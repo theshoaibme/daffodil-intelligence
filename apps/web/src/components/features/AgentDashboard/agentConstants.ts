@@ -15,9 +15,15 @@ export const AGENT_DESCRIPTION_FALLBACKS: Record<string, string> = {
   exam: "Handles exam schedules, results, attendance, and academic calendar.",
   hostel: "Handles hostel bookings, room allocations, complaints, and facilities.",
   transport: "Handles shuttle schedules, routes, live tracking, and vehicle booking.",
-  event: "Handles campus events, workshops, seminars, clubs, and activities.",
+  campus_events: "Handles campus events, workshops, seminars, clubs, and activities.",
+  event: "Dynamic event manager — hooks, triggers, schedules, reminders, and delivery.",
   complaint: "Handles student complaints, feedback, suggestions, and grievance resolution.",
-  notification: "Handles notifications, announcements, alerts, and messaging preferences.",
+  automation: "Workflow automation — delegate to specialists and parallel agent runbooks.",
+  cursor: "Agentic IDE — codebase edits, terminal, and multi-step coding tasks.",
+  antigravity: "Multi-agent orchestration runtime with tools and sub-agent delegation.",
+  copilot: "Inline pair-programming assists, explanations, and quick code patches.",
+  notebooklm: "Grounded answers from PDFs, notes, and uploaded sources.",
+  cloudcode: "Cloud sandbox execution — scripts, shells, and remote dev tasks.",
   fee: "Handles tuition fees, payments, scholarships, waivers, and financial matters.",
   general: "Handles greetings, unknown queries, and basic clarification questions.",
   computer_use: "Controls mouse, keyboard, and screen for desktop automation tasks.",
@@ -32,10 +38,10 @@ export const ROOT_DESCRIPTION =
 export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   orchestration: "Plans tasks, delegates work, and coordinates multi-step workflows.",
   computer: "Screen control, browser automation, and recorded workflows.",
-  productivity: "Coding, research, writing, tasks, notifications, and productivity tools.",
+  productivity: "Coding, research, writing, tasks, alerts, and productivity tools.",
   university: "Campus services — academic, library, career, finance, routines, and more.",
   ai: "Vision, voice, and multimodal AI capabilities.",
-  general: "Fallback agent for open-ended queries.",
+  general: "Event manager, automation, Cursor, Antigravity, Copilot, NotebookLM, Cloud Code, and open-ended queries.",
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {

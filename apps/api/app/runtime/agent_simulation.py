@@ -7,28 +7,31 @@ from typing import Dict, List
 # Multiple agents may legitimately use the same tool.
 TOOL_AGENTS: Dict[str, List[str]] = {
     # Orchestration / delegation
-    "invoke_agent": ["planning"],
-    "parallel_invoke_agents": ["planning"],
-    "list_agents": ["planning"],
+    "invoke_agent": ["planning", "antigravity", "automation"],
+    "parallel_invoke_agents": ["planning", "antigravity", "automation"],
+    "list_agents": ["planning", "antigravity", "automation"],
+    "create_automation_hook": ["event", "automation"],
+    "list_automation_hooks": ["event", "automation"],
+    "delete_automation_hook": ["event", "automation"],
     # Research & web
-    "deep_research": ["research"],
+    "deep_research": ["research", "notebooklm"],
     "google_web_search": ["research"],
     "web_search": ["research"],
     "fetch_url": ["research"],
     "search_papers": ["research"],
     "get_citations": ["research"],
     # Coding & shell
-    "run_shell_command": ["coding"],
-    "run_python": ["coding"],
+    "run_shell_command": ["coding", "cursor", "cloudcode", "copilot"],
+    "run_python": ["coding", "cursor", "cloudcode", "copilot"],
     # Writing & files
-    "read_file": ["writing"],
-    "write_file": ["writing"],
-    "edit_file": ["writing"],
+    "read_file": ["writing", "cursor", "copilot", "notebooklm", "cloudcode"],
+    "write_file": ["writing", "cursor", "cloudcode"],
+    "edit_file": ["writing", "cursor", "copilot"],
     "list_directory": ["writing"],
     "search_directory": ["writing"],
     "find_file": ["writing"],
     "delete_file": ["writing"],
-    "read_pdf": ["writing", "routine"],
+    "read_pdf": ["writing", "routine", "notebooklm"],
     # Tasks & schedules (personal productivity)
     "schedule_task": ["tasks"],
     "get_daily_schedule": ["tasks"],
@@ -40,11 +43,11 @@ TOOL_AGENTS: Dict[str, List[str]] = {
     "read_routine_pdf": ["routine"],
     "read_department_routine_pdf": ["routine"],
     "enable_routine_automation": ["routine"],
-    "create_reminder": ["routine", "tasks"],
-    "list_reminders": ["routine", "tasks"],
-    "delete_reminder": ["routine", "tasks"],
-    # Notifications
-    "send_telegram_message": ["notification"],
+    "create_reminder": ["event", "routine", "tasks"],
+    "list_reminders": ["event", "routine", "tasks"],
+    "delete_reminder": ["event", "routine", "tasks"],
+    # Alerts & automation delivery
+    "send_telegram_message": ["event", "automation"],
     # Memory
     "recall_notes": ["planning"],
     "store_note": ["planning"],
@@ -72,7 +75,19 @@ TOOL_AGENTS: Dict[str, List[str]] = {
 }
 
 PRODUCTIVITY_AGENT_IDS = frozenset(
-    {"coding", "research", "writing", "tasks", "notification"}
+    {"coding", "research", "writing", "tasks"}
+)
+
+GENERAL_AGENT_IDS = frozenset(
+    {
+        "event",
+        "automation",
+        "cursor",
+        "antigravity",
+        "copilot",
+        "notebooklm",
+        "cloudcode",
+    }
 )
 
 

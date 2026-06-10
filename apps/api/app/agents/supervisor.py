@@ -29,7 +29,7 @@ Your job is to:
 3. Coordinate multiple agents if needed
 4. Merge responses into one coherent answer
 
-Available agents (23 total):
+Available agents (30+ total):
 - academic: CGPA, results, courses, grades
 - library: books, journals, PDF
 - campus: shuttle, rooms, notices, facilities
@@ -43,9 +43,15 @@ Available agents (23 total):
 - exam: exam schedules, attendance, results
 - hostel: room booking, complaints, facilities
 - transport: shuttle tracking, routes, vehicle booking
-- events: workshops, clubs, seminars
+- campus_events: workshops, clubs, seminars
+- event: dynamic event manager — hooks, triggers, schedules, reminders, delivery
 - complaint: grievances, feedback, escalations
-- notification: alerts, announcements, preferences
+- automation: hooks, delegated agents, Telegram
+- cursor: agentic IDE, codebase edits, terminal
+- antigravity: multi-agent orchestration
+- copilot: inline pair-programming assists
+- notebooklm: document-grounded Q&A
+- cloudcode: cloud sandbox execution
 - fee: tuition, installments, payment status
 - routine: reminders, daily/weekly routines, schedules, alarms, habit tracking
 
@@ -70,9 +76,15 @@ If query is complex (multiple topics), call multiple agents in parallel.
             "- exam: exam schedules, seating, seat plan, midterm/final exams\n"
             "- hostel: hostel rooms, bedding, mess\n"
             "- transport: shuttle buses, transport routes, tracking\n"
-            "- event: workshops, seminars, university events, clubs\n"
+            "- campus_events: workshops, seminars, university events, clubs\n"
+            "- event: dynamic events — hooks, triggers, schedules, reminders, Telegram delivery\n"
             "- complaint: grievances, issues, feedback, escalation\n"
-            "- notification: subscription settings, alerts, announcement messages\n"
+            "- automation: hooks, delegated agents, Telegram delivery\n"
+            "- cursor: agentic IDE, codebase edits, terminal\n"
+            "- antigravity: multi-agent orchestration runtime\n"
+            "- copilot: inline pair-programming assists\n"
+            "- notebooklm: document-grounded Q&A from PDFs and notes\n"
+            "- cloudcode: cloud sandbox scripts and remote dev\n"
             "- fee: tuition fee, installments, payment status\n"
             "- routine: reminders, alarms, daily/weekly/monthly routines, habit tracking, schedule my day\n"
         )

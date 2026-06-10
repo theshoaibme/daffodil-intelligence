@@ -24,6 +24,10 @@ import {
   RiWalletFill,
   RiFileTextFill,
   RiListCheck2,
+  RiSettings4Fill,
+  RiCloudFill,
+  RiLightbulbFlashFill,
+  RiCalendarScheduleFill,
 } from "react-icons/ri";
 
 export interface AgentIconStyle {
@@ -47,9 +51,15 @@ export const AGENT_ICON_STYLES: Record<string, AgentIconStyle> = {
   exam: { icon: RiClipboardFill, iconColor: "text-orange-500" },
   hostel: { icon: RiHomeFill, iconColor: "text-cyan-600" },
   transport: { icon: RiBusFill, iconColor: "text-lime-600" },
-  event: { icon: RiCalendarEventFill, iconColor: "text-pink-500" },
+  campus_events: { icon: RiCalendarEventFill, iconColor: "text-pink-500" },
+  event: { icon: RiCalendarScheduleFill, iconColor: "text-yellow-500" },
   complaint: { icon: RiErrorWarningFill, iconColor: "text-red-500" },
-  notification: { icon: RiNotificationFill, iconColor: "text-yellow-500" },
+  automation: { icon: RiSettings4Fill, iconColor: "text-amber-600" },
+  cursor: { icon: RiCodeFill, iconColor: "text-slate-700" },
+  antigravity: { icon: RiBrainFill, iconColor: "text-indigo-600" },
+  copilot: { icon: RiLightbulbFlashFill, iconColor: "text-blue-500" },
+  notebooklm: { icon: RiBookOpenFill, iconColor: "text-orange-600" },
+  cloudcode: { icon: RiCloudFill, iconColor: "text-cyan-600" },
   fee: { icon: RiWalletFill, iconColor: "text-green-500" },
   general: { icon: RiRobotFill, iconColor: "text-slate-500" },
   computer_use: { icon: RiComputerFill, iconColor: "text-blue-600" },

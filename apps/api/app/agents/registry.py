@@ -13,9 +13,17 @@ from .voice import VoiceAgent
 from .exam import ExamAgent
 from .hostel import HostelAgent
 from .transport import TransportAgent
-from .event import EventAgent
+from .event import CampusEventsAgent
+from .platform import (
+    AntigravityAgent,
+    AutomationAgent,
+    CloudCodeAgent,
+    CopilotAgent,
+    CursorAgent,
+    NotebookLmAgent,
+)
 from .complaint import ComplaintAgent
-from .notification import NotificationAgent
+from .event_manager import EventAgent
 from .fee_agent import FeeAgent
 from .general import GeneralAgent
 from .computer_use import ComputerUseAgent
@@ -41,9 +49,15 @@ AGENT_MAP = {
     "exam": ExamAgent(),
     "hostel": HostelAgent(),
     "transport": TransportAgent(),
-    "event": EventAgent(),
+    "campus_events": CampusEventsAgent(),
     "complaint": ComplaintAgent(),
-    "notification": NotificationAgent(),
+    "event": EventAgent(),
+    "automation": AutomationAgent(),
+    "cursor": CursorAgent(),
+    "antigravity": AntigravityAgent(),
+    "copilot": CopilotAgent(),
+    "notebooklm": NotebookLmAgent(),
+    "cloudcode": CloudCodeAgent(),
     "fee": FeeAgent(),
     "general": GeneralAgent(),
     "computer_use": ComputerUseAgent(),

@@ -1,12 +1,24 @@
 """Agent simulation tool → agent mapping."""
 
-from app.runtime.agent_simulation import PRODUCTIVITY_AGENT_IDS, agents_for_tool
+from app.runtime.agent_simulation import (
+    GENERAL_AGENT_IDS,
+    PRODUCTIVITY_AGENT_IDS,
+    agents_for_tool,
+)
 
 
 def test_productivity_agents():
     assert "writing" in PRODUCTIVITY_AGENT_IDS
     assert "tasks" in PRODUCTIVITY_AGENT_IDS
-    assert len(PRODUCTIVITY_AGENT_IDS) >= 5
+    assert len(PRODUCTIVITY_AGENT_IDS) >= 4
+
+
+def test_event_is_general_agent():
+    assert "event" in GENERAL_AGENT_IDS
+
+
+def test_hooks_map_to_event_agent():
+    assert "event" in agents_for_tool("create_automation_hook")
 
 
 def test_read_pdf_maps_writing_and_routine():
