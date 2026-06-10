@@ -25,7 +25,7 @@ import {
   tasksToPanelItems,
   type AgentMode,
 } from "@lib";
-import { useChat, useChatContext, useIsLgUp, useLocalStorageState } from "@hooks";
+import { useChat, useChatContext, useIsLgUp, useIsMdUp, useLocalStorageState } from "@hooks";
 import {
   ChatHistoryProvider,
   UiAnimationProvider,
@@ -123,6 +123,7 @@ export default function App() {
 const DASHBOARD_STORAGE_KEYS = {
   sidebarOpen: "di-dashboard-sidebar-open",
   tasksCollapsed: "di-dashboard-tasks-collapsed",
+  mobileTasksCollapsed: "di-dashboard-mobile-tasks-collapsed",
   promptDraft: "di-dashboard-prompt-draft",
   agentMode: "di-dashboard-agent-mode",
 } as const;
@@ -156,6 +157,7 @@ function greetingDisplayName(fullName: string | null | undefined, email: string)
 function ChatDashboard() {
   const uiReady = useUiAnimationReady();
   const isLgUp = useIsLgUp();
+  const isMdUp = useIsMdUp();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
@@ -189,12 +191,18 @@ function ChatDashboard() {
     DASHBOARD_STORAGE_KEYS.tasksCollapsed,
     false
   );
+  const [mobileTasksCollapsed, setMobileTasksCollapsed] = useLocalStorageState(
+    DASHBOARD_STORAGE_KEYS.mobileTasksCollapsed,
+    true
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const handledAgentsParam = useRef(false);
   const lastUrlChatRef = useRef<string | null>(searchParams.get("chat"));
   const [agentSimulationOpen, setAgentSimulationOpen] = useState(false);
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
   const [preferSidePanel, setPreferSidePanel] = useState(false);
+  /** Side-panel chat layout is desktop/tablet (md+) only. */
+  const useSidePanel = preferSidePanel && isMdUp;
 
   const agentModeActive = selectedAgentMode === "Agent" && !copycatMode;
 
@@ -244,6 +252,18 @@ function ChatDashboard() {
       // ignore invalid legacy storage
     }
   }, [setSelectedAgentMode]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
+      setSidebarOpen(false);
+    }
+  }, [setSidebarOpen]);
+
+  useEffect(() => {
+    if (!isMdUp && preferSidePanel) {
+      setPreferSidePanel(false);
+    }
+  }, [isMdUp, preferSidePanel, setPreferSidePanel]);
 
   useEffect(() => {
     hubApi
@@ -368,12 +388,12 @@ function ChatDashboard() {
   }, [agentModeActive, isStreaming]);
 
   const showAgentDashboard = agentModeActive && agentSimulationOpen;
-  const showMainConversation = showResponsePanel && !preferSidePanel;
+  const showMainConversation = showResponsePanel && !useSidePanel;
   /** Agent + chat split in center — stays mounted after stream ends (no layout swap). */
   const showSplitAgentAndChat = showAgentDashboard && showMainConversation;
   /** Full agent canvas when side panel chat or no messages yet. */
   const showAgentGraph =
-    showAgentDashboard && (preferSidePanel || !showResponsePanel);
+    showAgentDashboard && (useSidePanel || !showResponsePanel);
 
   const taskPanelLiveTasks = useMemo<TaskItem[] | null>(() => {
     const items = tasksToPanelItems(agentTasks);
@@ -453,7 +473,7 @@ function ChatDashboard() {
   };
 
   const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
-  const showSideResponse = showResponsePanel && preferSidePanel;
+  const showSideResponse = showResponsePanel && useSidePanel;
   const showWelcomeHero = !showAgentGraph && !showMainConversation;
 
   const toggleAgentVisualize = () => {
@@ -463,7 +483,7 @@ function ChatDashboard() {
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
       <AnimatePresence>
-        {sidebarOpen && (
+        {sidebarOpen && !isLgUp && (
           <motion.div
             key="sidebar-backdrop"
             initial={enterOrSkip(uiReady, { opacity: 0 })}
@@ -471,7 +491,7 @@ function ChatDashboard() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-background/50 z-40 lg:hidden"
+            className="fixed inset-0 bg-background/60 z-[65] lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -580,30 +600,12 @@ function ChatDashboard() {
                     thinkingMs={thinkingMs}
                     hasActiveWork={hasActiveWork}
                     error={error}
-                    onClose={() => setPreferSidePanel(true)}
+                    onClose={isMdUp ? () => setPreferSidePanel(true) : undefined}
                     onEditUserMessage={handleEditUserMessage}
                   />
                 </div>
               </div>
             </motion.div>
-          )}
-
-          {showSideResponse && (
-            <div className={`${MAIN_STAGE_STACK} z-0 md:hidden pointer-events-auto pt-4 sm:pt-6 overflow-y-auto no-scrollbar`}>
-              <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
-                <AiResponseCard
-                  messages={messages}
-                  isStreaming={isStreaming}
-                  thinkingSteps={thinkingSteps}
-                  thinkingText={thinkingText}
-                  thinkingMs={thinkingMs}
-                  hasActiveWork={hasActiveWork}
-                  error={error}
-                  onFullView={() => setPreferSidePanel(false)}
-                  onEditUserMessage={handleEditUserMessage}
-                />
-              </div>
-            </div>
           )}
 
           <AnimatePresence>
@@ -643,8 +645,8 @@ function ChatDashboard() {
                     >
                       <TaskPanel
                         inset
-                        tasksCollapsed={tasksCollapsed}
-                        setTasksCollapsed={setTasksCollapsed}
+                        tasksCollapsed={mobileTasksCollapsed}
+                        setTasksCollapsed={setMobileTasksCollapsed}
                         uiReady={uiReady}
                         liveTasks={taskPanelLiveTasks}
                         agentMode={taskPanelLive}

@@ -249,25 +249,19 @@ export function TaskPanel({
         </AnimatePresence>
       </motion.div>
 
-      {tasksCollapsed && (
+      {tasksCollapsed && collapsedTask && (
         <div
           className={`shrink-0 px-2 py-1.5 ${inset ? "" : "border-t border-outline-variant/15"}`}
         >
-          {collapsedTask ? (
-            <LogItem
-              text={collapsedTask.text}
-              active={Boolean(collapsedTask.active || collapsedTask.status === "active")}
-              depth={0}
-              kind={collapsedTask.kind}
-              status={collapsedTask.status}
-              compact
-              onClick={() => handleTaskClick(collapsedTask.id)}
-            />
-          ) : (
-            <p className="py-1 text-center text-[11px] font-medium text-on-surface-variant/50">
-              {agentMode ? "Waiting for agent steps…" : "No tasks yet"}
-            </p>
-          )}
+          <LogItem
+            text={collapsedTask.text}
+            active={Boolean(collapsedTask.active || collapsedTask.status === "active")}
+            depth={0}
+            kind={collapsedTask.kind}
+            status={collapsedTask.status}
+            compact
+            onClick={() => handleTaskClick(collapsedTask.id)}
+          />
         </div>
       )}
     </div>

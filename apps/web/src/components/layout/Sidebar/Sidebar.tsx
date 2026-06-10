@@ -119,7 +119,9 @@ export function Sidebar({
       initial={enterOrSkip(uiReady, { width: isLgUp ? SIDEBAR_WIDTH_COLLAPSED : 0 })}
       animate={{ width: sidebarWidth }}
       transition={sidebarWidthTransition}
-      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width] max-lg:shadow-xl"
+      className={`fixed inset-y-0 left-0 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width] ${
+        isLgUp ? "z-50" : sidebarOpen ? "z-[70]" : "z-50 pointer-events-none"
+      } max-lg:shadow-xl`}
       aria-hidden={!isLgUp && !sidebarOpen}
     >
       <div

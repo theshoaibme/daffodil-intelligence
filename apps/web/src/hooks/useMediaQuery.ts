@@ -16,6 +16,11 @@ export function useMediaQuery(query: string): boolean {
   return matches;
 }
 
+/** Tailwind `md` — tablet+ layout with side response rail. */
+export function useIsMdUp(): boolean {
+  return useMediaQuery("(min-width: 768px)");
+}
+
 /** Tailwind `lg` — desktop layout with persistent sidebar rail. */
 export function useIsLgUp(): boolean {
   return useMediaQuery("(min-width: 1024px)");

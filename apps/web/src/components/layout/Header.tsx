@@ -4,10 +4,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { FileText, MessageSquare, Gift, Sun, Moon, LogOut, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeaderIcon } from "../ui";
+import { useIsLgUp } from "@hooks";
 import { useThemeMode } from "@providers";
 import { useAuth } from "@context";
 import { ROUTES } from "@lib";
-import { dropdownPanelVariants, modeSpringSoft, sidebarWidthTransition } from "@lib";
+import { dropdownPanelVariants, modeSpringSoft } from "@lib";
 
 const USER_MENU_WIDTH = 300;
 const USER_MENU_ESTIMATED_HEIGHT = 420;
@@ -100,6 +101,7 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
+  const isLgUp = useIsLgUp();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
@@ -193,7 +195,7 @@ export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
                   setIsOpen(false);
                   navigate(ROUTES.login);
                 }}
-                className="w-full px-6 py-2.5 rounded-full bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 text-xs font-semibold transition-all duration-200 cursor-pointer outline-none shadow-sm border-0"
+                className="w-full px-6 py-2.5 rounded-full bg-surface-container-highest/70 text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface text-xs font-semibold transition-colors duration-200 cursor-pointer outline-none border-0"
               >
                 Sign in
               </button>
@@ -205,13 +207,13 @@ export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
                   setIsOpen(false);
                   navigate(ROUTES.account);
                 }}
-                className="w-full px-4 py-2.5 rounded-full bg-primary text-on-primary hover:opacity-90 text-xs font-semibold transition-opacity duration-200 cursor-pointer outline-none border-0"
+                className="w-full px-4 py-2.5 rounded-full bg-surface-container-highest/70 text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface text-xs font-semibold transition-colors duration-200 cursor-pointer outline-none border-0"
               >
                 Account settings
               </button>
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#d93025] text-white hover:bg-[#c5221f] text-xs font-semibold transition-colors duration-200 cursor-pointer outline-none border-0"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-surface-container-highest/70 text-on-surface-variant hover:bg-[#d93025]/10 hover:text-[#d93025] text-xs font-semibold transition-colors duration-200 cursor-pointer outline-none border-0"
               >
                 <LogOut size={14} />
                 <span>Sign out</span>
@@ -266,37 +268,35 @@ export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
 
   return (
     <>
-    <header className="sticky top-0 z-50 shrink-0 flex justify-between items-center h-16 pr-4 sm:pr-6 w-full bg-background/90 backdrop-blur-md isolate">
-      <motion.div
-        className="flex items-center gap-2.5 min-w-0 pl-4"
-        initial={false}
-        animate={{ paddingLeft: 16 }}
-        transition={sidebarWidthTransition}
-      >
-        {onOpenSidebar && (
+    <header className="sticky top-0 z-[60] shrink-0 flex justify-between items-center h-14 sm:h-16 w-full bg-background/95 backdrop-blur-md max-lg:px-3 sm:px-4 lg:pr-6 isolate pt-[env(safe-area-inset-top)]">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
+        {!isLgUp && onOpenSidebar ? (
           <button
             type="button"
             onClick={onOpenSidebar}
             aria-label="Open menu"
-            className="lg:hidden shrink-0 p-2 -ml-1 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface border-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="shrink-0 flex items-center justify-center size-10 rounded-full text-on-surface bg-surface-container-high/80 hover:bg-surface-container-high border-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
-            <Menu size={22} />
+            <Menu size={22} strokeWidth={2} />
           </button>
-        )}
+        ) : null}
         <Link
           to={ROUTES.home}
-          className="flex items-center gap-2.5 min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="flex items-center min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
-          <span className="text-xl sm:text-2xl font-bold tracking-tight truncate leading-none">
+          <span className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight truncate leading-none">
             <span className="bg-gradient-to-b from-blue-500 to-blue-600 bg-clip-text text-transparent">
               Daffodil
             </span>
-            <span className="text-on-surface"> Intelligence</span>
+            <span className="text-on-surface max-[380px]:hidden sm:inline">
+              {" "}
+              Intelligence
+            </span>
           </span>
         </Link>
-      </motion.div>
+      </div>
 
-      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0 pl-2">
         <div className="hidden sm:flex items-center gap-1.5">
           <HeaderIcon title="Documentation" icon={<FileText size={22} />} />
           <HeaderIcon title="Feedback" icon={<MessageSquare size={22} />} />
