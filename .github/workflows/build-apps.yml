@@ -51,7 +51,7 @@ jobs:
 
       - name: Package application
         working-directory: apps/copycat
-        run: npx electron-builder --publish never
+        run: pnpm exec electron-builder --publish never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
