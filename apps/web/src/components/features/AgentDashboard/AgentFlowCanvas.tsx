@@ -25,8 +25,8 @@ const edgeTypes = { activeBeam: ActiveBeamEdge };
 
 const IDLE_OVERLAY = {
   activeAgentIds: [] as string[],
-  activeInputId: "input-telegram",
-  activeModelId: "gemini-2.0-flash",
+  activeInputId: null as string | null,
+  activeModelId: null as string | null,
   modelActive: false,
 };
 

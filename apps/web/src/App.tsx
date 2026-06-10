@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
 
@@ -162,7 +162,6 @@ function ChatDashboard() {
     ""
   );
   const [copycatMode, setCopycatMode] = useState(false);
-  const [agentViewOpen, setAgentViewOpen] = useState(false);
   const [selectedAgentMode, setSelectedAgentMode] = useLocalStorageState<AgentMode>(
     DASHBOARD_STORAGE_KEYS.agentMode,
     DEFAULT_AGENT_MODE
@@ -180,7 +179,7 @@ function ChatDashboard() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const handledAgentsParam = useRef(false);
   const lastUrlChatRef = useRef<string | null>(searchParams.get("chat"));
-  const [agentLiveTasks, setAgentLiveTasks] = useState<TaskItem[] | null>(null);
+  const [agentSimulationOpen, setAgentSimulationOpen] = useState(false);
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
   const [preferSidePanel, setPreferSidePanel] = useState(false);
 
@@ -188,14 +187,13 @@ function ChatDashboard() {
 
   const handleSelectAgentMode = (mode: AgentMode) => {
     setSelectedAgentMode(mode);
-    setAgentViewOpen(mode === "Agent");
+    if (mode !== "Agent") {
+      setAgentSimulationOpen(false);
+    }
   };
 
   const handleCloseAgentView = () => {
-    setAgentViewOpen(false);
-    if (selectedAgentMode === "Agent") {
-      setSelectedAgentMode("MCP");
-    }
+    setAgentSimulationOpen(false);
   };
 
   const initialSession = activeHistoryId ? getHistoryEntry(activeHistoryId) : null;
@@ -301,7 +299,6 @@ function ChatDashboard() {
 
     handledAgentsParam.current = true;
     setSelectedAgentMode("Agent");
-    setAgentViewOpen(true);
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -327,7 +324,7 @@ function ChatDashboard() {
     lastUrlChatRef.current = session.sessionId;
     loadSession(session.chatId, session.messages);
     setPrompt("");
-    setAgentViewOpen(false);
+    setAgentSimulationOpen(false);
     setPreferSidePanel(false);
   };
 
@@ -344,25 +341,24 @@ function ChatDashboard() {
   };
 
   const hasMessages = messages.length > 0;
-  const showAgentDashboard = agentModeActive && (hasMessages || agentViewOpen);
+
   useEffect(() => {
-    if (!showAgentDashboard) {
-      setAgentLiveTasks(null);
-      return;
+    if (agentModeActive && isStreaming) {
+      setAgentSimulationOpen(true);
     }
-    if (!isStreaming || thinkingSteps.length === 0) {
-      setAgentLiveTasks(null);
-      return;
-    }
-    setAgentLiveTasks(
-      thinkingSteps.map((step, index) => ({
-        id: step.id,
-        text: step.title,
-        active:
-          step.status === "active" ||
-          (index === thinkingSteps.length - 1 && step.status !== "success"),
-      }))
-    );
+  }, [agentModeActive, isStreaming]);
+
+  const showAgentDashboard = agentModeActive && agentSimulationOpen;
+
+  const agentLiveTasks = useMemo<TaskItem[] | null>(() => {
+    if (!showAgentDashboard || !isStreaming || thinkingSteps.length === 0) return null;
+    return thinkingSteps.map((step, index) => ({
+      id: step.id,
+      text: step.title,
+      active:
+        step.status === "active" ||
+        (index === thinkingSteps.length - 1 && step.status !== "success"),
+    }));
   }, [showAgentDashboard, isStreaming, thinkingSteps]);
 
   useEffect(() => {
@@ -416,8 +412,10 @@ function ChatDashboard() {
   };
 
   const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
+  const showResponsePanel = hasMessages && !copycatMode;
   const showCenterConversation =
-    hasMessages && !preferSidePanel && !showAgentDashboard && !copycatMode;
+    showResponsePanel && !preferSidePanel && !showAgentDashboard;
+  const showSideResponse = showResponsePanel && !showCenterConversation;
   const showWelcomeHero = !showAgentDashboard && !showCenterConversation;
 
   return (
@@ -535,7 +533,7 @@ function ChatDashboard() {
             )}
           </AnimatePresence>
 
-          {hasMessages && !showCenterConversation && (
+          {showSideResponse && (
             <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-4 sm:pt-6 overflow-y-auto no-scrollbar`}>
               <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
                 <AiResponseCard
@@ -616,7 +614,7 @@ function ChatDashboard() {
             transition={modeSpring}
           >
             <AnimatePresence>
-              {hasMessages && !showCenterConversation && (
+              {showSideResponse && (
                 <motion.div
                   initial={enterOrSkip(uiReady, { opacity: 0, y: -20, scale: 0.95 })}
                   animate={{ opacity: 1, y: 0, scale: 1 }}

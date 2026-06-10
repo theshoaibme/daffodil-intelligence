@@ -46,7 +46,7 @@ export default function AgentDashboard({
   };
 
   const shellClass = embedded
-    ? "relative w-full h-full min-h-0 flex flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-[#f4f2ff] shadow-md"
+    ? "relative w-full h-full min-h-0 flex flex-col overflow-hidden rounded-2xl bg-[#f4f2ff] shadow-md"
     : fillParent
       ? "flex flex-col h-full min-h-0 bg-transparent overflow-hidden relative"
       : "flex flex-col h-screen bg-[#f4f2ff] overflow-hidden relative";
