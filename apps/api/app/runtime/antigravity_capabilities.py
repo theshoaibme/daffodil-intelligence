@@ -1,11 +1,11 @@
 """
-Antigravity Capabilities
-========================
-Configures which Antigravity builtin harness tools are enabled alongside
+Daffodil Intelligence Capabilities
+==================================
+Configures which Daffodil Intelligence builtin harness tools are enabled alongside
 Daffodil's custom ToolRegistry tools.
 
 Daffodil provides its own implementations for overlapping builtins (shell, file
-ops, search). Non-overlapping Antigravity builtins (edit via harness, image gen,
+ops, search). Non-overlapping Daffodil Intelligence builtins (edit via harness, image gen,
 subagents, ask_question) remain enabled.
 """
 
@@ -30,7 +30,7 @@ except Exception:  # pragma: no cover
     _AVAILABLE = False
 
 
-# Antigravity builtins that overlap Daffodil registry tools — disabled to avoid duplicates.
+# Daffodil Intelligence builtins that overlap Daffodil registry tools — disabled to avoid duplicates.
 _OVERLAP_DISABLED = [
     "RUN_COMMAND",
     "VIEW_FILE",
@@ -64,7 +64,7 @@ def build_capabilities(
     enable_subagents: bool,
     persona: str = "main",
 ) -> Any | None:
-    """Return CapabilitiesConfig for the Antigravity agent, or None if SDK missing."""
+    """Return CapabilitiesConfig for the Daffodil Intelligence agent, or None if SDK missing."""
     if not _AVAILABLE or CapabilitiesConfig is None:
         return None
 
@@ -81,6 +81,6 @@ def build_capabilities(
     kwargs: dict[str, Any] = {"enable_subagents": enable_subagents}
     if disabled:
         kwargs["disabled_tools"] = disabled
-        logger.debug("Disabled %d overlapping Antigravity builtins", len(disabled))
+        logger.debug("Disabled %d overlapping Daffodil Intelligence builtins", len(disabled))
 
     return CapabilitiesConfig(**kwargs)

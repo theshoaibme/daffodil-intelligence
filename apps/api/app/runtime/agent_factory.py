@@ -1,7 +1,7 @@
 """
 Agent Factory
 =============
-Builds configured Google Antigravity ``Agent`` instances for each persona used
+Builds configured Google Daffodil Intelligence ``Agent`` instances for each persona used
 by Daffodil Intelligence (main orchestrator, computer-use, planning).
 
 The factory wires together:
@@ -58,7 +58,7 @@ _PERSONA_TOOL_CATEGORIES = {
 
 
 def is_available() -> bool:
-    """Whether the Antigravity SDK and a Gemini key are both present."""
+    """Whether the Daffodil Intelligence SDK and a Gemini key are both present."""
     return _ANTIGRAVITY_AVAILABLE and bool(settings.GEMINI_API_KEY)
 
 
@@ -118,7 +118,7 @@ def build_agent(
     model: Optional[str] = None,
     include_tools: Optional[List[str]] = None,
 ):
-    """Construct (but do not start) an Antigravity ``Agent`` for a persona.
+    """Construct (but do not start) a Daffodil Intelligence ``Agent`` for a persona.
 
     The returned object is an async context manager: use ``async with``.
 

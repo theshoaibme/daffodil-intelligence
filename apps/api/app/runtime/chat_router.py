@@ -1,4 +1,4 @@
-"""Decide when normal chat should use the fast Groq path vs full Antigravity runtime."""
+"""Decide when normal chat should use the fast Groq path vs full Daffodil Intelligence runtime."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ _TOOL_KEYWORDS = (
 )
 
 _MAIN_AGENTS = frozenset({"main", "supervisor", "default", ""})
-# Modes that require Antigravity tool-calling (MCP alone is a hint only).
+# Modes that require Daffodil Intelligence tool-calling (MCP alone is a hint only).
 _TOOL_MODES = frozenset({"Planning", "Research", "Agent"})
 _FULL_RUNTIME_ROUTINGS = frozenset({
     "attachments",

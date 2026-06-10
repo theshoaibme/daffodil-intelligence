@@ -1,9 +1,9 @@
 """
 Daffodil Intelligence — Agent / Runtime smoke script.
 
-Updated for the Antigravity runtime. Verifies:
+Updated for the Daffodil Intelligence runtime. Verifies:
   - the tool registry discovers all tools
-  - tools are adapted for the Antigravity agent
+  - tools are adapted for the Daffodil Intelligence agent
   - the runtime reports availability
   - (optional) a live agent turn when GEMINI_API_KEY + RUN_LIVE_AGENT=1
 
@@ -34,9 +34,9 @@ async def main():
         print(f"  - {cat}: {', '.join(names)}")
 
     tools = get_antigravity_tools()
-    print(f"\nAdapted {len(tools)} tools for the Antigravity agent.")
+    print(f"\nAdapted {len(tools)} tools for the Daffodil Intelligence agent.")
 
-    print(f"\nAntigravity runtime available: {is_available()}")
+    print(f"\nDaffodil Intelligence runtime available: {is_available()}")
 
     # A couple of offline tool executions.
     print("\nSample tool calls:")

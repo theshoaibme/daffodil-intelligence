@@ -1,7 +1,7 @@
 """
 Prompt Manager
 ==============
-Central place that composes system instructions for the Antigravity runtime.
+Central place that composes system instructions for the Daffodil Intelligence runtime.
 
 Wires the previously-unused constants in ``app.prompts.core`` into the live
 agent. Selection is driven by:
