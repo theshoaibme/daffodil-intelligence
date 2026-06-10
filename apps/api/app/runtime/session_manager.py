@@ -203,8 +203,11 @@ class SessionManager:
                 from .task_events import pop_pending_tool_events, pop_pending_ui_events
 
                 events: List[StreamEvent] = []
-                for nested in pop_pending_tool_events():
-                    events.append(nested)  # type: ignore[arg-type]
+                nested = pop_pending_tool_events()
+                task_events = [e for e in nested if e.get("type") == "task"]
+                other_nested = [e for e in nested if e.get("type") != "task"]
+                for nested_event in task_events + other_nested:
+                    events.append(nested_event)  # type: ignore[arg-type]
                 for ui_event in pop_pending_ui_events():
                     events.append(ui_event)  # type: ignore[arg-type]
                 for name in active_tools:

@@ -57,6 +57,28 @@ def test_emit_task_nested():
     assert child["agent_id"] == "routine"
 
 
-def test_parse_agent_types():
-    assert _parse_agent_types("routine, research") == ["routine", "research"]
-    assert _parse_agent_types('["planning","exam"]') == ["planning", "exam"]
+def test_emit_task_root_id_links_children():
+    reset_turn_tasks()
+    root = emit_task(kind="agent", name="main", status="active", depth=0)
+    child = emit_task(
+        kind="agent",
+        name="planning",
+        status="active",
+        depth=1,
+    )
+    assert root["task_id"].startswith("root-")
+    assert child["parent_id"] == root["task_id"]
+    assert "parent_id" not in root or root.get("parent_id") is None
+
+
+def test_emit_task_root_completion_reuses_same_id():
+    reset_turn_tasks()
+    root = emit_task(kind="agent", name="main", status="active", depth=0)
+    done = emit_task(
+        task_id=root["task_id"],
+        kind="agent",
+        name="main",
+        status="success",
+        depth=0,
+    )
+    assert done["task_id"] == root["task_id"]

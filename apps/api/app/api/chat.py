@@ -214,7 +214,20 @@ async def add_message(
                 elif event_type == "memory":
                     yield f'data: {json.dumps({"type": "memory", "name": event.get("name", "memory"), "status": event.get("status", "active")})}\n\n'
                 elif event_type == "task":
-                    yield f'data: {json.dumps({"type": "task", "task_id": event.get("task_id"), "parent_id": event.get("parent_id"), "kind": event.get("kind"), "name": event.get("name"), "title": event.get("title"), "status": event.get("status", "active"), "agent_id": event.get("agent_id"), "parallel_group": event.get("parallel_group"), "depth": event.get("depth", 0)})}\n\n'
+                    task_payload = {
+                        "type": "task",
+                        "task_id": event.get("task_id"),
+                        "parent_id": event.get("parent_id"),
+                        "kind": event.get("kind"),
+                        "name": event.get("name"),
+                        "title": event.get("title"),
+                        "short_title": event.get("short_title"),
+                        "status": event.get("status", "active"),
+                        "agent_id": event.get("agent_id"),
+                        "parallel_group": event.get("parallel_group"),
+                        "depth": event.get("depth", 0),
+                    }
+                    yield f"data: {json.dumps({k: v for k, v in task_payload.items() if v is not None})}\n\n"
             if not full_response.strip() and not ui_blocks and not tool_calls:
                 result = await run_turn(
                     message.content,

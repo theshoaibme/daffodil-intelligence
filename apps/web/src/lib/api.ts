@@ -297,6 +297,7 @@ export interface StreamEvent {
   parent_id?: string;
   kind?: string;
   title?: string;
+  short_title?: string;
   parallel_group?: string;
   depth?: number;
   source?: string;
@@ -464,6 +465,7 @@ async function consumeSSEStream(
             kind: parsed.kind,
             name: parsed.name,
             title: parsed.title,
+            short_title: parsed.short_title,
             status: parsed.status,
             agent_id: parsed.agent_id,
             parallel_group: parsed.parallel_group,

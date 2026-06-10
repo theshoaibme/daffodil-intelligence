@@ -50,10 +50,13 @@ def emit_task(
 ) -> Dict[str, Any]:
     """Build a task SSE event and queue it for nested/tool forwarding."""
     resolved_title = title or name.replace("_", " ").title()
-    event = {
+    resolved_task_id = task_id
+    if resolved_task_id is None:
+        resolved_task_id = turn_root_id() if depth == 0 else new_task_id(kind)
+
+    event: Dict[str, Any] = {
         "type": "task",
-        "task_id": task_id or new_task_id(kind),
-        "parent_id": parent_id or turn_root_id(),
+        "task_id": resolved_task_id,
         "kind": kind,
         "name": name,
         "title": resolved_title,
@@ -63,6 +66,10 @@ def emit_task(
         "parallel_group": parallel_group,
         "depth": depth,
     }
+    if parent_id is not None:
+        event["parent_id"] = parent_id
+    elif depth > 0:
+        event["parent_id"] = turn_root_id()
     append_nested_event(event)
     return event
 

@@ -26,7 +26,7 @@ from .intent_router import route_message
 from .routine_turn import run_routine_fast_path, should_use_routine_fast_path, stream_routine_fast_path
 from .stream_signals import stream_turn_preamble
 from .tool_context import clear_turn_context, set_turn_context
-from .task_events import emit_task, reset_turn_tasks, turn_root_id
+from .task_events import emit_task, reset_turn_tasks
 from .trace import estimate_tokens, trace_recorder
 
 
@@ -411,6 +411,7 @@ async def _run_turn_stream_inner(
     trace_recorder.event(turn_id, type="model", name=display_model or "auto", detail=active_routing or "")
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
 
+    root_task_id: Optional[str] = None
     if emit_tasks:
         reset_turn_tasks()
         root_task = emit_task(
@@ -421,6 +422,7 @@ async def _run_turn_stream_inner(
             agent_id=cfg.agent_id or "main",
             depth=0,
         )
+        root_task_id = root_task["task_id"]
         yield root_task
 
     if recall_block:
@@ -516,9 +518,9 @@ async def _run_turn_stream_inner(
                 yield event
 
         trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="success")
-        if emit_tasks:
+        if emit_tasks and root_task_id:
             yield emit_task(
-                task_id=turn_root_id(),
+                task_id=root_task_id,
                 kind="agent",
                 name=cfg.agent_id or "main",
                 title=f"Orchestrator ({cfg.agent_id or 'main'})",
