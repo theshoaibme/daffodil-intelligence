@@ -23,7 +23,7 @@ langsmith==0.8.5
 qdrant-client>=1.7.0
 python-dotenv==1.0.0
 sse-starlette==2.0.0
-websockets==12.0
+websockets>=13.0
 aiofiles>=23.2.1
 tenacity>=8.2.3
 tiktoken>=0.5.2
