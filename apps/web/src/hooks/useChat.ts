@@ -150,6 +150,14 @@ export function useChat(options?: UseChatOptions) {
       setThinkingText("");
       setThinkingMs(0);
       resetFlow();
+      const channel = (metadata?.channel as string) || "chat";
+      emitFlow({
+        activeInputId: channel === "telegram" ? "input-telegram" : "input-chat",
+        activeAgentIds: [],
+        activeTools: [],
+        memoryActive: false,
+        modelActive: false,
+      });
       thinkingStartRef.current = Date.now();
       stopThinkingTimer();
       thinkingTimerRef.current = setInterval(() => {
@@ -223,21 +231,54 @@ export function useChat(options?: UseChatOptions) {
               )
             );
             emitFlow({ modelActive: true });
-          } else if (event.type === "tool" && event.name) {
+          } else if (event.type === "memory" && event.name) {
             setThinkingSteps((prev) =>
               upsertStep(
                 prev,
-                `tool:${event.name}`,
-                `Using ${humanizeName(event.name!)}`,
+                `memory:${event.name}`,
+                `Memory: ${humanizeName(event.name!)}`,
                 normalizeStatus(event.status)
               )
             );
             if (normalizeStatus(event.status) === "active") {
+              emitFlow({ modelActive: true, memoryActive: true });
+            }
+          } else if (event.type === "tool" && event.name) {
+            const toolLabel =
+              event.name === "invoke_agent" && event.agent_id
+                ? `Delegating to ${humanizeName(event.agent_id)}`
+                : `Using ${humanizeName(event.name!)}`;
+            setThinkingSteps((prev) =>
+              upsertStep(
+                prev,
+                `tool:${event.name}${event.agent_id ? `:${event.agent_id}` : ""}`,
+                toolLabel,
+                normalizeStatus(event.status)
+              )
+            );
+            if (normalizeStatus(event.status) === "active") {
+              const flow = getFlow();
+              const nextAgents = new Set(flow.activeAgentIds);
+              if (event.name === "invoke_agent") {
+                nextAgents.add("main");
+                if (event.agent_id) nextAgents.add(event.agent_id);
+              } else if (
+                event.name === "get_class_routine" ||
+                event.name === "read_routine_pdf" ||
+                event.name === "read_pdf"
+              ) {
+                nextAgents.add("main");
+                nextAgents.add("routine");
+              } else if (
+                event.name === "recall_notes" ||
+                event.name === "store_note"
+              ) {
+                emitFlow({ memoryActive: true });
+              }
               emitFlow({
                 modelActive: true,
-                activeTools: Array.from(
-                  new Set([...getFlow().activeTools, event.name!])
-                ),
+                activeTools: Array.from(new Set([...flow.activeTools, event.name!])),
+                activeAgentIds: Array.from(nextAgents),
               });
             }
           } else if ((event.type === "agent" || event.type === "subagent") && event.name) {
@@ -251,7 +292,16 @@ export function useChat(options?: UseChatOptions) {
               )
             );
             const id = event.agent_id ?? event.name!;
-            emitFlow({ modelActive: true, activeAgentIds: [id] });
+            const flow = getFlow();
+            const nextAgents = new Set(flow.activeAgentIds);
+            nextAgents.add(id);
+            if (event.type === "subagent") {
+              nextAgents.add("main");
+            }
+            emitFlow({
+              modelActive: true,
+              activeAgentIds: Array.from(nextAgents),
+            });
           }
         }
       );

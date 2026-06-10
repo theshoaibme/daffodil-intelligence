@@ -1,13 +1,14 @@
 import { memo, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Brain } from "lucide-react";
-import { RiBrainFill, RiChat3Fill, RiQuestionAnswerFill, RiTelegramFill } from "react-icons/ri";
+import { RiBrainFill, RiChat3Fill, RiDatabase2Fill, RiQuestionAnswerFill, RiTelegramFill } from "react-icons/ri";
 import { getAgentIconStyle } from "./agentIcons";
 import { ICON_SIZE, ROOT_HUB_Y } from "./flowLayout";
 import {
   getCategoryTheme,
   getIntegrationTheme,
   DEFAULT_NODE_THEME,
+  MEMORY_NODE_THEME,
   MODEL_NODE_THEME,
   NODE_RING_OFFSET,
   RESPONSE_NODE_THEME,
@@ -180,6 +181,24 @@ function ResponseOutputNode({ data }: NodeProps) {
   );
 }
 
+function MemoryOutputNode({ data }: NodeProps) {
+  const working = Boolean(data.working);
+  const theme = MEMORY_NODE_THEME;
+  const surface = DEFAULT_NODE_THEME;
+
+  return (
+    <IconNodeFrame label={data.label as string} theme={theme} targetLeft>
+      <div
+        className={`flex h-full w-full items-center justify-center rounded-full border-2 shadow-sm ${surface.iconBg} ${surface.border} ${
+          working ? `ring-2 ring-violet-500 ring-offset-2 ${NODE_RING_OFFSET}` : ""
+        }`}
+      >
+        <RiDatabase2Fill size={26} className="text-violet-600" />
+      </div>
+    </IconNodeFrame>
+  );
+}
+
 function IntegrationInputNode({ data }: NodeProps) {
   const integration = (data.integration as keyof typeof integrationIcons) || "chat";
   const iconStyle = integrationIcons[integration] ?? integrationIcons.chat;
@@ -245,6 +264,7 @@ export const flowNodeTypes = {
   model: memo(ModelNode),
   integration: memo(IntegrationInputNode),
   response: memo(ResponseOutputNode),
+  memory: memo(MemoryOutputNode),
   category: memo(CategoryNode),
   agent: memo(AgentNode),
 };

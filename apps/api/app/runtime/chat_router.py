@@ -67,12 +67,23 @@ def should_use_hf_chat(
     model_id: str,
     attachments: bool = False,
     include_tools: Optional[List[str]] = None,
+    metadata: Optional[dict] = None,
 ) -> bool:
     """True when a turn should use Hugging Face Inference (e.g. GLM-5.1)."""
     settings = get_settings()
     if not settings.HUGGINGFACE_ENABLED or not settings.HUGGINGFACE_API_KEY:
         return False
     if attachments or include_tools:
+        return False
+    meta = metadata or {}
+    if meta.get("channel") == "telegram":
+        return False
+    if message_needs_tools(meta.get("_message", "")):
+        return False
+    selected = meta.get("selected_tools") or []
+    if any(mode in _TOOL_MODES for mode in selected):
+        return False
+    if settings.MCP_ENABLED and (meta.get("mcp_servers") or "MCP" in selected):
         return False
     return is_hf_model(model_id)
 

@@ -24,3 +24,7 @@ def test_should_use_hf_chat(monkeypatch):
     assert should_use_hf_chat(model_id="glm-5.1", attachments=False, include_tools=None)
     assert not should_use_hf_chat(model_id="glm-5.1", attachments=True)
     assert not should_use_hf_chat(model_id="gpt-4o")
+    assert not should_use_hf_chat(
+        model_id="glm-5.1",
+        metadata={"selected_tools": ["Agent"], "_message": "class routine Monday"},
+    )

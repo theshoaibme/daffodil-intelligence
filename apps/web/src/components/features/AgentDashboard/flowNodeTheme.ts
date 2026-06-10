@@ -72,6 +72,13 @@ export const RESPONSE_NODE_THEME: NodeTheme = {
   iconBg: "bg-emerald-500/15",
 };
 
+export const MEMORY_NODE_THEME: NodeTheme = {
+  bg: "bg-violet-500/10",
+  text: "text-violet-700",
+  border: "border-violet-500/30",
+  iconBg: "bg-violet-500/15",
+};
+
 export const INTEGRATION_NODE_THEME: Record<string, NodeTheme> = {
   telegram: {
     bg: "bg-surface-container-high",

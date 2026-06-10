@@ -28,6 +28,7 @@ export const INPUT_INTEGRATIONS = [
 ] as const;
 
 export const OUTPUT_INTEGRATIONS = [
+  { id: "output-memory", label: "Memory", integration: "memory" },
   { id: "output-response", label: "Response", integration: "response" },
 ] as const;
 
@@ -51,6 +52,8 @@ export interface SimulationOverlay {
   modelActive?: boolean;
   activeModelId?: string | null;
   engine?: string;
+  memoryActive?: boolean;
+  activeTools?: string[];
 }
 
 export function buildAgentGraph(
@@ -58,10 +61,17 @@ export function buildAgentGraph(
   saved: SavedPositions,
   simulation: SimulationOverlay
 ): { nodes: Node[]; edges: Edge[] } {
-  const { activeAgentIds, activeInputId = null, modelActive = false, activeModelId = null, engine } =
-    simulation;
+  const {
+    activeAgentIds,
+    activeInputId = null,
+    modelActive = false,
+    activeModelId = null,
+    engine,
+    memoryActive = false,
+    activeTools = [],
+  } = simulation;
   const activeSet = new Set(activeAgentIds);
-  const orchestratorActive = modelActive || activeSet.size > 0;
+  const orchestratorActive = modelActive || activeSet.size > 0 || memoryActive || activeTools.length > 0;
   const grouped = agents.reduce(
     (acc, agent) => {
       const cat = agent.category || "general";
@@ -137,7 +147,10 @@ export function buildAgentGraph(
       data: {
         label: input.label,
         integration: input.integration,
-        working: orchestratorActive && activeInputId === input.id,
+        working:
+          orchestratorActive &&
+          (activeInputId === input.id ||
+            (!activeInputId && input.id === "input-chat")),
       },
       draggable: true,
     });
@@ -153,11 +166,14 @@ export function buildAgentGraph(
   });
 
   OUTPUT_INTEGRATIONS.forEach((output, index) => {
-    const responseActive = orchestratorActive && activeSet.size > 0;
+    const isMemory = output.integration === "memory";
+    const outputActive = isMemory
+      ? memoryActive
+      : orchestratorActive && (activeSet.size > 0 || activeTools.length > 0);
 
     nodes.push({
       id: output.id,
-      type: "response",
+      type: isMemory ? "memory" : "response",
       position: pos(
         output.id,
         rootX + OUTPUT_OFFSET_X,
@@ -166,7 +182,7 @@ export function buildAgentGraph(
       data: {
         label: output.label,
         integration: output.integration,
-        working: responseActive,
+        working: outputActive,
       },
       draggable: true,
     });
@@ -177,7 +193,7 @@ export function buildAgentGraph(
       sourceHandle: ROOT_OUTPUT_HANDLE,
       target: output.id,
       type: "activeBeam",
-      data: { active: responseActive },
+      data: { active: outputActive },
     });
   });
 

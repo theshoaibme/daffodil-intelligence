@@ -34,9 +34,10 @@ except Exception:  # pragma: no cover - import guard
 
 
 class StreamEvent(TypedDict, total=False):
-    type: Literal["content", "thinking", "tool", "agent", "subagent", "context"]
+    type: Literal["content", "thinking", "tool", "agent", "subagent", "memory", "context"]
     content: str
     name: str
+    agent_id: str
     status: Literal["active", "success"]
 
 logger = logging.getLogger(__name__)
@@ -210,7 +211,19 @@ class SessionManager:
                         yield event
                     name = chunk.name or "tool"
                     active_tools.append(name)
-                    yield {"type": "tool", "name": name, "status": "active"}
+                    tool_event: StreamEvent = {"type": "tool", "name": name, "status": "active"}
+                    if name == "invoke_agent":
+                        sub_id = _invoke_agent_type(chunk) or "routine"
+                        tool_event["agent_id"] = sub_id
+                        yield {
+                            "type": "subagent",
+                            "name": sub_id,
+                            "agent_id": sub_id,
+                            "status": "active",
+                        }
+                    elif name in _MEMORY_TOOLS or name.startswith("memory_"):
+                        yield {"type": "memory", "name": name, "status": "active"}
+                    yield tool_event
 
             for event in _complete_tools():
                 yield event
@@ -238,6 +251,36 @@ async def _collect(response: Any, attr: str) -> List[Any]:
 
 
 _SUBAGENT_MARKERS = ("sub-agent", "subagent", "delegat", "spawn agent")
+_MEMORY_TOOLS = frozenset(
+    {
+        "recall_notes",
+        "store_note",
+        "list_memories",
+        "memory_search",
+        "remember",
+    }
+)
+
+
+def _tool_call_payload(chunk: Any) -> dict:
+    for attr in ("arguments", "args", "input", "parameters"):
+        raw = getattr(chunk, attr, None)
+        if not raw:
+            continue
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except Exception:
+                continue
+        if isinstance(raw, dict):
+            return raw
+    return {}
+
+
+def _invoke_agent_type(chunk: Any) -> str:
+    payload = _tool_call_payload(chunk)
+    agent_type = payload.get("agent_type") or payload.get("agent_id") or ""
+    return str(agent_type).strip().lower()
 
 
 def _is_subagent_thought(text: str) -> bool:

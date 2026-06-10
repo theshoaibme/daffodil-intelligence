@@ -12,12 +12,18 @@ export interface FlowState {
   activeTools: string[];
   modelActive: boolean;
   activeModelId?: string;
+  /** Left input node: input-chat | input-telegram */
+  activeInputId?: string | null;
+  /** Right memory node highlight */
+  memoryActive?: boolean;
 }
 
 const EMPTY: FlowState = {
   activeAgentIds: [],
   activeTools: [],
   modelActive: false,
+  activeInputId: null,
+  memoryActive: false,
 };
 
 let state: FlowState = EMPTY;

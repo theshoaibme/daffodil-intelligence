@@ -394,6 +394,7 @@ function ChatDashboard() {
 
     const chatMetadata: Record<string, unknown> = {
       selected_tools: [...selectedTools],
+      channel: "chat",
     };
     if (user?.department) {
       chatMetadata.department = user.department;

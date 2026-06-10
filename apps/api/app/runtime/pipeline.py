@@ -206,6 +206,7 @@ async def _run_turn_inner(
         model_id=resolved_model,
         attachments=bool(attachments),
         include_tools=cfg.tool_names,
+        metadata=meta,
     )
     use_fast_groq = should_use_fast_groq(
         attachments=bool(attachments),
@@ -335,6 +336,7 @@ async def _run_turn_stream_inner(
         model_id=resolved_model,
         attachments=bool(attachments),
         include_tools=cfg.tool_names,
+        metadata=meta,
     )
     use_fast_groq = should_use_fast_groq(
         attachments=bool(attachments),
@@ -376,6 +378,10 @@ async def _run_turn_stream_inner(
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
     yield {"type": "agent", "agent_id": cfg.agent_id, "name": cfg.agent_id, "status": "active"}
 
+    if recall_block:
+        trace_recorder.event(turn_id, type="memory", name="recall_notes", status="active")
+        yield {"type": "memory", "name": "recall_notes", "status": "active"}
+
     status_lines = mode_status_messages(
         metadata,
         routing=active_routing,
@@ -395,17 +401,60 @@ async def _run_turn_stream_inner(
             )
         yield signal
 
+    async def _stream_orchestrator():
+        async for event in orchestrator.run_stream(
+            prompt,
+            user_id=user_id,
+            chat_id=chat_id,
+            persona=cfg.persona,
+            attachments=attachments,
+            lang=lang,
+            agent_id=cfg.agent_id,
+            extra_system=extra_system or None,
+            model=resolved_model,
+            include_tools=cfg.tool_names,
+            metadata=meta,
+        ):
+            etype = event.get("type") if isinstance(event, dict) else None
+            if etype == "content":
+                trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
+            elif etype in ("tool", "thinking", "subagent", "status", "memory"):
+                trace_recorder.event(
+                    turn_id,
+                    type=etype,
+                    name=event.get("name", ""),
+                    status=event.get("status", ""),
+                    detail=(event.get("content", "") or "")[:160],
+                )
+            yield event
+
     try:
         if use_hf and hf_chat.is_available():
-            async for event in hf_chat.stream_chat(
-                prompt,
-                extra_system=extra_system or None,
-                model=resolved_model,
-            ):
-                etype = event.get("type") if isinstance(event, dict) else None
-                if etype == "content":
-                    trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
-                yield event
+            hf_failed = False
+            try:
+                async for event in hf_chat.stream_chat(
+                    prompt,
+                    extra_system=extra_system or None,
+                    model=resolved_model,
+                ):
+                    etype = event.get("type") if isinstance(event, dict) else None
+                    if etype == "content":
+                        trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
+                    yield event
+            except Exception as hf_err:
+                hf_failed = True
+                trace_recorder.event(
+                    turn_id,
+                    type="status",
+                    detail=f"HF fallback: {hf_err}",
+                )
+                yield {
+                    "type": "status",
+                    "content": "Switching to full agent runtime for tools and delegation.",
+                }
+            if hf_failed:
+                async for event in _stream_orchestrator():
+                    yield event
         elif use_fast_groq and groq_chat.is_available():
             async for event in groq_chat.stream_chat(
                 prompt,
@@ -417,30 +466,7 @@ async def _run_turn_stream_inner(
                     trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
                 yield event
         else:
-            async for event in orchestrator.run_stream(
-                prompt,
-                user_id=user_id,
-                chat_id=chat_id,
-                persona=cfg.persona,
-                attachments=attachments,
-                lang=lang,
-                agent_id=cfg.agent_id,
-                extra_system=extra_system or None,
-                model=resolved_model,
-                include_tools=cfg.tool_names,
-                metadata=meta,
-            ):
-                etype = event.get("type") if isinstance(event, dict) else None
-                if etype == "content":
-                    trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
-                elif etype in ("tool", "thinking", "subagent", "status"):
-                    trace_recorder.event(
-                        turn_id,
-                        type=etype,
-                        name=event.get("name", ""),
-                        status=event.get("status", ""),
-                        detail=(event.get("content", "") or "")[:160],
-                    )
+            async for event in _stream_orchestrator():
                 yield event
     finally:
         trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="success")

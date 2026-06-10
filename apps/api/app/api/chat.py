@@ -187,12 +187,21 @@ async def add_message(
                     status = event.get("status", "active")
                     if status == "active" and tool_name not in tool_calls:
                         tool_calls.append(tool_name)
-                    yield f'data: {json.dumps({"type": "tool", "name": tool_name, "status": status})}\n\n'
+                    tool_payload = {
+                        "type": "tool",
+                        "name": tool_name,
+                        "status": status,
+                    }
+                    if event.get("agent_id"):
+                        tool_payload["agent_id"] = event.get("agent_id")
+                    yield f'data: {json.dumps(tool_payload)}\n\n'
                 elif event_type == "agent":
                     resolved_agent = event.get("agent_id", resolved_agent)
                     yield f'data: {json.dumps({"type": "agent", "agent_id": event.get("agent_id"), "name": event.get("name"), "status": event.get("status", "active")})}\n\n'
                 elif event_type == "subagent":
-                    yield f'data: {json.dumps({"type": "subagent", "name": event.get("name", "delegated"), "status": event.get("status", "active"), "content": event.get("content", "")})}\n\n'
+                    yield f'data: {json.dumps({"type": "subagent", "agent_id": event.get("agent_id"), "name": event.get("name", "delegated"), "status": event.get("status", "active"), "content": event.get("content", "")})}\n\n'
+                elif event_type == "memory":
+                    yield f'data: {json.dumps({"type": "memory", "name": event.get("name", "memory"), "status": event.get("status", "active")})}\n\n'
             if not full_response.strip():
                 result = await run_turn(
                     message.content,

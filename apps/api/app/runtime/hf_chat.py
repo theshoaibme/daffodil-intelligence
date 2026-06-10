@@ -68,8 +68,10 @@ async def chat(
         )
         resp.raise_for_status()
         data = resp.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        return {"content": content or "", "tool_calls": [], "engine": "huggingface"}
+        choices = data.get("choices") or []
+        first = choices[0] if choices else {}
+        content = (first.get("message") or {}).get("content", "") or ""
+        return {"content": content, "tool_calls": [], "engine": "huggingface"}
 
 
 async def stream_chat(
@@ -110,7 +112,10 @@ async def stream_chat(
                         chunk = json.loads(data)
                     except json.JSONDecodeError:
                         continue
-                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                    choices = chunk.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta") or {}
                     text = delta.get("content")
                     if text:
                         yield {"type": "content", "content": text}

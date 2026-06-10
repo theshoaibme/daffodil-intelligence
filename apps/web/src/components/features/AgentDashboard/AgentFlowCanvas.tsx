@@ -57,6 +57,8 @@ export function AgentFlowCanvas({
     activeAgentIds: [],
     activeTools: [],
     modelActive: false,
+    activeInputId: null,
+    memoryActive: false,
   });
 
   useEffect(() => subscribeFlow(setFlow), []);
@@ -74,12 +76,25 @@ export function AgentFlowCanvas({
     () =>
       buildAgentGraph(agents, savedLayout, {
         activeAgentIds: live ? flow.activeAgentIds : IDLE_OVERLAY.activeAgentIds,
-        activeInputId: IDLE_OVERLAY.activeInputId,
+        activeInputId: live ? flow.activeInputId : IDLE_OVERLAY.activeInputId,
         modelActive: live ? flow.modelActive : IDLE_OVERLAY.modelActive,
         activeModelId: runtime.model || IDLE_OVERLAY.activeModelId,
         engine: runtime.engine,
+        memoryActive: live ? flow.memoryActive : false,
+        activeTools: live ? flow.activeTools : [],
       }),
-    [agents, savedLayout, runtime.engine, runtime.model, live, flow.activeAgentIds, flow.modelActive]
+    [
+      agents,
+      savedLayout,
+      runtime.engine,
+      runtime.model,
+      live,
+      flow.activeAgentIds,
+      flow.activeInputId,
+      flow.activeTools,
+      flow.memoryActive,
+      flow.modelActive,
+    ]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
