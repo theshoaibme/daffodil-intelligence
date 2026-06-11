@@ -21,7 +21,14 @@ import { FlowZoomControls } from "./FlowZoomControls";
 import { flowNodeTypes } from "./FlowNodes";
 import { FitViewOnUpdate } from "./FitViewOnUpdate";
 import { buildAgentGraph } from "./graphBuilder";
-import { loadLayout, saveDefaultLayout, saveLayout } from "./layoutStorage";
+import {
+  loadLayout,
+  saveLayout,
+  saveLayoutBundle,
+  subscribeLayoutRevision,
+  getLayoutRevision,
+  hydrateLayoutFromBackend,
+} from "./layoutStorage";
 const edgeTypes = { activeBeam: ActiveBeamEdge };
 
 const IDLE_OVERLAY = {
@@ -58,7 +65,11 @@ export function AgentFlowCanvas({
   simulationOnly = false,
   sessionId = null,
 }: AgentFlowCanvasProps) {
-  const savedLayout = useMemo(() => loadLayout(agents), [agents]);
+  const [layoutRevision, setLayoutRevision] = useState(getLayoutRevision());
+  const savedLayout = useMemo(
+    () => loadLayout(agents),
+    [agents, layoutRevision]
+  );
   const { runtime } = useRuntimeStatus();
   const [flow, setFlow] = useState<FlowState>({
     activeAgentIds: [],
@@ -67,6 +78,18 @@ export function AgentFlowCanvas({
     activeInputId: null,
     memoryActive: false,
   });
+
+  useEffect(() => subscribeLayoutRevision(() => setLayoutRevision(getLayoutRevision())), []);
+
+  useEffect(() => {
+    void (async () => {
+      const hydrated = await hydrateLayoutFromBackend();
+      if (!hydrated) {
+        const { syncLocalLayoutToBackend } = await import("./layoutStorage");
+        await syncLocalLayoutToBackend().catch(() => undefined);
+      }
+    })();
+  }, []);
 
   useEffect(() => subscribeFlow(setFlow), []);
 
@@ -149,8 +172,7 @@ export function AgentFlowCanvas({
 
   useEffect(() => {
     if (saveSignal === 0) return;
-    saveLayout(nodesRef.current);
-    saveDefaultLayout(nodesRef.current);
+    saveLayoutBundle(nodesRef.current);
     onSave();
   }, [saveSignal, onSave]);
 

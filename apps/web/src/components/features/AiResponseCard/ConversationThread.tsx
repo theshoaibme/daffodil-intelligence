@@ -71,6 +71,9 @@ export function ConversationThread({
     const cards = session?.cards ?? [];
     return cards[cards.length - 1]?.turn_id ?? null;
   });
+  const liveStreamText = useEventStore((s) =>
+    sessionId && isStreaming ? s.sessions[sessionId]?.stream.content ?? "" : ""
+  );
   const cardFilter = useMemo(
     () => (card: Parameters<typeof filterThreadCards>[0]) =>
       filterThreadCards(card, {
@@ -91,7 +94,7 @@ export function ConversationThread({
   useEffect(() => {
     if (!autoScroll || !scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [autoScroll, messages, isStreaming, thinkingText, hasActiveWork, visibleCardCount]);
+  }, [autoScroll, messages, isStreaming, thinkingText, hasActiveWork, visibleCardCount, liveStreamText]);
 
   const showActions = (message: ChatMessage, isLast: boolean) => {
     const blocks = coerceUiBlocks((message.metadata?.ui_blocks as UiBlock[] | undefined) ?? []);
@@ -145,11 +148,16 @@ export function ConversationThread({
               coerceUiBlocks((message.metadata?.ui_blocks as UiBlock[] | undefined) ?? [])
             );
             const isLiveStream = isLast && isStreaming;
-            const displayContent = sanitizeAssistantContent(message.content, uiBlocks, {
+            const messageText = isLiveStream
+              ? liveStreamText.length > message.content.length
+                ? liveStreamText
+                : message.content || liveStreamText
+              : message.content;
+            const displayContent = sanitizeAssistantContent(messageText, uiBlocks, {
               streaming: isLiveStream,
             });
             const visibleContent =
-              displayContent.trim() || (isLiveStream ? message.content.trim() : "");
+              displayContent.trim() || (isLiveStream ? messageText.trim() : "");
             const responseData = parseResponseText(visibleContent);
             const hasBlocks = uiBlocks.length > 0;
             const rawThinking = messageThinkingText(message, isLast, thinkingText);

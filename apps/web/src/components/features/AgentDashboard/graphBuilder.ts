@@ -7,7 +7,7 @@ import {
   ROOT_DEFAULT_X,
   ROOT_DEFAULT_Y,
   INPUT_OFFSET_X,
-  OUTPUT_OFFSET_X,
+  outputNodeX,
   CATEGORY_ROW_OFFSET_Y,
   AGENT_ROW_OFFSET_Y,
   CATEGORY_COL_GAP,
@@ -187,7 +187,7 @@ export function buildAgentGraph(
       type: isMemory ? "memory" : "response",
       position: pos(
         output.id,
-        rootX + OUTPUT_OFFSET_X,
+        outputNodeX(rootX),
         rightOutputNodeY(index, OUTPUT_INTEGRATIONS.length, rootY)
       ),
       data: {

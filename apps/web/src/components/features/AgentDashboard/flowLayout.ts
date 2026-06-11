@@ -28,6 +28,11 @@ export const CATEGORY_COL_GAP = 168;
 export const AGENT_COL_GAP = 88;
 export const INPUT_ICON_GAP = 96;
 export const ROOT_CARD_MIN_WIDTH = 180;
+/** Rendered root card width — keep in sync with RootNode shell. */
+export const ROOT_CARD_WIDTH = 220;
+export const OUTPUT_NODE_GAP = 12;
+/** Left edge X for memory/response nodes: root right edge + gap. */
+export const outputNodeX = (rootX: number) => rootX + ROOT_CARD_WIDTH + OUTPUT_NODE_GAP;
 export const MODEL_NODE_GAP = 80;
 export const MODEL_EDGE_GAP = 20;
 
@@ -46,14 +51,16 @@ export function sideNodeY(
 
 /**
  * Connection slot on the root card right edge (px from top of root node).
- * Evenly divides the main agent card height so Memory / Response align with it.
+ * Memory / Response handles sit symmetrically around the brain icon center.
  */
 export function rootCardOutputSlotY(index: number, total: number): number {
-  if (total <= 0) return ROOT_CARD_CENTER;
-  if (total === 1) return ROOT_CARD_CENTER;
-  const margin = ROOT_OUTPUT_SLOT_MARGIN;
-  const usable = ROOT_CARD_HEIGHT - margin * 2;
-  return margin + ((index + 0.5) / total) * usable;
+  if (total <= 0) return ROOT_HUB_Y;
+  if (total === 1) return ROOT_HUB_Y;
+  const maxOffset = (ROOT_CARD_HEIGHT - ROOT_OUTPUT_SLOT_MARGIN * 2) / 2 - 4;
+  const offset = Math.min(INPUT_ICON_GAP / 2, maxOffset, ROOT_HUB_Y - ROOT_OUTPUT_SLOT_MARGIN);
+  const step = total === 2 ? offset : maxOffset;
+  const start = ROOT_HUB_Y - ((total - 1) * step) / 2;
+  return start + index * step;
 }
 
 /** Canvas Y for a right-side output node (top-left), matched to root card slots. */
@@ -72,7 +79,7 @@ export function modelNodeY(rootY: number): number {
 
 export function modelNodeX(index: number, total: number, rootX: number): number {
   const span = Math.max(total - 1, 0) * MODEL_NODE_GAP;
-  const cardCenterX = rootX + ROOT_CARD_MIN_WIDTH / 2;
+  const cardCenterX = rootX + ROOT_CARD_WIDTH / 2;
   const firstCenterX = cardCenterX - span / 2;
   return firstCenterX + index * MODEL_NODE_GAP - ICON_SIZE / 2;
 }

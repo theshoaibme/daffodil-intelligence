@@ -3,23 +3,27 @@ import type { SavedPositions } from "./flowLayout";
 
 export const DEFAULT_CANVAS_LAYOUT: SavedPositions = {
   "model-deepseek-chat": {
-    "x": 706,
+    "x": 766,
     "y": 6
   },
   "model-claude-3.5-sonnet": {
-    "x": 626,
+    "x": 686,
     "y": 6
   },
   "model-gpt-4o": {
-    "x": 546,
+    "x": 606,
+    "y": 6
+  },
+  "model-glm-5.1": {
+    "x": 526,
     "y": 6
   },
   "model-gemini-2.5-flash": {
-    "x": 466,
+    "x": 446,
     "y": 6
   },
   "model-gemini-2.0-flash": {
-    "x": 386,
+    "x": 366,
     "y": 6
   },
   "daffodil-intelligence": {
@@ -35,12 +39,12 @@ export const DEFAULT_CANVAS_LAYOUT: SavedPositions = {
     "y": 122
   },
   "output-memory": {
-    "x": 680,
-    "y": 67.5
+    "x": 712,
+    "y": 62
   },
   "output-response": {
-    "x": 680,
-    "y": 102.5
+    "x": 712,
+    "y": 86
   },
   "cat-orchestration": {
     "x": 60,

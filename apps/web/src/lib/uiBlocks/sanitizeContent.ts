@@ -122,6 +122,9 @@ export function sanitizeAssistantContent(
   }
 
   if (contentRedundantWithBlocks(text, blocks)) {
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/6514110c-ba27-4527-906f-fe46210d93a0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'cbde14'},body:JSON.stringify({sessionId:'cbde14',hypothesisId:'B',location:'sanitizeContent.ts:redundant',message:'assistant content stripped as redundant with ui blocks',data:{textLen:text.length,blockCount:blocks.length,textPreview:text.slice(0,80)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return "";
   }
 

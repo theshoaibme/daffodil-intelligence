@@ -179,13 +179,10 @@ export function upsertHistoryEntry(
       saveChatHistory(entries);
       return { entries, activeId };
     }
+    return { entries, activeId };
   }
 
-  const id = generateChatSessionId();
-  const next = [{ id, ...payload }, ...entries];
-  saveChatHistory(next);
-  setActiveHistoryId(id);
-  return { entries: next, activeId: id };
+  return { entries, activeId };
 }
 
 export function deleteHistoryEntry(id: string): ChatHistoryEntry[] {

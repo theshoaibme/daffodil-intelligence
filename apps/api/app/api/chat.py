@@ -255,7 +255,16 @@ async def add_message(
 
         from ..runtime.response_validate import validate_assistant_response
 
+        pre_validate_len = len(full_response or "")
         full_response = validate_assistant_response(full_response, ui_blocks)
+        # #region agent log
+        try:
+            import json as _json, time as _time
+            with open("/home/kali/Desktop/daffodil-intelligence/.cursor/debug-cbde14.log", "a") as _df:
+                _df.write(_json.dumps({"sessionId":"cbde14","runId":"post-fix","hypothesisId":"B","location":"chat.py:validate","message":"assistant response validated","data":{"preLen":pre_validate_len,"postLen":len(full_response or ""),"uiBlocks":len(ui_blocks),"tools":tool_calls[:5]},"timestamp":int(_time.time()*1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
 
         # Save assistant message to the database
         try:

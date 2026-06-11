@@ -100,5 +100,8 @@ def validate_assistant_response(
     if not text or not blocks:
         return text
     if has_structured_data_blocks(blocks) and content_redundant_with_blocks(text, blocks):
+        # Keep substantive prose (e.g. research synthesis) even when blocks exist.
+        if len(text) > 500 or "\n\n" in text or text.count(".") >= 3:
+            return text
         return ""
     return text

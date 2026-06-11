@@ -4,6 +4,7 @@ import type { ThinkingStep } from "./ThinkingProcess";
 import { ConversationThread } from "./ConversationThread";
 
 interface AiResponseCardProps {
+  sessionId?: string | null;
   messages: ChatMessage[];
   isStreaming?: boolean;
   thinkingSteps?: ThinkingStep[];
@@ -17,6 +18,7 @@ interface AiResponseCardProps {
 }
 
 export function AiResponseCard({
+  sessionId,
   messages,
   isStreaming = false,
   thinkingSteps = [],
@@ -46,6 +48,7 @@ export function AiResponseCard({
         </div>
       ) : (
         <ConversationThread
+          sessionId={sessionId}
           messages={messages}
           isStreaming={isStreaming}
           thinkingSteps={thinkingSteps}

@@ -9,7 +9,7 @@ import {
   RiTelegramFill,
 } from "react-icons/ri";
 import { getAgentIconStyle } from "./agentIcons";
-import { ICON_SIZE, ROOT_CARD_HEIGHT, ROOT_HUB_Y, rootOutputHandleY } from "./flowLayout";
+import { ICON_SIZE, ROOT_CARD_HEIGHT, ROOT_CARD_WIDTH, ROOT_HUB_Y, rootOutputHandleY } from "./flowLayout";
 import {
   getCategoryTheme,
   getIntegrationTheme,
@@ -62,11 +62,11 @@ function IconNodeFrame({
           type="target"
           position={Position.Left}
           className="handle-muted"
-          style={{ top: ICON_SIZE / 2, transform: "translateY(-50%)" }}
+          style={{ top: "50%" }}
         />
       )}
       {sourceRight && (
-        <Handle type="source" position={Position.Right} className="handle-primary" style={{ top: ICON_SIZE / 2 }} />
+        <Handle type="source" position={Position.Right} className="handle-primary" style={{ top: "50%" }} />
       )}
       {children}
       <NodeLabel themeText={theme.text}>{label}</NodeLabel>
@@ -109,10 +109,10 @@ function RootNode({ data }: NodeProps) {
 
   return (
     <div
-      className={`root-node-shell relative min-w-[220px] rounded-sm px-4 py-2 text-center shadow-md backdrop-blur-sm ${theme.bg} ${
+      className={`root-node-shell relative rounded-sm px-4 py-2 text-center shadow-md backdrop-blur-sm ${theme.bg} ${
         data.working ? `ring-2 ring-primary/40 ${NODE_RING_OFFSET}` : ""
       }`}
-      style={{ minHeight: ROOT_CARD_HEIGHT }}
+      style={{ minWidth: ROOT_CARD_WIDTH, minHeight: ROOT_CARD_HEIGHT }}
     >
       {modelInputs.map((inputId, index) => {
         const left = ((index + 0.5) / modelInputs.length) * 100;
@@ -147,10 +147,7 @@ function RootNode({ data }: NodeProps) {
               type="source"
               position={Position.Right}
               className="handle-primary"
-              style={{
-                top: rootOutputHandleY(index, sideOutputCount),
-                transform: "translateY(-50%)",
-              }}
+              style={{ top: rootOutputHandleY(index, sideOutputCount) }}
             />
           ))
         : outputHandle && (

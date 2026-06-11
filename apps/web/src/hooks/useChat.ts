@@ -17,7 +17,6 @@ import { getFlow, resetFlow, setFlow } from "../lib/flowBus";
 import type { ChatContextUsage } from "../lib/chatContext";
 import { coerceUiBlock, mergeUiBlocks } from "../lib/uiBlocks/coerce";
 import type { UiBlock } from "../lib/uiBlocks/types";
-import { StreamBuffer } from "../engine/streaming/StreamBuffer";
 import { useEventStore } from "../engine/stores/eventStore";
 import { eventBus } from "../engine/EventBus";
 import { useSessionStream } from "./useSessionStream";
@@ -100,7 +99,6 @@ export function useChat(options?: UseChatOptions) {
   const [lastContext, setLastContext] = useState<ChatContextUsage | null>(null);
   const sendGenerationRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
-  const streamBufferRef = useRef<StreamBuffer | null>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const thinkingStartRef = useRef<number | null>(null);
   const thinkingAccumRef = useRef("");
@@ -164,8 +162,6 @@ export function useChat(options?: UseChatOptions) {
     sendGenerationRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
-    streamBufferRef.current?.reset();
-    streamBufferRef.current = null;
     eventBus.clearPending();
     if (chatId) useEventStore.getState().clearSession(String(chatId));
     if (nextChatId != null && nextChatId !== chatId) {
@@ -307,13 +303,6 @@ export function useChat(options?: UseChatOptions) {
         channel === "telegram" ? "input-telegram" : "input-chat"
       );
 
-      const streamBuffer = new StreamBuffer((full) => {
-        if (isSendStale(generation)) return;
-        setCurrentStreamingContent(full);
-        patchAssistantMessage(assistantMessageId, { content: full });
-      });
-      streamBufferRef.current = streamBuffer;
-
       let fullContent = "";
 
       const response = await sendMessage(
@@ -324,7 +313,6 @@ export function useChat(options?: UseChatOptions) {
           fullContent += chunk;
           setCurrentStreamingContent(fullContent);
           patchAssistantMessage(assistantMessageId, { content: fullContent });
-          streamBuffer.push(chunk);
         },
         modelId,
         (ctx) => {
@@ -395,7 +383,6 @@ export function useChat(options?: UseChatOptions) {
       );
 
       if (isSendStale(generation)) return;
-      fullContent = streamBuffer.finalize();
 
       if (thinkingTimerRef.current) {
         stopThinkingTimer();
@@ -418,9 +405,13 @@ export function useChat(options?: UseChatOptions) {
           streamedBlocks,
           (response.metadata?.ui_blocks as UiBlock[] | undefined) ?? []
         );
+        const streamed = message.content || "";
+        const fromResponse = response.content || "";
+        const finalContent =
+          fromResponse.length >= streamed.length ? fromResponse : streamed;
         return {
           ...message,
-          content: response.content || message.content,
+          content: finalContent,
           metadata: {
             ...message.metadata,
             ...response.metadata,

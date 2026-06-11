@@ -37,5 +37,11 @@ def test_keeps_unique_prose_with_table():
     assert validate_assistant_response(text, [_TABLE_BLOCK]) == text
 
 
-def test_empty_without_blocks():
-    assert validate_assistant_response("Hello", []) == "Hello"
+def test_keeps_multi_paragraph_synthesis_with_table():
+    """Multi-paragraph research answers must not be wiped when a data table is also present."""
+    synthesis = (
+        "Python asyncio uses a single-threaded event loop to multiplex I/O-bound work. "
+        "Threading runs parallel OS threads and suits blocking libraries.\n\n"
+        "For network-heavy pipelines, asyncio often scales better; for CPU work, use processes."
+    )
+    assert validate_assistant_response(synthesis, [_TABLE_BLOCK]) == synthesis

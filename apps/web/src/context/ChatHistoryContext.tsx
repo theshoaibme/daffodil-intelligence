@@ -36,6 +36,7 @@ interface ChatHistoryContextValue {
   histories: ChatHistoryEntry[];
   activeHistoryId: string | null;
   selectHistory: (id: string) => Promise<ChatSessionState>;
+  activateHistory: (id: string | null) => void;
   startNewChat: () => ChatSessionState;
   deleteHistory: (id: string) => void;
   shareHistory: (id: string) => Promise<void>;
@@ -104,10 +105,14 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const selectHistory = useCallback(async (id: string): Promise<ChatSessionState> => {
-    const entry = loadChatHistory().find((item) => item.id === id);
+  const activateHistory = useCallback((id: string | null) => {
     setActiveHistoryId(id);
     setActiveId(id);
+  }, []);
+
+  /** Load session data only — callers must activateHistory after navigation guards pass. */
+  const selectHistory = useCallback(async (id: string): Promise<ChatSessionState> => {
+    const entry = loadChatHistory().find((item) => item.id === id);
     if (!entry) {
       return { sessionId: id, chatId: null, messages: [] };
     }
@@ -152,9 +157,10 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
 
   const syncActiveSession = useCallback(
     (chatId: number | null, messages: ChatMessage[]) => {
-      const { entries, activeId } = upsertHistoryEntry(activeHistoryId, chatId, messages);
+      const resolvedActiveId = getActiveHistoryId() ?? activeHistoryId;
+      const { entries, activeId } = upsertHistoryEntry(resolvedActiveId, chatId, messages);
       setHistories(entries);
-      if (activeId) {
+      if (activeId && activeId !== activeHistoryId) {
         setActiveHistoryId(activeId);
         setActiveId(activeId);
       }
@@ -176,6 +182,7 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
       histories,
       activeHistoryId,
       selectHistory,
+      activateHistory,
       startNewChat,
       deleteHistory,
       shareHistory,
@@ -188,6 +195,7 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
       histories,
       activeHistoryId,
       selectHistory,
+      activateHistory,
       startNewChat,
       deleteHistory,
       shareHistory,

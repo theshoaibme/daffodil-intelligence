@@ -406,22 +406,38 @@ async function consumeSSEStream(
           depth?: number;
         };
 
+        // Final persisted assistant row — not a streaming chunk.
+        if (parsed.id != null && parsed.role === "assistant") {
+          if (typeof parsed.content === "string") {
+            fullContent = parsed.content;
+          }
+          metadata = {
+            ...metadata,
+            ...parsed.metadata,
+            ui_blocks:
+              (parsed.metadata?.ui_blocks as UiBlock[] | undefined) ??
+              (uiBlocks.length ? uiBlocks : undefined),
+          };
+          continue;
+        }
+
         const sessionId = streamOptions?.sessionId ?? "0";
         const envelope = parseEnvelope(parsed, sessionId, currentTurnId || undefined);
         if (envelope) {
           if (envelope.turn_id) currentTurnId = envelope.turn_id;
-          eventBus.publish(envelope);
           streamOptions?.onEnvelope?.(envelope);
           const streamEv = envelopeToStreamEvent(envelope);
           if (streamEv) onEvent?.(streamEv);
           if (envelope.type === "message.chunk") {
-            const chunk = String(envelope.payload.content ?? "");
+            const chunk = String(envelope.payload.content ?? parsed.content ?? "");
             if (chunk) {
               fullContent += chunk;
               onChunk?.(chunk);
             }
+            eventBus.publishImmediate(envelope);
             continue;
           }
+          eventBus.publish(envelope);
           if (envelope.type === "context.usage") {
             const ratio =
               envelope.payload.usage_ratio != null
@@ -446,6 +462,7 @@ async function consumeSSEStream(
             continue;
           }
           if (envelope.type === "stream.done") continue;
+          continue;
         }
 
         if (
@@ -572,17 +589,6 @@ async function consumeSSEStream(
         }
 
         if (typeof parsed.content !== "string") continue;
-
-        if (parsed.id != null && parsed.role === "assistant") {
-          fullContent = parsed.content;
-          metadata = {
-            ...parsed.metadata,
-            ui_blocks:
-              (parsed.metadata?.ui_blocks as UiBlock[] | undefined) ??
-              (uiBlocks.length ? uiBlocks : undefined),
-          };
-          continue;
-        }
 
         fullContent += parsed.content;
         onChunk?.(parsed.content);

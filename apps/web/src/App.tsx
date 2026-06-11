@@ -165,6 +165,7 @@ function ChatDashboard() {
     activeHistoryId,
     syncActiveSession,
     selectHistory,
+    activateHistory,
     startNewChat,
     deleteHistory,
     shareHistory,
@@ -197,6 +198,10 @@ function ChatDashboard() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const handledAgentsParam = useRef(false);
   const lastUrlChatRef = useRef<string | null>(searchParams.get("chat"));
+  /** Session id we are navigating to — blocks stale URL effect runs mid-transition. */
+  const pendingSessionRef = useRef<string | null>(null);
+  /** Bumped on every intentional navigation — stale selectHistory callbacks are ignored. */
+  const navigationGenRef = useRef(0);
   const [agentSimulationOpen, setAgentSimulationOpen] = useState(false);
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
   const [preferSidePanel, setPreferSidePanel] = useState(false);
@@ -236,6 +241,9 @@ function ChatDashboard() {
     initialChatId: initialSession?.chatId ?? null,
     initialMessages: initialSession?.messages ?? [],
   });
+
+  const loadSessionRef = useRef(loadSession);
+  loadSessionRef.current = loadSession;
 
   const fetchedContext = useChatContext(chatId, messages, prompt, selectedModelId);
   const chatContext = isStreaming && lastContext ? lastContext : fetchedContext;
@@ -277,11 +285,29 @@ function ChatDashboard() {
 
   useEffect(() => {
     if (isStreaming) return;
+    if (pendingSessionRef.current) return;
+    if (activeHistoryId && messages.length > 0) {
+      const stored = getHistoryEntry(activeHistoryId);
+      if (stored && stored.messages.length === 0 && stored.chatId == null) {
+        return;
+      }
+    }
     syncActiveSession(chatId, messages);
-  }, [chatId, messages, isStreaming, syncActiveSession]);
+  }, [chatId, messages, isStreaming, syncActiveSession, activeHistoryId]);
+
+  useEffect(() => {
+    const pending = pendingSessionRef.current;
+    if (!pending) return;
+    if (activeHistoryId === pending && chatId == null && messages.length === 0) {
+      const urlChat = searchParams.get("chat");
+      if (urlChat !== pending) return;
+      pendingSessionRef.current = null;
+    }
+  }, [activeHistoryId, chatId, messages, searchParams]);
 
   useEffect(() => {
     if (!activeHistoryId || !chatId || isStreaming) return;
+    if (pendingSessionRef.current) return;
     bindChatIdToSession(activeHistoryId, chatId);
   }, [activeHistoryId, chatId, isStreaming, bindChatIdToSession]);
 
@@ -296,21 +322,39 @@ function ChatDashboard() {
     const chatParam = searchParams.get("chat");
     if (!chatParam) {
       lastUrlChatRef.current = null;
+      pendingSessionRef.current = null;
       return;
     }
-    if (lastUrlChatRef.current === chatParam) return;
-    lastUrlChatRef.current = chatParam;
 
+    const pending = pendingSessionRef.current;
+    if (pending && chatParam !== pending) {
+      return;
+    }
+
+    if (lastUrlChatRef.current === chatParam) {
+      return;
+    }
+    lastUrlChatRef.current = chatParam;
+    const navGen = ++navigationGenRef.current;
     void selectHistory(chatParam).then((session) => {
-      loadSession(session.chatId, session.messages);
+      if (navGen !== navigationGenRef.current) {
+        return;
+      }
+      activateHistory(chatParam);
+      loadSessionRef.current(session.chatId, session.messages);
     });
-  }, [searchParams, selectHistory, loadSession]);
+  }, [searchParams, selectHistory, activateHistory]);
 
   // Keep ?chat= in sync with the active sidebar session (no searchParams in deps — avoids loops).
   useEffect(() => {
     const chatParam = searchParams.get("chat");
     if (activeHistoryId) {
       if (chatParam !== activeHistoryId) {
+        const pending = pendingSessionRef.current;
+        if (pending && pending === activeHistoryId && chatParam !== pending) {
+          return;
+        }
+        lastUrlChatRef.current = activeHistoryId;
         setSearchParams(
           (prev) => {
             const next = new URLSearchParams(prev);
@@ -353,18 +397,35 @@ function ChatDashboard() {
 
   const handleSelectHistory = (id: string) => {
     if (id === activeHistoryId) return;
+    const navGen = ++navigationGenRef.current;
     flushCurrentSession();
+    activateHistory(id);
+    pendingSessionRef.current = id;
     lastUrlChatRef.current = id;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("chat", id);
+        return next;
+      },
+      { replace: true }
+    );
     void selectHistory(id).then((session) => {
-      loadSession(session.chatId, session.messages);
+      if (navGen !== navigationGenRef.current) {
+        return;
+      }
+      loadSessionRef.current(session.chatId, session.messages);
       setPrompt("");
       if (!isLgUp) setSidebarOpen(false);
     });
   };
 
   const handleNewChat = () => {
+    ++navigationGenRef.current;
     flushCurrentSession();
+    loadSession(null, []);
     const session = startNewChat();
+    pendingSessionRef.current = session.sessionId;
     lastUrlChatRef.current = session.sessionId;
     setSearchParams(
       (prev) => {
@@ -374,7 +435,6 @@ function ChatDashboard() {
       },
       { replace: true }
     );
-    loadSession(null, []);
     setPrompt("");
     setAgentSimulationOpen(false);
     setPreferSidePanel(false);
@@ -412,6 +472,8 @@ function ChatDashboard() {
   const taskPanelLiveTasks = useMemo<TaskItem[] | null>(() => {
     if (!isStreaming) return null;
     return tasksToPanelItems(agentTasks);
+    if (!isStreaming) return null;
+    return tasksToPanelItems(agentTasks);
   }, [agentTasks, isStreaming]);
 
   const hasActiveWork = useMemo(
@@ -421,8 +483,12 @@ function ChatDashboard() {
 
   const taskPanelLive = taskPanelLiveTasks !== null;
 
-  /** Only while streaming and agent steps are actively running — hide when idle or done. */
-  const showTaskPanel = hasActiveWork;
+  const showTaskPanel = useMemo(
+    () =>
+      isStreaming &&
+      (hasActivePanelWork(agentTasks) || (taskPanelLiveTasks?.length ?? 0) > 0),
+    [isStreaming, agentTasks, taskPanelLiveTasks]
+  );
 
   const prevPanelActiveWorkRef = useRef(false);
   useEffect(() => {
@@ -444,7 +510,9 @@ function ChatDashboard() {
     if (!text.trim() && !voice) return;
 
     if (!activeHistoryId) {
+      loadSession(null, []);
       const session = startNewChat();
+      pendingSessionRef.current = session.sessionId;
       lastUrlChatRef.current = session.sessionId;
       setSearchParams(
         (prev) => {
@@ -454,7 +522,6 @@ function ChatDashboard() {
         },
         { replace: true }
       );
-      loadSession(null, []);
     }
 
     const mcpServers = readLocalMcpServers();
@@ -743,6 +810,7 @@ function ChatDashboard() {
                   className="pointer-events-auto flex-1 min-h-0 flex flex-col overflow-hidden"
                 >
                   <AiResponseCard
+                    sessionId={chatId ? String(chatId) : null}
                     messages={messages}
                     isStreaming={isStreaming}
                     thinkingSteps={thinkingSteps}
