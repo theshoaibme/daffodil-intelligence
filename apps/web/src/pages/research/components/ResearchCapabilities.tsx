@@ -8,7 +8,7 @@ export function ResearchCapabilities() {
         Capabilities
       </h2>
       <div className="grid gap-6 sm:grid-cols-3">
-        <div className="p-5 flex flex-col">
+        <div className="p-5 flex flex-col bg-surface-container-low/70 rounded-2xl transition-all duration-200 hover:bg-surface-container-low hover:shadow-sm">
           <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 text-primary">
             <Search size={20} />
           </div>
@@ -18,7 +18,7 @@ export function ResearchCapabilities() {
           </p>
         </div>
 
-        <div className="p-5 flex flex-col">
+        <div className="p-5 flex flex-col bg-surface-container-low/70 rounded-2xl transition-all duration-200 hover:bg-surface-container-low hover:shadow-sm">
           <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 text-primary">
             <BookOpen size={20} />
           </div>
@@ -28,7 +28,7 @@ export function ResearchCapabilities() {
           </p>
         </div>
 
-        <div className="p-5 flex flex-col">
+        <div className="p-5 flex flex-col bg-surface-container-low/70 rounded-2xl transition-all duration-200 hover:bg-surface-container-low hover:shadow-sm">
           <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 text-primary">
             <Link2 size={20} />
           </div>

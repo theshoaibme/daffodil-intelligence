@@ -1,40 +1,113 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, History, FileText } from "lucide-react";
+import { Search, FileText, Plus } from "lucide-react";
+import { ResearchPaper } from "./types";
+import { ResearchPaperCard } from "./ResearchPaperCard";
+import { AddPaperModal } from "./AddPaperModal";
+import { ResearchDropdown } from "./ResearchDropdown";
+import { ResearchPagination } from "./ResearchPagination";
 
 export function ResearchSearch() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  const searchRef = useRef<HTMLDivElement>(null);
   const categories = ["All", "Computer Science", "AI & Education", "Smart Grids"];
 
-  const researchSyntheses = [
+  const [papers, setPapers] = useState<ResearchPaper[]>([
     {
-      topic: "Impact of Large Language Models on Software Engineering Education",
-      papers: 14,
-      style: "APA 7th Edition",
-      status: "Synthesized",
-      category: "AI & Education",
-      date: "June 12, 2026",
-    },
-    {
-      topic: "Optimization of Campus Shuttle Routing using Deep Reinforcement Learning",
-      papers: 8,
-      style: "IEEE Style",
-      status: "Synthesized",
+      title: "Attention Is All You Need",
+      authors: "Vaswani et al.",
+      year: "2017",
+      citations: 124500,
+      source: "NeurIPS",
       category: "Computer Science",
-      date: "June 10, 2026",
+      abstract: "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.",
+      url: "https://arxiv.org/abs/1706.03762"
     },
     {
-      topic: "Comparison of Quantum Cryptography Protocols in Smart Grids",
-      papers: 22,
-      style: "IEEE Style",
-      status: "Synthesized",
-      category: "Smart Grids",
-      date: "June 05, 2026",
+      title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      authors: "Devlin et al.",
+      year: "2018",
+      citations: 98300,
+      source: "NAACL",
+      category: "Computer Science",
+      abstract: "We introduce a new language representation model called BERT. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations.",
+      url: "https://arxiv.org/abs/1810.04805"
     },
-  ];
+    {
+      title: "Language Models are Few-Shot Learners",
+      authors: "Brown et al. (OpenAI)",
+      year: "2020",
+      citations: 28400,
+      source: "NeurIPS",
+      category: "AI & Education",
+      abstract: "We show that scaling language models greatly improves task-agnostic, few-shot performance, sometimes even competitive with prior state-of-the-art fine-tuning approaches.",
+      url: "https://arxiv.org/abs/2005.14165"
+    },
+    {
+      title: "Deep Residual Learning for Image Recognition",
+      authors: "He et al. (Microsoft)",
+      year: "2015",
+      citations: 186400,
+      source: "CVPR",
+      category: "Computer Science",
+      abstract: "We present a residual learning framework to ease the training of networks that are substantially deeper than those previously used. We evaluate it on ImageNet.",
+      url: "https://arxiv.org/abs/1512.03385"
+    },
+    {
+      title: "Generative Adversarial Nets",
+      authors: "Goodfellow et al.",
+      year: "2014",
+      citations: 74200,
+      source: "NeurIPS",
+      category: "Computer Science",
+      abstract: "We propose a new framework for estimating generative models via an adversarial process, in which we simultaneously train two models: a generative model and a discriminative model.",
+      url: "https://arxiv.org/abs/1406.2661"
+    },
+    {
+      title: "Instruction Tuning for Large Language Models: A Survey",
+      authors: "Zhang et al.",
+      year: "2023",
+      citations: 820,
+      source: "arXiv",
+      category: "AI & Education",
+      abstract: "This paper provides a systematic review of instruction tuning in large language models, discussing datasets, methodologies, and benchmarks for human alignment.",
+      url: "https://arxiv.org/abs/2308.10792"
+    },
+    {
+      title: "Comparison of Quantum Cryptography Protocols in Smart Grids",
+      authors: "Siddique et al.",
+      year: "2024",
+      citations: 45,
+      source: "IEEE Trans",
+      category: "Smart Grids",
+      abstract: "We evaluate BB84, E91, and B92 protocols in power transmission grids under noise constraints, providing real-world key generation rate comparisons.",
+      url: "https://ieeexplore.ieee.org/document/10423"
+    },
+    {
+      title: "Deep Reinforcement Learning for Smart Grid Load Balancing",
+      authors: "Wang et al.",
+      year: "2022",
+      citations: 310,
+      source: "IEEE SmartGrid",
+      category: "Smart Grids",
+      abstract: "A deep Q-learning approach to dynamic load dispatching in microgrids to minimize peaks, showing an 18% cost reduction compared to legacy heuristic methods.",
+      url: "https://ieeexplore.ieee.org/document/9082"
+    },
+    {
+      title: "AI-Augmented Syllabus Design in Higher Education",
+      authors: "Miller et al.",
+      year: "2025",
+      citations: 12,
+      source: "J. Ed. Tech",
+      category: "AI & Education",
+      abstract: "Evaluating standard and agent-synthesized curricula in undergraduate computer science programs. Results show improved engagement rates with personalized pathways.",
+      url: "https://doi.org/10.1016/j.edurev"
+    }
+  ]);
 
   const topSearches = [
     "Deep Learning in CS",
@@ -43,8 +116,8 @@ export function ResearchSearch() {
   ];
 
   const recentResearchSearches = [
-    "Impact of Large Language Models on Software Engineering Education",
-    "Optimization of Campus Shuttle Routing using Deep Reinforcement Learning",
+    "Attention Is All You Need",
+    "BERT: Pre-training of Deep Bidirectional Transformers",
     "Comparison of Quantum Cryptography Protocols in Smart Grids",
   ];
 
@@ -58,16 +131,44 @@ export function ResearchSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredSyntheses = researchSyntheses.filter((item) => {
-    const matchesSearch = item.topic.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredPapers = papers.filter((item) => {
+    const matchesSearch = 
+      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.authors.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.abstract.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
+
+  // Pagination Settings
+  const itemsPerPage = 6;
+  const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handleAddPaper = (newPaperData: Omit<ResearchPaper, "citations">) => {
+    const newPaperItem: ResearchPaper = {
+      ...newPaperData,
+      citations: 0,
+    };
+    setPapers([newPaperItem, ...papers]);
+  };
+
+  const handleSelectSearch = (term: string) => {
+    setSearchQuery(term);
+    setIsDropdownOpen(false);
+  };
+
   return (
-    <div className="space-y-6 sm:space-y-8 relative overflow-hidden">
+    <div className="space-y-6 sm:space-y-8 relative">
       {/* Centered Search & Category Filter Section */}
-      <div className="flex flex-col items-center gap-4 text-center relative z-10 max-w-2xl mx-auto">
+      <div className="flex flex-col items-center gap-4 text-center relative z-20 max-w-2xl mx-auto">
         <div ref={searchRef} className="relative w-full">
           <div className="relative w-full">
             <Search
@@ -79,60 +180,17 @@ export function ResearchSearch() {
               value={searchQuery}
               onFocus={() => setIsDropdownOpen(true)}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search recent syntheses by topic..."
-              className="w-full bg-surface-container-low/85 rounded-full pl-12 pr-6 py-3.5 text-base text-on-surface placeholder:text-on-surface-variant/75 focus:outline-none focus:ring-0 focus:border-transparent outline-none border-0 transition-all"
+              placeholder="Search papers by title, author, abstract..."
+              className="w-full bg-surface-container-lowest rounded-full pl-12 pr-6 py-3.5 text-base text-on-surface placeholder:text-on-surface-variant/75 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none border border-outline-variant/10 shadow-sm transition-all"
             />
           </div>
 
-          {/* Dropdown Menu - NO border, only shadow and bg */}
           {isDropdownOpen && (
-            <div 
-              className="absolute left-0 right-0 top-full mt-2 z-50 rounded-3xl shadow-2xl p-5 space-y-4 text-left"
-              style={{ backgroundColor: "var(--color-surface-container, #eeecfa)" }}
-            >
-              
-              {/* Top Searches Section */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-primary uppercase tracking-wider">Top Searches</h4>
-                <div className="flex flex-wrap gap-2">
-                  {topSearches.map((term) => (
-                    <button
-                      key={term}
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery(term);
-                        setIsDropdownOpen(false);
-                      }}
-                      className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high/80 transition-colors border-0 cursor-pointer"
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Space block instead of border divider line */}
-              <div className="h-2" />
-
-              {/* Recent Research Searches Section */}
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Research Searches</h4>
-                {recentResearchSearches.map((term) => (
-                  <button
-                    key={term}
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery(term);
-                      setIsDropdownOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs sm:text-sm text-on-surface hover:bg-surface-container-high transition-colors block truncate border-0 cursor-pointer"
-                  >
-                    {term}
-                  </button>
-                ))}
-              </div>
-
-            </div>
+            <ResearchDropdown
+              topSearches={topSearches}
+              recentResearchSearches={recentResearchSearches}
+              onSelectSearch={handleSelectSearch}
+            />
           )}
         </div>
         
@@ -157,52 +215,57 @@ export function ResearchSearch() {
         </div>
       </div>
 
-      {/* Filtered Results List */}
-      <div className="space-y-4 relative z-10 text-left">
-        <h3 className="text-lg sm:text-xl font-semibold text-on-surface flex items-center gap-2 mb-2">
-          <History className="text-primary" size={20} />
-          Recent Syntheses
-        </h3>
+      {/* Grid View of Research Paper Cards */}
+      <div className="space-y-6 relative z-10 text-left">
+        <div className="flex items-center justify-between gap-4">
+          <h3 className="text-lg sm:text-xl font-semibold text-on-surface flex items-center gap-2">
+            <FileText className="text-primary" size={20} />
+            Research Library ({filteredPapers.length})
+          </h3>
+        </div>
         
-        {filteredSyntheses.length > 0 ? (
-          <div className="space-y-2">
-            {filteredSyntheses.map((item, index) => (
-              <div 
-                key={index}
-                className="p-5 hover:bg-surface-container-low/50 transition-colors flex flex-col gap-3 text-left rounded-2xl"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <h4 className="font-semibold text-base sm:text-lg leading-snug text-on-surface">
-                    {item.topic}
-                  </h4>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
-                      {item.category}
-                    </span>
-                    <span className="text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full">
-                      {item.status}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-on-surface-variant">
-                  <span className="flex items-center gap-1.5">
-                    <FileText size={15} className="text-primary/70" />
-                    {item.papers} sources analyzed
-                  </span>
-                  <span className="text-outline-variant/60">•</span>
-                  <span>Format: {item.style}</span>
-                  <span className="sm:ml-auto text-[12px] sm:text-xs text-on-surface-variant/70">{item.date}</span>
-                </div>
-              </div>
+        {currentItems.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {currentItems.map((paper, idx) => (
+              <ResearchPaperCard key={idx} paper={paper} />
             ))}
           </div>
         ) : (
-          <div className="p-8 text-center text-on-surface-variant text-sm sm:text-base">
-            No syntheses match your criteria.
+          <div className="p-12 text-center bg-surface-container-low/30 rounded-3xl border border-dashed border-outline-variant/20 text-on-surface-variant">
+            No papers match your search queries.
           </div>
         )}
       </div>
+
+      {/* Pagination & Add Paper Action bar */}
+      {filteredPapers.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-outline-variant/10 relative z-10">
+          
+          <ResearchPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+
+          {/* Add Paper Control */}
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-on-primary font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+          >
+            <Plus size={16} />
+            Add Research Paper
+          </button>
+        </div>
+      )}
+
+      {/* Add Research Paper Modal */}
+      <AddPaperModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAdd={handleAddPaper}
+      />
+
     </div>
   );
 }
+

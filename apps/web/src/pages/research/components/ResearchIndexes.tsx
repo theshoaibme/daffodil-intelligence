@@ -19,7 +19,7 @@ export function ResearchIndexes() {
         {indexes.map((indexItem, index) => (
           <div 
             key={index}
-            className="p-5 flex flex-col justify-between gap-4 text-left"
+            className="p-5 flex flex-col justify-between gap-4 text-left bg-surface-container-low/70 rounded-2xl transition-all duration-200 hover:bg-surface-container-low hover:shadow-sm"
           >
             <div className="min-w-0">
               <h3 className="font-semibold text-base text-on-surface">{indexItem.name}</h3>
