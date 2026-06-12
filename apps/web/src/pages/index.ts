@@ -12,5 +12,6 @@ export * from "./auth/RegisterPage";
 export * from "./intelligence/SkillsPage";
 export * from "./auth/CopycatAuthPage";
 export * from "./research/ResearchsPage";
+export * from "./research/ResearchPaperPage";
 export * from "./connections/ConnectionsPage";
 

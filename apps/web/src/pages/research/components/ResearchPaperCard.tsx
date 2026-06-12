@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import { Award, ExternalLink } from "lucide-react";
+import { useResearchPaperPath } from "../hooks/useResearchPaperPath";
 import { ResearchPaper } from "./types";
 
 interface ResearchPaperCardProps {
@@ -7,6 +9,8 @@ interface ResearchPaperCardProps {
 }
 
 export function ResearchPaperCard({ paper, view = "grid" }: ResearchPaperCardProps) {
+  const paperPath = useResearchPaperPath(paper.id);
+
   if (view === "list") {
     return (
       <div className="flex items-center gap-5 px-5 py-4 bg-surface-container-low rounded-2xl transition-all duration-200 hover:bg-surface-container hover:shadow-md">
@@ -22,9 +26,12 @@ export function ResearchPaperCard({ paper, view = "grid" }: ResearchPaperCardPro
         {/* Center: Title + Authors + Abstract */}
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            <h4 className="font-semibold text-sm text-on-surface line-clamp-1 leading-snug hover:text-primary transition-colors">
+            <Link
+              to={paperPath}
+              className="font-semibold text-sm text-on-surface line-clamp-1 leading-snug hover:text-primary transition-colors"
+            >
               {paper.title}
-            </h4>
+            </Link>
             <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
               {paper.category}
             </span>
@@ -41,16 +48,12 @@ export function ResearchPaperCard({ paper, view = "grid" }: ResearchPaperCardPro
             <Award size={13} className="text-primary/70" />
             <span className="text-xs font-medium">{paper.citations.toLocaleString()}</span>
           </div>
-          {paper.url && (
-            <a
-              href={paper.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5"
-            >
-              View <ExternalLink size={11} />
-            </a>
-          )}
+          <Link
+            to={paperPath}
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5"
+          >
+            View Paper <ExternalLink size={11} />
+          </Link>
         </div>
       </div>
     );
@@ -67,9 +70,12 @@ export function ResearchPaperCard({ paper, view = "grid" }: ResearchPaperCardPro
           <span className="text-[11px] font-medium text-on-surface-variant/70">{paper.year}</span>
         </div>
 
-        <h4 className="font-semibold text-base text-on-surface line-clamp-2 leading-snug hover:text-primary transition-colors">
+        <Link
+          to={paperPath}
+          className="font-semibold text-base text-on-surface line-clamp-2 leading-snug hover:text-primary transition-colors block"
+        >
           {paper.title}
-        </h4>
+        </Link>
 
         <p className="text-xs text-on-surface-variant/80 italic truncate">
           By {paper.authors} • {paper.source}
@@ -83,16 +89,12 @@ export function ResearchPaperCard({ paper, view = "grid" }: ResearchPaperCardPro
           <Award size={13} className="text-primary/70" />
           {paper.citations.toLocaleString()} citations
         </span>
-        {paper.url && (
-          <a
-            href={paper.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5"
-          >
-            View Paper <ExternalLink size={11} />
-          </a>
-        )}
+        <Link
+          to={paperPath}
+          className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5"
+        >
+          View Paper <ExternalLink size={11} />
+        </Link>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { isStudioPath, researchPaperPath } from "@lib";
 import { FileText, Plus, LayoutGrid, List, ChevronDown } from "lucide-react";
 import { ResearchPaper } from "./types";
 import { ResearchPaperCard } from "./ResearchPaperCard";
@@ -12,7 +13,10 @@ import { getPapers, addPaper, generateId, CATEGORIES } from "./paperStore";
 type ViewMode = "grid" | "list";
 
 export function ResearchSearch() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const workspace = isStudioPath(location.pathname);
   const initialCategory = searchParams.get("category") || "All";
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(
@@ -101,6 +105,11 @@ export function ResearchSearch() {
     setIsDropdownOpen(false);
   };
 
+  const handleOpenPaper = (paperId: string) => {
+    setIsDropdownOpen(false);
+    navigate(researchPaperPath(paperId, { workspace }));
+  };
+
   // Only show categories that have papers
   const activeCategories = CATEGORIES.filter(
     (cat) => cat === "All" || papers.some((p) => p.category === cat)
@@ -113,11 +122,11 @@ export function ResearchSearch() {
         <div ref={searchRef} className="relative w-full">
           <PlaceholdersAndVanishInput
             placeholders={[
-              "Search papers by title, author, abstract...",
+              "Search papers — then click View Paper to explore details in our research space",
               "e.g. Attention Is All You Need",
+              "To view a paper's details, search here and open it from the results",
               "e.g. Protein structure prediction with AlphaFold",
               "e.g. Quantum Cryptography in Smart Grids",
-              "e.g. Vision Transformers for image recognition",
             ]}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -130,6 +139,7 @@ export function ResearchSearch() {
               topSearches={topSearches}
               recentResearchSearches={recentResearchSearches}
               onSelectSearch={handleSelectSearch}
+              onOpenPaper={handleOpenPaper}
               searchResults={filteredPapers}
               searchQuery={searchQuery}
             />

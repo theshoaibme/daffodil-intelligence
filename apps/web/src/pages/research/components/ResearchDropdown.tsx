@@ -5,6 +5,7 @@ interface ResearchDropdownProps {
   topSearches: string[];
   recentResearchSearches: string[];
   onSelectSearch: (term: string) => void;
+  onOpenPaper?: (paperId: string) => void;
   searchResults?: ResearchPaper[];
   searchQuery?: string;
 }
@@ -13,6 +14,7 @@ export function ResearchDropdown({
   topSearches,
   recentResearchSearches,
   onSelectSearch,
+  onOpenPaper,
   searchResults = [],
   searchQuery = "",
 }: ResearchDropdownProps) {
@@ -35,7 +37,7 @@ export function ResearchDropdown({
             <button
               key={paper.id}
               type="button"
-              onClick={() => onSelectSearch(paper.title)}
+              onClick={() => onOpenPaper?.(paper.id) ?? onSelectSearch(paper.title)}
               className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-container-high/60 transition-colors border-0 cursor-pointer bg-transparent"
             >
               {/* Year */}

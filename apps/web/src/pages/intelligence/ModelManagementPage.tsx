@@ -3,6 +3,7 @@ import { ArrowLeft, Plus, Trash2, Key, Database, Cpu, CheckCircle } from "lucide
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ModelInfo, DEFAULT_MODELS, getModels } from "@features/PromptBar/ModelSelector";
+import { ROUTES } from "@lib";
 
 export function ModelManagementPage() {
   const navigate = useNavigate();
@@ -122,7 +123,7 @@ export function ModelManagementPage() {
       <header className="px-6 py-4 flex items-center justify-between border-b border-outline-variant/20 bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate("/intelligence")}
+            onClick={() => navigate(ROUTES.home)}
             className="p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-all cursor-pointer border-0 outline-none"
           >
             <ArrowLeft size={20} />

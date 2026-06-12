@@ -46,7 +46,7 @@ import {
 } from "@features";
 import type { TaskItem } from "@features/TaskPanel/TaskPanel";
 
-import { Routes, Route, Navigate, useSearchParams } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
 import {
   ModelManagementPage,
   LiveVoicePage,
@@ -63,6 +63,7 @@ import {
   PrivacyPage,
   CopycatAuthPage,
   ResearchsPage,
+  ResearchPaperPage,
   ConnectionsPage,
 } from "@pages";
 import { ProtectedRoute } from "@auth";
@@ -83,6 +84,15 @@ const LEGACY_REDIRECTS: { from: string; to: string }[] = [
   { from: "/auth/telegram", to: ROUTES.telegramAuth },
 ];
 
+function IntelligenceToStudioRedirect() {
+  const location = useLocation();
+  const target =
+    location.pathname.replace(/^\/intelligence/, ROUTES.home) +
+    location.search +
+    location.hash;
+  return <Navigate to={target} replace />;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -90,6 +100,8 @@ export default function App() {
       {LEGACY_REDIRECTS.map(({ from, to }) => (
         <Route key={from} path={from} element={<Navigate to={to} replace />} />
       ))}
+      <Route path="/intelligence" element={<Navigate to={ROUTES.home} replace />} />
+      <Route path="/intelligence/*" element={<IntelligenceToStudioRedirect />} />
 
       <Route path={ROUTES.login} element={<LoginPage />} />
       <Route path={ROUTES.register} element={<RegisterPage />} />
@@ -98,6 +110,7 @@ export default function App() {
       <Route path={ROUTES.googleCallback} element={<GoogleCallbackPage />} />
       <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
       <Route path={ROUTES.publicResearchs} element={<ResearchsPage />} />
+      <Route path={ROUTES.publicResearchPaper} element={<ResearchPaperPage />} />
       <Route path={ROUTES.connections} element={<ConnectionsPage />} />
 
       <Route element={<ProtectedRoute />}>
@@ -121,6 +134,7 @@ export default function App() {
         <Route path={ROUTES.account} element={<AccountPage />} />
         <Route path={ROUTES.copycat} element={<CopycatAuthPage />} />
         <Route path={ROUTES.researchs} element={<ResearchsPage />} />
+        <Route path={ROUTES.researchPaper} element={<ResearchPaperPage />} />
       </Route>
     </Routes>
   );
