@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Network, Cpu, Chrome, Server, CheckCircle2 } from "lucide-react";
 import { Button, Badge } from "@components/ui";
-import { ROUTES } from "@lib";
+import { PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
 import { useMcpStatus } from "@hooks";
 import { PublicLayout } from "@layout";
 
@@ -12,7 +12,7 @@ export function ConnectionsPage() {
 
   return (
     <PublicLayout>
-      <main className="max-w-[90rem] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex-1 flex flex-col justify-center">
+      <main className={`${PUBLIC_LAYOUT_WIDTH} py-8 sm:py-12 flex-1 flex flex-col justify-center`}>
         <div className="rounded-[2.5rem] bg-surface-container-lowest p-6 sm:p-10 shadow-sm relative overflow-hidden">
           {/* Subtle gradient accent */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />

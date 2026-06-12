@@ -4,6 +4,7 @@ export * from "./flowBus";
 export * from "./agentTasks";
 export * from "./agentSimulation";
 export * from "./chatInputLayout";
+export * from "./publicLayout";
 export * from "./chatContext";
 export * from "./chatHistoryStorage";
 export * from "./chatSearch";

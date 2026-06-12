@@ -12,7 +12,7 @@ export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
   const isLgUp = useIsLgUp();
 
   return (
-    <header className="sticky top-0 z-[60] shrink-0 flex justify-between items-center h-14 sm:h-16 w-full bg-background/95 backdrop-blur-md max-lg:px-3 sm:px-4 lg:pr-6 isolate pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-[60] shrink-0 flex justify-between items-center h-14 sm:h-16 w-full bg-background max-lg:px-3 sm:px-4 lg:pr-6 isolate pt-[env(safe-area-inset-top)]">
       <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
         {!isLgUp && onOpenSidebar ? (
           <button

@@ -14,9 +14,7 @@ import { CanvasRevealCards } from "@components/landing";
 import { BackgroundRippleEffect } from "@components/ui/background-ripple-effect";
 import { UserMenu } from "@layout";
 import { useAuth } from "@context";
-import { ROUTES } from "@lib";
-
-const LANDING_WIDTH = "max-w-[90rem] mx-auto w-full px-5 sm:px-8 lg:px-10 xl:px-12";
+import { PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
 
 const features = [
   {
@@ -79,8 +77,8 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
-      <header className="sticky top-0 z-20 bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/30">
-        <div className={`${LANDING_WIDTH} h-16 sm:h-[4.25rem] flex items-center justify-between`}>
+      <header className="sticky top-0 z-20 bg-background">
+        <div className={`${PUBLIC_LAYOUT_WIDTH} h-16 sm:h-[4.25rem] flex items-center justify-between`}>
           <Logo size="md" />
 
           {!isLoading && (
@@ -111,7 +109,7 @@ export function LandingPage() {
       <main className="flex-1">
         {/* Hero */}
         <section
-          className={`relative ${LANDING_WIDTH} overflow-hidden pt-16 sm:pt-20 lg:pt-28 pb-20 lg:pb-28 text-center`}
+          className={`relative ${PUBLIC_LAYOUT_WIDTH} overflow-hidden pt-16 sm:pt-20 lg:pt-28 pb-20 lg:pb-28 text-center`}
         >
           <BackgroundRippleEffect />
           <div className="relative z-10 inline-flex items-center gap-2 rounded-full border border-outline-variant/50 bg-surface-container-lowest/80 px-4 py-1.5 text-sm text-on-surface-variant mb-8 backdrop-blur-sm">
@@ -143,7 +141,7 @@ export function LandingPage() {
 
         {/* Stats */}
         <section className="border-y border-outline-variant/30 bg-surface-container-low/40">
-          <div className={`${LANDING_WIDTH} py-10 sm:py-12`}>
+          <div className={`${PUBLIC_LAYOUT_WIDTH} py-10 sm:py-12`}>
             <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
               {stats.map(({ value, label }) => (
                 <div key={label} className="text-center">
@@ -157,7 +155,7 @@ export function LandingPage() {
 
         {/* Features */}
         <section id="features" className="bg-surface-container-low/50">
-          <div className={`${LANDING_WIDTH} py-16 sm:py-20 lg:py-24`}>
+          <div className={`${PUBLIC_LAYOUT_WIDTH} py-16 sm:py-20 lg:py-24`}>
             <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium mb-4">
                 Everything you need on campus
@@ -185,7 +183,7 @@ export function LandingPage() {
 
         {/* Canvas reveal cards */}
         <section>
-          <div className={`${LANDING_WIDTH} py-16 sm:py-20 lg:py-24`}>
+          <div className={`${PUBLIC_LAYOUT_WIDTH} py-16 sm:py-20 lg:py-24`}>
             <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium mb-4">
                 Hover to explore
@@ -200,7 +198,7 @@ export function LandingPage() {
 
         {/* How it works */}
         <section className="bg-surface-container-low/50">
-          <div className={`${LANDING_WIDTH} py-16 sm:py-20 lg:py-24`}>
+          <div className={`${PUBLIC_LAYOUT_WIDTH} py-16 sm:py-20 lg:py-24`}>
             <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium mb-4">
                 How it works
@@ -226,7 +224,7 @@ export function LandingPage() {
 
         {/* Capabilities */}
         <section>
-          <div className={`${LANDING_WIDTH} py-16 sm:py-20 lg:py-24`}>
+          <div className={`${PUBLIC_LAYOUT_WIDTH} py-16 sm:py-20 lg:py-24`}>
             <div className="rounded-3xl bg-surface-container-lowest border border-outline-variant/20 p-8 sm:p-12 lg:p-16 flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
               <div className="flex-1 text-center lg:text-left">
                 <h2 className="text-2xl sm:text-3xl font-medium mb-4">
@@ -259,7 +257,7 @@ export function LandingPage() {
 
         {/* CTA */}
         <section className="bg-primary/5 border-t border-outline-variant/30">
-          <div className={`${LANDING_WIDTH} py-16 sm:py-20 text-center`}>
+          <div className={`${PUBLIC_LAYOUT_WIDTH} py-16 sm:py-20 text-center`}>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium mb-4 max-w-2xl mx-auto">
               Ready to simplify your campus life?
             </h2>
@@ -278,7 +276,7 @@ export function LandingPage() {
       </main>
 
       <footer className="py-10 lg:py-12 border-t border-outline-variant/30">
-        <div className={`${LANDING_WIDTH}`}>
+        <div className={`${PUBLIC_LAYOUT_WIDTH}`}>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <Logo size="sm" />
             <nav className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm text-on-surface-variant">

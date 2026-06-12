@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Logo } from "../logo";
 import { UserMenu } from "./UserMenu";
 import { useAuth } from "@context";
-import { ROUTES } from "@lib";
+import { PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -49,10 +49,10 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col animate-fadeIn">
       {/* Centered navigation header with dynamic smart-sticky transition */}
-      <header className={`sticky top-0 z-[60] bg-surface-container-lowest/90 backdrop-blur-md shrink-0 w-full transition-all duration-300 ease-in-out ${
+      <header className={`sticky top-0 z-[60] bg-background shrink-0 w-full transition-all duration-300 ease-in-out ${
         isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
       }`}>
-        <div className="max-w-[90rem] mx-auto w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className={`${PUBLIC_LAYOUT_WIDTH} h-16 flex items-center justify-between`}>
           <div className="flex items-center gap-6 sm:gap-10">
             <Logo size="md" />
             <nav className="hidden sm:flex items-center gap-5 sm:gap-7">
@@ -71,7 +71,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 {/* Dropdown — full width */}
                 <div className="fixed left-0 right-0 top-[64px] pt-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[70]">
                   <div className="shadow-xl px-6 py-5 bg-surface-container-lowest">
-                    <div className="max-w-[90rem] mx-auto">
+                    <div className={PUBLIC_LAYOUT_WIDTH}>
                       <Link
                         to={ROUTES.publicResearchs}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors mb-3"
