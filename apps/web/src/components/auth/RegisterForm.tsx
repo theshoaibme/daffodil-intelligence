@@ -120,7 +120,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, disabled 
             label="First name"
             type="text"
             autoComplete="given-name"
-            placeholder="First name"
+            placeholder="Enter first name"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             required
@@ -131,7 +131,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, disabled 
             label="Last name"
             type="text"
             autoComplete="family-name"
-            placeholder="Last name"
+            placeholder="Enter last name"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             required
@@ -144,7 +144,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, disabled 
           label="Password"
           type="password"
           autoComplete="new-password"
-          placeholder="At least 6 characters"
+          placeholder="Enter password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -204,7 +204,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, disabled 
           type="text"
           inputMode="numeric"
           autoComplete="one-time-code"
-          placeholder="000000"
+          placeholder="Enter verification code"
           value={otp}
           onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
           required
