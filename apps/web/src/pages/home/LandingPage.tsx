@@ -26,10 +26,10 @@ export function LandingPage() {
     <PublicLayout>
       <main className="flex-1 animate-fadeIn">
         <section className={`${LANDING_WIDTH} pt-16 sm:pt-20 lg:pt-28 pb-20 lg:pb-28 text-center`}>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-6xl font-medium tracking-tight leading-[1.08] max-w-4xl mx-auto mb-6 lg:mb-8">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.08] max-w-5xl mx-auto mb-6 lg:mb-8">
             Your guide to campus life
           </h1>
-          <p className="text-base sm:text-lg lg:text-xl text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl lg:text-2xl text-on-surface-variant max-w-3xl mx-auto leading-relaxed">
             Study support, career guidance, and campus services — all in one workspace.
           </p>
         </section>
@@ -43,10 +43,10 @@ export function LandingPage() {
                   className="rounded-3xl bg-surface-container-lowest p-6 sm:p-8 text-left shadow-sm"
                 >
                   <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 sm:mb-5">
-                    <Icon size={22} className="text-primary" />
+                    <Icon size={24} className="text-primary" />
                   </div>
-                  <h2 className="text-lg sm:text-xl font-medium mb-2">{title}</h2>
-                  <p className="text-sm sm:text-base text-on-surface-variant leading-relaxed">{description}</p>
+                  <h2 className="text-xl sm:text-2xl font-semibold mb-3">{title}</h2>
+                  <p className="text-base sm:text-lg text-on-surface-variant leading-relaxed">{description}</p>
                 </div>
               ))}
             </div>
@@ -55,7 +55,7 @@ export function LandingPage() {
       </main>
 
       <footer className="py-8 lg:py-10">
-        <div className={`${LANDING_WIDTH} text-center text-sm text-on-surface-variant`}>
+        <div className={`${LANDING_WIDTH} text-center text-base text-on-surface-variant`}>
           <span>© {new Date().getFullYear()} Daffodil Intelligence</span>
         </div>
       </footer>

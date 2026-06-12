@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Logo } from "../logo";
 import { UserMenu } from "./UserMenu";
@@ -11,11 +11,47 @@ interface PublicLayoutProps {
 
 export function PublicLayout({ children }: PublicLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Always show header at the very top of the page
+      if (currentScrollY < 50) {
+        setIsVisible(true);
+        lastScrollY.current = currentScrollY;
+        return;
+      }
+
+      // Check distance to avoid hyper-sensitivity/jitter
+      const scrollDiff = Math.abs(currentScrollY - lastScrollY.current);
+      if (scrollDiff < 10) {
+        return;
+      }
+
+      if (currentScrollY > lastScrollY.current) {
+        // Scrolling down -> hide header
+        setIsVisible(false);
+      } else {
+        // Scrolling up -> show header
+        setIsVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col animate-fadeIn">
-      {/* Centered navigation header */}
-      <header className="sticky top-0 z-[60] bg-surface-container-lowest/90 backdrop-blur-md shrink-0 w-full">
+      {/* Centered navigation header with dynamic smart-sticky transition */}
+      <header className={`sticky top-0 z-[60] bg-surface-container-lowest/90 backdrop-blur-md shrink-0 w-full transition-all duration-300 ease-in-out ${
+        isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
+      }`}>
         <div className="max-w-[90rem] mx-auto w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6 sm:gap-10">
             <Logo size="md" />
