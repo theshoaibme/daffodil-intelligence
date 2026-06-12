@@ -19,11 +19,14 @@ export const ROUTES = {
   googleCallback: "/studio/auth/google/callback",
   telegramAuth: "/studio/auth/telegram",
   copycat: "/copycat",
-  researchs: "/studio/researchs",
-  researchPaper: "/studio/researchs/:paperId",
+  research: "/studio/research",
+  researchPaper: "/studio/research/:paperId",
+  connections: "/studio/connections",
   publicResearchs: "/researchs",
   publicResearchPaper: "/researchs/:paperId",
-  connections: "/connections",
+  publicConnections: "/connections",
+  contacts: "/contacts",
+  pricing: "/pricing",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

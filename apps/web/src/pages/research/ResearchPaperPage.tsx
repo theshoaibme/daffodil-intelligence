@@ -1,6 +1,6 @@
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { ArrowLeft, Award, ExternalLink, Tag } from "lucide-react";
-import { PublicLayout } from "@layout";
+import { PublicLayout, StudioPageHeader } from "@layout";
 import { isStudioPath, PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
 import { getPaperById } from "./components/paperStore";
 
@@ -8,7 +8,7 @@ export function ResearchPaperPage() {
   const { paperId } = useParams<{ paperId: string }>();
   const location = useLocation();
   const workspace = isStudioPath(location.pathname);
-  const listPath = workspace ? ROUTES.researchs : ROUTES.publicResearchs;
+  const listPath = workspace ? ROUTES.research : ROUTES.publicResearchs;
 
   const paper = paperId ? getPaperById(decodeURIComponent(paperId)) : undefined;
 
@@ -16,18 +16,19 @@ export function ResearchPaperPage() {
     return <Navigate to={listPath} replace />;
   }
 
-  return (
-    <PublicLayout>
-      <main className={`${PUBLIC_LAYOUT_WIDTH} py-8 sm:py-12 flex-1 animate-fadeIn`}>
-        <Link
-          to={listPath}
-          className="inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors mb-8"
-        >
-          <ArrowLeft size={16} />
-          Back to research library
-        </Link>
+  const content = (
+    <main
+      className={`${workspace ? "max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8" : PUBLIC_LAYOUT_WIDTH} py-8 sm:py-12 flex-1 animate-fadeIn`}
+    >
+      <Link
+        to={listPath}
+        className="inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors mb-8"
+      >
+        <ArrowLeft size={16} />
+        Back to research library
+      </Link>
 
-        <article className="max-w-4xl space-y-6">
+      <article className="max-w-4xl space-y-6">
           <div className="space-y-3">
             <span className="inline-flex text-[11px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
               {paper.category}
@@ -85,8 +86,18 @@ export function ResearchPaperPage() {
               <ExternalLink size={14} />
             </a>
           )}
-        </article>
-      </main>
-    </PublicLayout>
+      </article>
+    </main>
   );
+
+  if (workspace) {
+    return (
+      <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
+        <StudioPageHeader title="Research" />
+        {content}
+      </div>
+    );
+  }
+
+  return <PublicLayout>{content}</PublicLayout>;
 }

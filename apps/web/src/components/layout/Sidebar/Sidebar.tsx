@@ -1,5 +1,5 @@
 import { useEffect, useMemo, type ReactNode } from "react";
-import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, type LucideIcon } from "lucide-react";
+import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, FileText, Network, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ROUTES, filterChatHistories } from "@lib";
@@ -19,6 +19,8 @@ const iconBtn =
 const SIDEBAR_NAV = [
   { to: ROUTES.agentHub, label: "Agents", icon: LayoutGrid },
   { to: ROUTES.skills, label: "Skills", icon: Sparkles },
+  { to: ROUTES.research, label: "Research", icon: FileText, matchPrefix: ROUTES.research },
+  { to: ROUTES.connections, label: "Connections", icon: Network },
 ] as const;
 
 function SidebarNavLink({
@@ -208,7 +210,11 @@ export function Sidebar({
                 key={item.to}
                 label={item.label}
                 icon={item.icon}
-                active={location.pathname === item.to}
+                active={
+                  "matchPrefix" in item && item.matchPrefix
+                    ? location.pathname === item.to || location.pathname.startsWith(`${item.matchPrefix}/`)
+                    : location.pathname === item.to
+                }
                 onClick={() => navigate(item.to)}
               />
             ))}

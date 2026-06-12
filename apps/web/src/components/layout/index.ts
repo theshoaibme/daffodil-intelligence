@@ -8,3 +8,4 @@ export * from "./Header";
 export * from "./UserMenu";
 export * from "./AuthLayout";
 export * from "./PublicLayout";
+export * from "./StudioPageHeader";

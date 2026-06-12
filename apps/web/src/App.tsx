@@ -46,7 +46,7 @@ import {
 } from "@features";
 import type { TaskItem } from "@features/TaskPanel/TaskPanel";
 
-import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import {
   ModelManagementPage,
   LiveVoicePage,
@@ -59,12 +59,16 @@ import {
   GoogleCallbackPage,
   AccountPage,
   LandingPage,
+  ContactsPage,
+  PricingPage,
   TermsPage,
   PrivacyPage,
   CopycatAuthPage,
   ResearchsPage,
   ResearchPaperPage,
   ConnectionsPage,
+  StudioResearchPage,
+  StudioConnectionsPage,
 } from "@pages";
 import { ProtectedRoute } from "@auth";
 
@@ -82,6 +86,7 @@ const LEGACY_REDIRECTS: { from: string; to: string }[] = [
   { from: "/model", to: ROUTES.model },
   { from: "/auth/google/callback", to: ROUTES.googleCallback },
   { from: "/auth/telegram", to: ROUTES.telegramAuth },
+  { from: "/studio/researchs", to: ROUTES.research },
 ];
 
 function IntelligenceToStudioRedirect() {
@@ -91,6 +96,17 @@ function IntelligenceToStudioRedirect() {
     location.search +
     location.hash;
   return <Navigate to={target} replace />;
+}
+
+function LegacyResearchPaperRedirect() {
+  const { paperId } = useParams<{ paperId: string }>();
+  if (!paperId) return <Navigate to={ROUTES.research} replace />;
+  return (
+    <Navigate
+      to={`${ROUTES.research}/${encodeURIComponent(decodeURIComponent(paperId))}`}
+      replace
+    />
+  );
 }
 
 export default function App() {
@@ -111,7 +127,10 @@ export default function App() {
       <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
       <Route path={ROUTES.publicResearchs} element={<ResearchsPage />} />
       <Route path={ROUTES.publicResearchPaper} element={<ResearchPaperPage />} />
-      <Route path={ROUTES.connections} element={<ConnectionsPage />} />
+      <Route path={ROUTES.publicConnections} element={<ConnectionsPage />} />
+      <Route path={ROUTES.contacts} element={<ContactsPage />} />
+      <Route path={ROUTES.pricing} element={<PricingPage />} />
+      <Route path="/studio/researchs/:paperId" element={<LegacyResearchPaperRedirect />} />
 
       <Route element={<ProtectedRoute />}>
         <Route
@@ -133,8 +152,9 @@ export default function App() {
         <Route path={ROUTES.guidance} element={<GuidancePage />} />
         <Route path={ROUTES.account} element={<AccountPage />} />
         <Route path={ROUTES.copycat} element={<CopycatAuthPage />} />
-        <Route path={ROUTES.researchs} element={<ResearchsPage />} />
+        <Route path={ROUTES.research} element={<StudioResearchPage />} />
         <Route path={ROUTES.researchPaper} element={<ResearchPaperPage />} />
+        <Route path={ROUTES.connections} element={<StudioConnectionsPage />} />
       </Route>
     </Routes>
   );

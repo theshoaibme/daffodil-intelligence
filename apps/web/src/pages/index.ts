@@ -4,6 +4,8 @@ export * from "./auth/AuthTelegramPage";
 export * from "./auth/GoogleCallbackPage";
 export * from "./intelligence/GuidancePage";
 export * from "./home/LandingPage";
+export * from "./home/ContactsPage";
+export * from "./home/PricingPage";
 export * from "./legal/LegalPage";
 export * from "./intelligence/LiveVoicePage";
 export * from "./auth/LoginPage";
@@ -14,4 +16,6 @@ export * from "./auth/CopycatAuthPage";
 export * from "./research/ResearchsPage";
 export * from "./research/ResearchPaperPage";
 export * from "./connections/ConnectionsPage";
+export * from "./studio/StudioResearchPage";
+export * from "./studio/StudioConnectionsPage";
 
