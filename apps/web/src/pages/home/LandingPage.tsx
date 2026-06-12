@@ -1,4 +1,5 @@
 import { BookOpen, MapPin, Shield } from "lucide-react";
+import { BackgroundRippleEffect } from "@components/ui/background-ripple-effect";
 import { PublicLayout } from "@layout";
 
 const LANDING_WIDTH = "max-w-[90rem] mx-auto w-full px-5 sm:px-8 lg:px-10 xl:px-12";
@@ -25,11 +26,14 @@ export function LandingPage() {
   return (
     <PublicLayout>
       <main className="flex-1 animate-fadeIn">
-        <section className={`${LANDING_WIDTH} pt-16 sm:pt-20 lg:pt-28 pb-20 lg:pb-28 text-center`}>
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.08] max-w-5xl mx-auto mb-6 lg:mb-8">
+        <section
+          className={`relative ${LANDING_WIDTH} overflow-hidden pt-16 sm:pt-20 lg:pt-28 pb-20 lg:pb-28 text-center`}
+        >
+          <BackgroundRippleEffect />
+          <h1 className="relative z-10 text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.08] max-w-5xl mx-auto mb-6 lg:mb-8">
             Your guide to campus life
           </h1>
-          <p className="text-lg sm:text-xl lg:text-2xl text-on-surface-variant max-w-3xl mx-auto leading-relaxed">
+          <p className="relative z-10 text-lg sm:text-xl lg:text-2xl text-on-surface-variant max-w-3xl mx-auto leading-relaxed">
             Study support, career guidance, and campus services — all in one workspace.
           </p>
         </section>

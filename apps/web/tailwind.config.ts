@@ -65,12 +65,18 @@ const config: Config = {
         'linear-loader': {
           '0%': { left: '-40%' },
           '100%': { left: '100%' },
-        }
+        },
+        'cell-ripple': {
+          '0%': { opacity: '0.4' },
+          '50%': { opacity: '0.8' },
+          '100%': { opacity: '0.4' },
+        },
       },
       animation: {
         'google-rotate': 'google-rotate 2s linear infinite',
         'google-dash': 'google-dash 1.5s ease-in-out infinite',
         'linear-loader': 'linear-loader 1.5s infinite linear',
+        'cell-ripple': 'cell-ripple var(--duration, 200ms) ease-out var(--delay, 0ms)',
       }
     },
   },
