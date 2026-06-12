@@ -58,6 +58,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
   const [sessionError, setSessionError] = useState<string | null>(null);
   const validatingRef = useRef(false);
+  const validatingTokenRef = useRef<string | null>(null);
+  const validationIdRef = useRef(0);
 
   const logout = useCallback(() => {
     clearAuthSession();
@@ -89,8 +91,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const validateSession = useCallback(
     async (accessToken: string, options?: { allowOffline?: boolean }) => {
-      if (validatingRef.current) return;
+      if (validatingRef.current && accessToken === validatingTokenRef.current) return;
+
+      const currentId = ++validationIdRef.current;
       validatingRef.current = true;
+      validatingTokenRef.current = accessToken;
 
       try {
         // Persist immediately so authFetch reads the same token we are validating.
@@ -102,9 +107,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (isTokenExpired(activeToken) || shouldRefreshToken(activeToken)) {
           const refreshedToken = await tryRefreshToken();
+          if (currentId !== validationIdRef.current) return;
           if (refreshedToken) {
             activeToken = refreshedToken;
             setToken(activeToken);
+            validatingTokenRef.current = activeToken;
           } else if (isTokenExpired(activeToken)) {
             logout();
             setSessionError("Your session expired. Please sign in again.");
@@ -114,12 +121,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         try {
           const profile = await fetchCurrentUser();
+          if (currentId !== validationIdRef.current) return;
           applySession(activeToken, profile);
         } catch (error) {
+          if (currentId !== validationIdRef.current) return;
           if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
             const refreshedToken = await tryRefreshToken();
+            if (currentId !== validationIdRef.current) return;
             if (refreshedToken) {
               const profile = await fetchCurrentUser();
+              if (currentId !== validationIdRef.current) return;
               applySession(refreshedToken, profile);
               return;
             }
@@ -145,7 +156,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           logout();
         }
       } finally {
-        validatingRef.current = false;
+        if (currentId === validationIdRef.current) {
+          validatingRef.current = false;
+          validatingTokenRef.current = null;
+        }
       }
     },
     [applySession, logout, tryRefreshToken]
@@ -163,8 +177,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [validateSession]);
 
   useEffect(() => {
-    registerUnauthorizedHandler(() => {
-      if (!readStoredToken() || validatingRef.current) return;
+    registerUnauthorizedHandler((failedToken) => {
+      const currentToken = readStoredToken();
+      if (!currentToken || validatingRef.current) return;
+      if (failedToken && failedToken !== currentToken) return;
       logout();
       setSessionError("Your session expired. Please sign in again.");
     });

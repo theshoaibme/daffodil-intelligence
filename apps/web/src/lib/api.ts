@@ -27,9 +27,9 @@ export class ApiError extends Error {
   }
 }
 
-let unauthorizedHandler: (() => void) | null = null;
+let unauthorizedHandler: ((token: string | null) => void) | null = null;
 
-export function registerUnauthorizedHandler(handler: () => void) {
+export function registerUnauthorizedHandler(handler: (token: string | null) => void) {
   unauthorizedHandler = handler;
 }
 
@@ -69,20 +69,22 @@ async function authFetch(
   notifyUnauthorized = true
 ): Promise<Response> {
   let response: Response;
+  const headers = {
+    ...getAuthHeaders(),
+    ...(init?.headers ?? {}),
+  };
   try {
     response = await fetch(url, {
       ...init,
-      headers: {
-        ...getAuthHeaders(),
-        ...(init?.headers ?? {}),
-      },
+      headers,
     });
   } catch {
     throw new ApiError("Unable to reach the server. Check your connection.", 0);
   }
 
   if (notifyUnauthorized && (response.status === 401 || response.status === 403)) {
-    unauthorizedHandler?.();
+    const tokenUsed = (headers as Record<string, string>)["Authorization"]?.replace("Bearer ", "") || null;
+    unauthorizedHandler?.(tokenUsed);
   }
 
   return response;
