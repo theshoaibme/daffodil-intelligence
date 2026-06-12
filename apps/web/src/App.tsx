@@ -141,7 +141,7 @@ const MAIN_STAGE_CENTER = `${MAIN_STAGE_BASE} items-center justify-center`;
 /** Top-aligned conversation + agent visualize stack. */
 const MAIN_STAGE_STACK = `${MAIN_STAGE_BASE} items-stretch justify-start pt-2 sm:pt-3 overflow-hidden`;
 
-/** Mobile: task manager + input stacked flush. Desktop: input only in center column. */
+/** Task manager + input stacked above the bottom edge (phone flush; desktop centered). */
 const BOTTOM_DOCK =
   "fixed md:absolute bottom-0 md:bottom-4 lg:bottom-6 inset-x-0 z-30 flex flex-col gap-0 pointer-events-none px-3 sm:px-4 pb-4 md:pb-0";
 
@@ -472,8 +472,6 @@ function ChatDashboard() {
   const taskPanelLiveTasks = useMemo<TaskItem[] | null>(() => {
     if (!isStreaming) return null;
     return tasksToPanelItems(agentTasks);
-    if (!isStreaming) return null;
-    return tasksToPanelItems(agentTasks);
   }, [agentTasks, isStreaming]);
 
   const hasActiveWork = useMemo(
@@ -483,11 +481,13 @@ function ChatDashboard() {
 
   const taskPanelLive = taskPanelLiveTasks !== null;
 
+  /** Only during an active stream with visible agent steps — hidden when idle. */
   const showTaskPanel = useMemo(
     () =>
+      !copycatMode &&
       isStreaming &&
       (hasActivePanelWork(agentTasks) || (taskPanelLiveTasks?.length ?? 0) > 0),
-    [isStreaming, agentTasks, taskPanelLiveTasks]
+    [copycatMode, isStreaming, agentTasks, taskPanelLiveTasks]
   );
 
   const prevPanelActiveWorkRef = useRef(false);
@@ -752,16 +752,20 @@ function ChatDashboard() {
                   <div className="md:contents flex w-full flex-col gap-0 max-md:items-center">
                     {showTaskPanel && (
                       <div
-                        className={`md:hidden pointer-events-auto ${MOBILE_TASK_PANEL_WIDTH_CLASS} ${MOBILE_TASK_PANEL_SHELL_CLASS}`}
+                        className={`pointer-events-auto w-full flex justify-center ${MOBILE_TASK_PANEL_WIDTH_CLASS}`}
                       >
-                        <TaskPanel
-                          inset
-                          tasksCollapsed={mobileTasksCollapsed}
-                          setTasksCollapsed={setMobileTasksCollapsed}
-                          uiReady={uiReady}
-                          liveTasks={taskPanelLiveTasks}
-                          agentMode={taskPanelLive}
-                        />
+                        <div
+                          className={`w-full min-w-0 sm:max-w-xl ${MOBILE_TASK_PANEL_SHELL_CLASS} md:rounded-3xl md:border md:border-outline-variant/40 md:glass-gradient-panel md:shadow-md md:overflow-hidden`}
+                        >
+                          <TaskPanel
+                            inset={!isMdUp}
+                            tasksCollapsed={isMdUp ? tasksCollapsed : mobileTasksCollapsed}
+                            setTasksCollapsed={isMdUp ? setTasksCollapsed : setMobileTasksCollapsed}
+                            uiReady={uiReady}
+                            liveTasks={taskPanelLiveTasks}
+                            agentMode={taskPanelLive || agentModeActive}
+                          />
+                        </div>
                       </div>
                     )}
                     <div className="w-full flex justify-center pointer-events-auto max-md:-mt-px">
@@ -826,17 +830,6 @@ function ChatDashboard() {
               )}
             </AnimatePresence>
 
-            {showTaskPanel && (
-              <div className="pointer-events-auto mt-auto w-full min-w-0 shrink-0">
-                <TaskPanel
-                  tasksCollapsed={tasksCollapsed}
-                  setTasksCollapsed={setTasksCollapsed}
-                  uiReady={uiReady}
-                  liveTasks={taskPanelLiveTasks}
-                  agentMode={taskPanelLive}
-                />
-              </div>
-            )}
           </motion.div>
         )}
         </div>

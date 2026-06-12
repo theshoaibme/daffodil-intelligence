@@ -425,7 +425,19 @@ export function useChat(options?: UseChatOptions) {
 
       setIsStreaming(false);
       setCurrentStreamingContent("");
+      setThinkingText("");
       resetFlow();
+      eventBus.publishImmediate({
+        v: 1,
+        id: `done-${Date.now()}`,
+        seq: 0,
+        ts: new Date().toISOString(),
+        session_id: String(currentChatId),
+        turn_id: turnId,
+        source: {},
+        type: "stream.done",
+        payload: {},
+      });
 
       return response;
     } catch (err) {
@@ -433,6 +445,7 @@ export function useChat(options?: UseChatOptions) {
       resetFlow();
       if (isSendStale(generation)) return;
       setAgentTasks([]);
+      setThinkingText("");
       setError(err instanceof Error ? err.message : "Failed to send message");
       setIsStreaming(false);
       throw err;
