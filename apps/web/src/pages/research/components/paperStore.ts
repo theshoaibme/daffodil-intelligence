@@ -266,6 +266,22 @@ export function addPaper(paper: ResearchPaper): void {
   _papers = [paper, ..._papers];
 }
 
+export function updatePaper(
+  id: string,
+  updates: Partial<Omit<ResearchPaper, "id">>,
+): boolean {
+  const index = _papers.findIndex((p) => p.id === id);
+  if (index === -1) return false;
+  _papers[index] = { ..._papers[index], ...updates };
+  return true;
+}
+
+export function deletePaper(id: string): boolean {
+  const before = _papers.length;
+  _papers = _papers.filter((p) => p.id !== id);
+  return _papers.length < before;
+}
+
 export function generateId(title: string): string {
   return title
     .toLowerCase()

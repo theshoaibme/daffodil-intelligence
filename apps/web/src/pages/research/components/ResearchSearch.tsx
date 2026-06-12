@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { isStudioPath, researchPaperPath } from "@lib";
+import { isStudioPath, researchPaperPath, ROUTES } from "@lib";
 import { FileText, Plus, LayoutGrid, List, ChevronDown } from "lucide-react";
 import { ResearchPaper } from "./types";
 import { ResearchPaperCard } from "./ResearchPaperCard";
-import { AddPaperModal } from "./AddPaperModal";
 import { ResearchDropdown } from "./ResearchDropdown";
 import { ResearchPagination } from "./ResearchPagination";
 import { PlaceholdersAndVanishInput } from "@ui";
-import { getPapers, addPaper, generateId, CATEGORIES } from "./paperStore";
+import { getPapers, CATEGORIES } from "./paperStore";
 
 type ViewMode = "grid" | "list";
 
@@ -24,7 +23,6 @@ export function ResearchSearch() {
   );
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
   const [papers, setPapers] = useState<ResearchPaper[]>(getPapers);
@@ -90,14 +88,8 @@ export function ResearchSearch() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
 
-  const handleAddPaper = (newPaperData: Omit<ResearchPaper, "citations" | "id">) => {
-    const newPaper: ResearchPaper = {
-      ...newPaperData,
-      id: generateId(newPaperData.title),
-      citations: 0,
-    };
-    addPaper(newPaper);
-    setPapers(getPapers());
+  const handleAddPaper = () => {
+    navigate(ROUTES.research);
   };
 
   const handleSelectSearch = (term: string) => {
@@ -228,7 +220,8 @@ export function ResearchSearch() {
 
           {/* Add Paper Button */}
           <button
-            onClick={() => setIsAddModalOpen(true)}
+            type="button"
+            onClick={handleAddPaper}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-on-primary font-semibold text-sm hover:opacity-90 transition-opacity shadow-sm cursor-pointer border-0"
           >
             <Plus size={15} />
@@ -272,12 +265,6 @@ export function ResearchSearch() {
         </div>
       )}
 
-      {/* Add Research Paper Modal */}
-      <AddPaperModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddPaper}
-      />
     </div>
   );
 }
