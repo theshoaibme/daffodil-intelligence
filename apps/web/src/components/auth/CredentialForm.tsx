@@ -45,7 +45,7 @@ export const CredentialForm: React.FC<CredentialFormProps> = ({
           label="Full name"
           type="text"
           autoComplete="name"
-          placeholder="Your name"
+          placeholder="Enter full name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           startIcon={<User size={18} />}
@@ -56,7 +56,7 @@ export const CredentialForm: React.FC<CredentialFormProps> = ({
         label="Email"
         type="email"
         autoComplete="email"
-        placeholder="you@daffodil.university"
+        placeholder="Enter email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
@@ -67,7 +67,7 @@ export const CredentialForm: React.FC<CredentialFormProps> = ({
         label="Password"
         type="password"
         autoComplete={mode === "login" ? "current-password" : "new-password"}
-        placeholder="••••••••"
+        placeholder="Enter password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         required
