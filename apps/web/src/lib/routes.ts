@@ -17,6 +17,12 @@ export const ROUTES = {
   googleCallback: "/intelligence/auth/google/callback",
   telegramAuth: "/intelligence/auth/telegram",
   copycat: "/copycat",
+  researchs: "/intelligence/researchs",
+  researchPaper: "/intelligence/researchs/:paperId",
+  publicResearchs: "/researchs",
+  publicResearchPaper: "/researchs/:paperId",
+  connections: "/connections",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
+

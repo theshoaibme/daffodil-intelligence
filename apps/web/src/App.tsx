@@ -62,6 +62,8 @@ import {
   TermsPage,
   PrivacyPage,
   CopycatAuthPage,
+  ResearchsPage,
+  ConnectionsPage,
 } from "@pages";
 import { ProtectedRoute } from "@auth";
 
@@ -95,6 +97,8 @@ export default function App() {
       <Route path={ROUTES.privacy} element={<PrivacyPage />} />
       <Route path={ROUTES.googleCallback} element={<GoogleCallbackPage />} />
       <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
+      <Route path={ROUTES.publicResearchs} element={<ResearchsPage />} />
+      <Route path={ROUTES.connections} element={<ConnectionsPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route
@@ -116,6 +120,7 @@ export default function App() {
         <Route path={ROUTES.guidance} element={<GuidancePage />} />
         <Route path={ROUTES.account} element={<AccountPage />} />
         <Route path={ROUTES.copycat} element={<CopycatAuthPage />} />
+        <Route path={ROUTES.researchs} element={<ResearchsPage />} />
       </Route>
     </Routes>
   );
