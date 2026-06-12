@@ -126,6 +126,14 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               >
                 Connections
               </Link>
+
+               <Link
+                to={ROUTES.home}
+                className="text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors"
+              >
+                Studio
+              </Link>
+
             </nav>
           </div>
 
