@@ -1,4 +1,5 @@
 export interface ResearchPaper {
+  id: string;
   title: string;
   authors: string;
   year: string;
@@ -7,4 +8,5 @@ export interface ResearchPaper {
   category: string;
   abstract: string;
   url?: string;
+  tags?: string[];
 }

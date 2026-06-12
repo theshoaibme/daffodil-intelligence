@@ -1,179 +1,251 @@
-import React, { useState } from "react";
-import { X } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, BookOpen } from "lucide-react";
 import { ResearchPaper } from "./types";
+import { PAPER_CATEGORIES } from "./paperStore";
 
 interface AddPaperModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (paper: Omit<ResearchPaper, "citations">) => void;
+  onAdd: (paper: Omit<ResearchPaper, "citations" | "id">) => void;
+}
+
+function useFormState() {
+  const [form, setForm] = useState({
+    title: "",
+    authors: "",
+    year: new Date().getFullYear().toString(),
+    source: "",
+    category: "Computer Science",
+    abstract: "",
+    url: "",
+  });
+
+  const reset = () =>
+    setForm({
+      title: "",
+      authors: "",
+      year: new Date().getFullYear().toString(),
+      source: "",
+      category: "Computer Science",
+      abstract: "",
+      url: "",
+    });
+
+  const set =
+    (field: string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  return { form, set, reset };
 }
 
 export function AddPaperModal({ isOpen, onClose, onAdd }: AddPaperModalProps) {
-  const [newTitle, setNewTitle] = useState("");
-  const [newAuthors, setNewAuthors] = useState("");
-  const [newYear, setNewYear] = useState(new Date().getFullYear().toString());
-  const [newSource, setNewSource] = useState("");
-  const [newCategory, setNewCategory] = useState("Computer Science");
-  const [newAbstract, setNewAbstract] = useState("");
-  const [newUrl, setNewUrl] = useState("");
+  const { form, set, reset } = useFormState();
+  const firstFieldRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => firstFieldRef.current?.focus(), 80);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen]);
+
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle || !newAuthors || !newAbstract) return;
-
+    if (!form.title || !form.authors || !form.abstract) return;
     onAdd({
-      title: newTitle,
-      authors: newAuthors,
-      year: newYear,
-      source: newSource || "Local Library",
-      category: newCategory,
-      abstract: newAbstract,
-      url: newUrl || undefined,
+      title: form.title,
+      authors: form.authors,
+      year: form.year,
+      source: form.source || "Local Library",
+      category: form.category,
+      abstract: form.abstract,
+      url: form.url || undefined,
     });
-
-    // Reset fields
-    setNewTitle("");
-    setNewAuthors("");
-    setNewYear(new Date().getFullYear().toString());
-    setNewSource("");
-    setNewCategory("Computer Science");
-    setNewAbstract("");
-    setNewUrl("");
+    reset();
+    onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm animate-fadeIn">
-      <div className="w-full max-w-xl bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-2xl border border-outline-variant/20 relative animate-scaleIn">
-        <button
-          onClick={onClose}
-          type="button"
-          className="absolute right-5 top-5 p-2 rounded-full hover:bg-surface-container-low text-on-surface-variant transition-colors cursor-pointer border-0"
-        >
-          <X size={18} />
-        </button>
-        
-        <h3 className="text-xl font-bold text-on-surface mb-6">Add New Research Paper</h3>
-        
-        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(26,27,36,0.5)" }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
+    >
+      <div
+        className="w-full max-w-xl bg-surface-container-lowest rounded-3xl shadow-2xl relative overflow-hidden"
+        style={{ animation: "scaleIn 0.2s cubic-bezier(0.34,1.56,0.64,1)" }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-outline-variant/10">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <BookOpen size={18} className="text-primary" />
+            </div>
+            <h3 className="text-base font-semibold text-on-surface">Add New Research Paper</h3>
+          </div>
+          <button
+            onClick={handleClose}
+            type="button"
+            className="p-2 rounded-full hover:bg-surface-container-low text-on-surface-variant transition-colors cursor-pointer border-0"
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="px-7 py-5 space-y-4">
+          {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-              Paper Title *
+              Paper Title <span className="text-primary">*</span>
             </label>
             <input
+              ref={firstFieldRef}
               type="text"
               required
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
+              value={form.title}
+              onChange={set("title")}
               placeholder="e.g. Attention Is All You Need"
-              className="w-full px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none transition-all"
+              className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm border-0"
             />
           </div>
 
+          {/* Authors + Year */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-                Authors *
+                Authors <span className="text-primary">*</span>
               </label>
               <input
                 type="text"
                 required
-                value={newAuthors}
-                onChange={(e) => setNewAuthors(e.target.value)}
+                value={form.authors}
+                onChange={set("authors")}
                 placeholder="e.g. Vaswani et al."
-                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm border-0"
               />
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-                Publish Year *
+                Publish Year
               </label>
               <input
                 type="number"
-                required
-                value={newYear}
-                onChange={(e) => setNewYear(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none transition-all"
+                value={form.year}
+                onChange={set("year")}
+                min="1900"
+                max={new Date().getFullYear() + 1}
+                className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm border-0"
               />
             </div>
           </div>
 
+          {/* Category + Publisher */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-                Category *
+                Category
               </label>
               <select
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none transition-all"
+                value={form.category}
+                onChange={set("category")}
+                className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm border-0 cursor-pointer"
               >
-                <option value="Computer Science">Computer Science</option>
-                <option value="AI & Education">AI & Education</option>
-                <option value="Smart Grids">Smart Grids</option>
+                {PAPER_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
                 Publisher / Journal
               </label>
               <input
                 type="text"
-                value={newSource}
-                onChange={(e) => setNewSource(e.target.value)}
+                value={form.source}
+                onChange={set("source")}
                 placeholder="e.g. NeurIPS, arXiv"
-                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm border-0"
               />
             </div>
           </div>
 
+          {/* URL */}
           <div>
             <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-              Paper URL (Optional)
+              Paper URL{" "}
+              <span className="text-on-surface-variant/40 font-normal">(optional)</span>
             </label>
             <input
               type="url"
-              value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
-              placeholder="https://arxiv.org/..."
-              className="w-full px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none transition-all"
+              value={form.url}
+              onChange={set("url")}
+              placeholder="https://arxiv.org/abs/..."
+              className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm border-0"
             />
           </div>
 
+          {/* Abstract */}
           <div>
             <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-              Abstract *
+              Abstract <span className="text-primary">*</span>
             </label>
             <textarea
               required
               rows={3}
-              value={newAbstract}
-              onChange={(e) => setNewAbstract(e.target.value)}
-              placeholder="Brief summary of the paper's findings..."
-              className="w-full px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none transition-all resize-none"
+              value={form.abstract}
+              onChange={set("abstract")}
+              placeholder="Brief summary of the paper's key findings and contributions..."
+              className="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm border-0 resize-none"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-2 pb-1">
             <button
               type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-full border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low font-semibold text-xs sm:text-sm transition-colors cursor-pointer"
+              onClick={handleClose}
+              className="px-5 py-2.5 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container font-semibold text-sm transition-colors cursor-pointer border-0"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-full bg-primary text-on-primary font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+              className="px-6 py-2.5 rounded-full bg-primary text-on-primary font-semibold text-sm hover:opacity-90 transition-opacity shadow-sm cursor-pointer border-0"
             >
-              Save Paper
+              Add Paper
             </button>
           </div>
         </form>
       </div>
+
+      <style>{`
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.94) translateY(8px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0);   }
+        }
+      `}</style>
     </div>
   );
 }

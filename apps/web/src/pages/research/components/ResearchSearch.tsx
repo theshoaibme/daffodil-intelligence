@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, LayoutGrid, List, ChevronDown } from "lucide-react";
 import { ResearchPaper } from "./types";
 import { ResearchPaperCard } from "./ResearchPaperCard";
 import { AddPaperModal } from "./AddPaperModal";
 import { ResearchDropdown } from "./ResearchDropdown";
 import { ResearchPagination } from "./ResearchPagination";
 import { PlaceholdersAndVanishInput } from "@ui";
+import { getPapers, addPaper, generateId, CATEGORIES } from "./paperStore";
+
+type ViewMode = "grid" | "list";
 
 export function ResearchSearch() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -13,115 +16,29 @@ export function ResearchSearch() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
+  const [papers, setPapers] = useState<ResearchPaper[]>(getPapers);
 
   const searchRef = useRef<HTMLDivElement>(null);
-  const categories = ["All", "Computer Science", "AI & Education", "Smart Grids"];
-
-  const [papers, setPapers] = useState<ResearchPaper[]>([
-    {
-      title: "Attention Is All You Need",
-      authors: "Vaswani et al.",
-      year: "2017",
-      citations: 124500,
-      source: "NeurIPS",
-      category: "Computer Science",
-      abstract: "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.",
-      url: "https://arxiv.org/abs/1706.03762"
-    },
-    {
-      title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
-      authors: "Devlin et al.",
-      year: "2018",
-      citations: 98300,
-      source: "NAACL",
-      category: "Computer Science",
-      abstract: "We introduce a new language representation model called BERT. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations.",
-      url: "https://arxiv.org/abs/1810.04805"
-    },
-    {
-      title: "Language Models are Few-Shot Learners",
-      authors: "Brown et al. (OpenAI)",
-      year: "2020",
-      citations: 28400,
-      source: "NeurIPS",
-      category: "AI & Education",
-      abstract: "We show that scaling language models greatly improves task-agnostic, few-shot performance, sometimes even competitive with prior state-of-the-art fine-tuning approaches.",
-      url: "https://arxiv.org/abs/2005.14165"
-    },
-    {
-      title: "Deep Residual Learning for Image Recognition",
-      authors: "He et al. (Microsoft)",
-      year: "2015",
-      citations: 186400,
-      source: "CVPR",
-      category: "Computer Science",
-      abstract: "We present a residual learning framework to ease the training of networks that are substantially deeper than those previously used. We evaluate it on ImageNet.",
-      url: "https://arxiv.org/abs/1512.03385"
-    },
-    {
-      title: "Generative Adversarial Nets",
-      authors: "Goodfellow et al.",
-      year: "2014",
-      citations: 74200,
-      source: "NeurIPS",
-      category: "Computer Science",
-      abstract: "We propose a new framework for estimating generative models via an adversarial process, in which we simultaneously train two models: a generative model and a discriminative model.",
-      url: "https://arxiv.org/abs/1406.2661"
-    },
-    {
-      title: "Instruction Tuning for Large Language Models: A Survey",
-      authors: "Zhang et al.",
-      year: "2023",
-      citations: 820,
-      source: "arXiv",
-      category: "AI & Education",
-      abstract: "This paper provides a systematic review of instruction tuning in large language models, discussing datasets, methodologies, and benchmarks for human alignment.",
-      url: "https://arxiv.org/abs/2308.10792"
-    },
-    {
-      title: "Comparison of Quantum Cryptography Protocols in Smart Grids",
-      authors: "Siddique et al.",
-      year: "2024",
-      citations: 45,
-      source: "IEEE Trans",
-      category: "Smart Grids",
-      abstract: "We evaluate BB84, E91, and B92 protocols in power transmission grids under noise constraints, providing real-world key generation rate comparisons.",
-      url: "https://ieeexplore.ieee.org/document/10423"
-    },
-    {
-      title: "Deep Reinforcement Learning for Smart Grid Load Balancing",
-      authors: "Wang et al.",
-      year: "2022",
-      citations: 310,
-      source: "IEEE SmartGrid",
-      category: "Smart Grids",
-      abstract: "A deep Q-learning approach to dynamic load dispatching in microgrids to minimize peaks, showing an 18% cost reduction compared to legacy heuristic methods.",
-      url: "https://ieeexplore.ieee.org/document/9082"
-    },
-    {
-      title: "AI-Augmented Syllabus Design in Higher Education",
-      authors: "Miller et al.",
-      year: "2025",
-      citations: 12,
-      source: "J. Ed. Tech",
-      category: "AI & Education",
-      abstract: "Evaluating standard and agent-synthesized curricula in undergraduate computer science programs. Results show improved engagement rates with personalized pathways.",
-      url: "https://doi.org/10.1016/j.edurev"
-    }
-  ]);
+  const viewDropdownRef = useRef<HTMLDivElement>(null);
 
   const topSearches = [
-    "Deep Learning in CS",
+    "Deep Learning",
     "Smart Grids Optimization",
-    "Academic Writing Formats",
+    "Quantum Computing",
+    "Protein Structure Prediction",
+    "Robotic Control",
   ];
 
   const recentResearchSearches = [
     "Attention Is All You Need",
     "BERT: Pre-training of Deep Bidirectional Transformers",
     "Comparison of Quantum Cryptography Protocols in Smart Grids",
+    "AlphaFold Protein Structure Prediction",
   ];
 
+  // Close search dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -132,8 +49,19 @@ export function ResearchSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close view dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (viewDropdownRef.current && !viewDropdownRef.current.contains(event.target as Node)) {
+        setIsViewDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const filteredPapers = papers.filter((item) => {
-    const matchesSearch = 
+    const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.authors.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.abstract.toLowerCase().includes(searchQuery.toLowerCase());
@@ -147,24 +75,31 @@ export function ResearchSearch() {
   }, [searchQuery, selectedCategory]);
 
   // Pagination Settings
-  const itemsPerPage = 6;
+  const itemsPerPage = 16;
   const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
 
-  const handleAddPaper = (newPaperData: Omit<ResearchPaper, "citations">) => {
-    const newPaperItem: ResearchPaper = {
+  const handleAddPaper = (newPaperData: Omit<ResearchPaper, "citations" | "id">) => {
+    const newPaper: ResearchPaper = {
       ...newPaperData,
+      id: generateId(newPaperData.title),
       citations: 0,
     };
-    setPapers([newPaperItem, ...papers]);
+    addPaper(newPaper);
+    setPapers(getPapers());
   };
 
   const handleSelectSearch = (term: string) => {
     setSearchQuery(term);
     setIsDropdownOpen(false);
   };
+
+  // Only show categories that have papers
+  const activeCategories = CATEGORIES.filter(
+    (cat) => cat === "All" || papers.some((p) => p.category === cat)
+  );
 
   return (
     <div className="space-y-6 sm:space-y-8 relative">
@@ -175,15 +110,14 @@ export function ResearchSearch() {
             placeholders={[
               "Search papers by title, author, abstract...",
               "e.g. Attention Is All You Need",
-              "e.g. BERT: Pre-training of Deep Bidirectional Transformers",
-              "e.g. Comparison of Quantum Cryptography Protocols",
+              "e.g. Protein structure prediction with AlphaFold",
+              "e.g. Quantum Cryptography in Smart Grids",
+              "e.g. Vision Transformers for image recognition",
             ]}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setIsDropdownOpen(true)}
-            onSubmit={() => {
-              setIsDropdownOpen(false);
-            }}
+            onSubmit={() => setIsDropdownOpen(false)}
           />
 
           {isDropdownOpen && (
@@ -191,21 +125,24 @@ export function ResearchSearch() {
               topSearches={topSearches}
               recentResearchSearches={recentResearchSearches}
               onSelectSearch={handleSelectSearch}
+              searchResults={filteredPapers}
+              searchQuery={searchQuery}
             />
           )}
         </div>
-        
-        <div className="flex flex-wrap justify-center gap-2 mt-1">
-          {categories.map((cat) => {
+
+        {/* Category filter pills — smaller size */}
+        <div className="flex flex-wrap justify-center gap-1.5 mt-1">
+          {activeCategories.map((cat) => {
             const isActive = selectedCategory === cat;
             return (
               <button
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-5 py-2 rounded-full text-xs sm:text-sm font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
-                  isActive 
-                    ? "bg-primary text-on-primary shadow-sm scale-105" 
+                className={`px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all duration-200 cursor-pointer border-0 ${
+                  isActive
+                    ? "bg-primary text-on-primary shadow-sm scale-105"
                     : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high"
                 }`}
               >
@@ -216,21 +153,92 @@ export function ResearchSearch() {
         </div>
       </div>
 
-      {/* Grid View of Research Paper Cards */}
-      <div className="space-y-6 relative z-10 text-left">
-        <div className="flex items-center justify-between gap-4">
-          <h3 className="text-lg sm:text-xl font-semibold text-on-surface flex items-center gap-2">
-            <FileText className="text-primary" size={20} />
-            Research Library ({filteredPapers.length})
-          </h3>
-        </div>
-        
-        {currentItems.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {currentItems.map((paper, idx) => (
-              <ResearchPaperCard key={idx} paper={paper} />
-            ))}
+      {/* Library Header Row */}
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-lg sm:text-xl font-semibold text-on-surface flex items-center gap-2">
+          <FileText className="text-primary" size={20} />
+          Research Library ({filteredPapers.length})
+        </h3>
+
+        {/* Right-side controls */}
+        <div className="flex items-center gap-2">
+          {/* View Toggle Dropdown */}
+          <div ref={viewDropdownRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsViewDropdownOpen((v) => !v)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high transition-colors text-sm font-medium cursor-pointer border-0"
+            >
+              {viewMode === "grid" ? <LayoutGrid size={15} /> : <List size={15} />}
+              <span className="hidden sm:inline">{viewMode === "grid" ? "Grid" : "List"}</span>
+              <ChevronDown
+                size={13}
+                className="transition-transform duration-200"
+                style={{ transform: isViewDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </button>
+
+            {isViewDropdownOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 z-[60] rounded-2xl shadow-xl p-1.5 min-w-[128px]"
+                style={{ backgroundColor: "var(--color-surface-container-low, #f4f2ff)" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => { setViewMode("grid"); setIsViewDropdownOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer border-0 text-left ${
+                    viewMode === "grid"
+                      ? "bg-primary/10 text-primary"
+                      : "text-on-surface-variant hover:bg-surface-container-high"
+                  }`}
+                >
+                  <LayoutGrid size={14} />
+                  Grid view
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setViewMode("list"); setIsViewDropdownOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer border-0 text-left ${
+                    viewMode === "list"
+                      ? "bg-primary/10 text-primary"
+                      : "text-on-surface-variant hover:bg-surface-container-high"
+                  }`}
+                >
+                  <List size={14} />
+                  List view
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Add Paper Button */}
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-on-primary font-semibold text-sm hover:opacity-90 transition-opacity shadow-sm cursor-pointer border-0"
+          >
+            <Plus size={15} />
+            <span className="hidden sm:inline">Add Paper</span>
+            <span className="sm:hidden">Add</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Paper Cards */}
+      <div className="text-left">
+        {currentItems.length > 0 ? (
+          viewMode === "grid" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {currentItems.map((paper) => (
+                <ResearchPaperCard key={paper.id} paper={paper} view="grid" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {currentItems.map((paper) => (
+                <ResearchPaperCard key={paper.id} paper={paper} view="list" />
+              ))}
+            </div>
+          )
         ) : (
           <div className="p-12 text-center bg-surface-container-low/30 rounded-3xl border border-dashed border-outline-variant/20 text-on-surface-variant">
             No papers match your search queries.
@@ -238,24 +246,14 @@ export function ResearchSearch() {
         )}
       </div>
 
-      {/* Pagination & Add Paper Action bar */}
-      {filteredPapers.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-outline-variant/10 relative z-10">
-          
+      {/* Pagination */}
+      {filteredPapers.length > 0 && totalPages > 1 && (
+        <div className="flex justify-center mt-4 pt-4 border-t border-outline-variant/10">
           <ResearchPagination
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
           />
-
-          {/* Add Paper Control */}
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-on-primary font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
-          >
-            <Plus size={16} />
-            Add Research Paper
-          </button>
         </div>
       )}
 
@@ -265,8 +263,6 @@ export function ResearchSearch() {
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddPaper}
       />
-
     </div>
   );
 }
-
