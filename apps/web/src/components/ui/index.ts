@@ -1,3 +1,5 @@
+export * from './background-ripple-effect';
+export * from './canvas-reveal-effect';
 export * from './Button';
 export * from './Input';
 export * from './Badge';
