@@ -301,7 +301,7 @@ export async function fetchChats(search?: string): Promise<ChatResponse[]> {
   const q = search?.trim();
   if (q) params.set("q", q);
   const qs = params.toString();
-  const res = await authFetch(apiUrl(`/api/chats${qs ? `?${qs}` : ""}`));
+  const res = await authFetch(apiUrl(`/api/chats/${qs ? `?${qs}` : ""}`));
   if (!res.ok) throw new ApiError(await parseError(res), res.status);
   return res.json();
 }
