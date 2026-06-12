@@ -23,8 +23,7 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Register"
-      subtitle="Register for Daffodil Intelligence"
+      title="Create your account"
       footer={
         <>
           Already have an account?{" "}

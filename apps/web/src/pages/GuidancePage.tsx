@@ -52,7 +52,7 @@ export function GuidancePage() {
               <MessageSquare size={20} className="text-primary mb-3" />
               <h2 className="font-medium mb-1">Ask about your program</h2>
               <p className="text-sm text-on-surface-variant">
-                Chat with the supervisor agent from the home dashboard for general academic questions.
+                Open chat from the home dashboard for general academic questions.
               </p>
               <Button
                 variant="tonal"

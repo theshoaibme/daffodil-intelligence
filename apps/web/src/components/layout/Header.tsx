@@ -98,9 +98,11 @@ function UserAvatar({
 
 interface HeaderProps {
   onOpenSidebar?: () => void;
+  /** Reset to the app home screen (welcome / new session). */
+  onHomeClick?: () => void;
 }
 
-export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
+export function Header({ onOpenSidebar, onHomeClick }: HeaderProps = {} as HeaderProps) {
   const isLgUp = useIsLgUp();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
@@ -282,12 +284,15 @@ export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
         ) : null}
         <Link
           to={ROUTES.home}
-          className="flex items-center min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          onClick={(event) => {
+            if (!onHomeClick) return;
+            event.preventDefault();
+            onHomeClick();
+          }}
+          className="flex items-center min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:opacity-90 transition-opacity"
         >
-          <span className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight truncate leading-none">
-            <span className="bg-gradient-to-b from-blue-500 to-blue-600 bg-clip-text text-transparent">
-              Daffodil
-            </span>
+          <span className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight truncate leading-none">
+            <span className="text-primary">Daffodil</span>
             <span className="text-on-surface max-[380px]:hidden sm:inline">
               {" "}
               Intelligence

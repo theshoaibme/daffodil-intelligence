@@ -74,7 +74,7 @@ export function LoginPage() {
       )}
       {registrationSuccess && (
         <p className="text-sm text-primary bg-primary/10 rounded-2xl px-4 py-2.5 mb-4 text-center" role="status">
-          Registration successful{registeredEmail ? ` for ${registeredEmail}` : ""}. Sign in with your credentials.
+          Account created{registeredEmail ? ` for ${registeredEmail}` : ""}. Sign in to continue.
         </p>
       )}
       <GoogleAuthButton disabled={loading} />
