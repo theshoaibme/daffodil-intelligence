@@ -33,7 +33,7 @@ const RESEARCH_CATEGORIES = [
 const CLOSE_DELAY_MS = 150;
 
 const navLinkClass =
-  "text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors";
+  "text-[15px] font-semibold text-on-surface hover:text-primary transition-colors";
 
 export function PublicLayout({ children }: PublicLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -128,7 +128,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                     height="12"
                     viewBox="0 0 12 12"
                     fill="none"
-                    className={`mt-px opacity-60 transition-transform duration-200 ${researchOpen ? "rotate-180" : ""}`}
+                    className={`mt-px opacity-80 transition-transform duration-200 ${researchOpen ? "rotate-180" : ""}`}
                   >
                     <path
                       d="M3 4.5L6 7.5L9 4.5"
