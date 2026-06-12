@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Logo } from "../logo";
 import { ROUTES } from "@lib";
 
 interface AuthLayoutProps {
@@ -14,8 +15,11 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ title, subtitle, childre
     <div className="min-h-screen flex flex-col items-center justify-center bg-background text-on-surface font-sans px-4 py-10 sm:px-6">
       <div className="w-full max-w-[420px]">
         <div className="text-center mb-8">
-          <Link to={ROUTES.landing} className="inline-block text-2xl sm:text-3xl font-medium tracking-tight text-on-surface hover:opacity-80 transition-opacity">
-            Daffodil Intelligence
+          <Link
+            to={ROUTES.landing}
+            className="inline-flex justify-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:opacity-90 transition-opacity"
+          >
+            <Logo size="lg" />
           </Link>
           {subtitle && (
             <p className="mt-2 text-sm text-on-surface-variant">{subtitle}</p>

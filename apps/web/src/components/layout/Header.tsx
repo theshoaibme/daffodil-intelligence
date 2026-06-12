@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { FileText, MessageSquare, Gift, Sun, Moon, LogOut, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Logo } from "../logo";
 import { HeaderIcon } from "../ui";
 import { useIsLgUp } from "@hooks";
 import { useThemeMode } from "@providers";
@@ -291,13 +292,7 @@ export function Header({ onOpenSidebar, onHomeClick }: HeaderProps = {} as Heade
           }}
           className="flex items-center min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:opacity-90 transition-opacity"
         >
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight truncate leading-none">
-            <span className="text-primary">Daffodil</span>
-            <span className="text-on-surface max-[380px]:hidden sm:inline">
-              {" "}
-              Intelligence
-            </span>
-          </span>
+          <Logo size="sm" />
         </Link>
       </div>
 
