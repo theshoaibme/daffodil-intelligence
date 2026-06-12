@@ -1,6 +1,6 @@
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { ArrowLeft, Award, Download, ExternalLink, FileText, Tag } from "lucide-react";
-import { PublicLayout, StudioPageHeader } from "@layout";
+import { Header, PublicLayout } from "@layout";
 import { isStudioPath, PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
 import { getPaperById } from "./components/paperStore";
 import {
@@ -169,7 +169,7 @@ export function ResearchPaperPage() {
   if (workspace) {
     return (
       <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
-        <StudioPageHeader title="Research" />
+        <Header />
         {content}
       </div>
     );
