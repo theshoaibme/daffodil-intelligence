@@ -1,18 +1,14 @@
-import { Link } from "react-router-dom";
 import { FileText, MessageSquare, Gift, Menu } from "lucide-react";
 import { Logo } from "../logo";
 import { HeaderIcon } from "../ui";
 import { UserMenu } from "./UserMenu";
 import { useIsLgUp } from "@hooks";
-import { ROUTES } from "@lib";
 
 interface HeaderProps {
   onOpenSidebar?: () => void;
-  /** Reset to the app home screen (welcome / new session). */
-  onHomeClick?: () => void;
 }
 
-export function Header({ onOpenSidebar, onHomeClick }: HeaderProps = {} as HeaderProps) {
+export function Header({ onOpenSidebar }: HeaderProps = {} as HeaderProps) {
   const isLgUp = useIsLgUp();
 
   return (
@@ -28,17 +24,7 @@ export function Header({ onOpenSidebar, onHomeClick }: HeaderProps = {} as Heade
             <Menu size={22} strokeWidth={2} />
           </button>
         ) : null}
-        <Link
-          to={ROUTES.home}
-          onClick={(event) => {
-            if (!onHomeClick) return;
-            event.preventDefault();
-            onHomeClick();
-          }}
-          className="flex items-center min-w-0 flex-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:opacity-90 transition-opacity"
-        >
-          <Logo size="sm" />
-        </Link>
+        <Logo size="sm" className="min-w-0 flex-1" />
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4 shrink-0 pl-2">

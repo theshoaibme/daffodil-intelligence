@@ -250,7 +250,7 @@ export function Sidebar({
             </div>
           </div>
 
-          <div className="shrink-0 px-3 py-2.5 bg-surface-container-low border-t border-outline-variant/10">
+          <div className="shrink-0 px-3 py-2.5 bg-surface-container-low">
             <button
               type="button"
               onClick={() => navigate(ROUTES.account)}

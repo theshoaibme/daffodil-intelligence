@@ -32,12 +32,7 @@ export function LandingPage() {
     <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
       <header className="sticky top-0 z-20 bg-surface-container-lowest/90 backdrop-blur-md">
         <div className={`${LANDING_WIDTH} h-16 sm:h-[4.25rem] flex items-center justify-between`}>
-          <Link
-            to={isAuthenticated ? ROUTES.home : ROUTES.landing}
-            className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          >
-            <Logo size="md" />
-          </Link>
+          <Logo size="md" />
 
           {!isLoading && (
             <nav className="flex items-center gap-2 sm:gap-4">

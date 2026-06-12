@@ -1,3 +1,6 @@
+import { Link } from "react-router-dom";
+import { ROUTES } from "@lib";
+
 export type LogoSize = "sm" | "md" | "lg";
 
 const SIZE_CLASSES: Record<LogoSize, { title: string; subtitle: string; subtitleOffset: string }> = {
@@ -21,13 +24,29 @@ const SIZE_CLASSES: Record<LogoSize, { title: string; subtitle: string; subtitle
 export interface LogoProps {
   size?: LogoSize;
   className?: string;
+  /** Defaults to the public root (`/`). */
+  to?: string;
+  onClick?: () => void;
 }
 
-export function Logo({ size = "sm", className = "" }: LogoProps) {
+export function Logo({
+  size = "sm",
+  className = "",
+  to = ROUTES.landing,
+  onClick,
+}: LogoProps) {
   const styles = SIZE_CLASSES[size];
 
   return (
-    <span className={`flex flex-col leading-none min-w-0 ${className}`}>
+    <Link
+      to={to}
+      onClick={(event) => {
+        if (!onClick) return;
+        event.preventDefault();
+        onClick();
+      }}
+      className={`inline-flex flex-col leading-none min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:opacity-90 transition-opacity ${className}`}
+    >
       <span className={`${styles.title} font-bold text-primary tracking-tight truncate`}>
         Daffodil
       </span>
@@ -36,6 +55,6 @@ export function Logo({ size = "sm", className = "" }: LogoProps) {
       >
         Intelligence
       </span>
-    </span>
+    </Link>
   );
 }

@@ -108,7 +108,7 @@ export function ChatHistoryItem({
             width: MENU_WIDTH,
             transformOrigin: "top right",
           }}
-          className="fixed z-[200] glass-gradient-panel border border-outline-variant/40 rounded-2xl shadow-md overflow-hidden p-1"
+          className="fixed z-[200] glass-gradient-panel rounded-2xl shadow-md overflow-hidden p-1"
         >
           <DropdownItem
             icon={<Share2 size={15} strokeWidth={1.75} />}
@@ -147,7 +147,7 @@ export function ChatHistoryItem({
               : "bg-transparent text-on-surface hover:bg-surface-container-high"
           }`}
         >
-          <div className="w-6 h-6 rounded-md bg-surface-container-highest flex items-center justify-center border border-outline-variant/10 shrink-0">
+          <div className="w-6 h-6 rounded-md bg-surface-container-highest flex items-center justify-center shrink-0">
             <MessageSquare size={12} className="text-on-surface-variant" strokeWidth={1.75} />
           </div>
           <div className="flex-1 min-w-0">

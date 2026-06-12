@@ -440,21 +440,6 @@ function ChatDashboard() {
     setPreferSidePanel(false);
   };
 
-  const handleGoHome = () => {
-    ++navigationGenRef.current;
-    flushCurrentSession();
-    loadSession(null, []);
-    activateHistory(null);
-    pendingSessionRef.current = null;
-    lastUrlChatRef.current = null;
-    setSearchParams({}, { replace: true });
-    setPrompt("");
-    setCopycatMode(false);
-    setAgentSimulationOpen(false);
-    setPreferSidePanel(false);
-    if (!isLgUp) setSidebarOpen(false);
-  };
-
   const handleDeleteHistory = (id: string) => {
     const wasActive = activeHistoryId === id;
     if (wasActive) {
@@ -643,7 +628,7 @@ function ChatDashboard() {
         }}
         transition={sidebarWidthTransition}
       >
-        <Header onOpenSidebar={() => setSidebarOpen(true)} onHomeClick={handleGoHome} />
+        <Header onOpenSidebar={() => setSidebarOpen(true)} />
 
         <div
           className={`relative flex-1 min-h-0 min-w-0 grid grid-cols-1 ${
