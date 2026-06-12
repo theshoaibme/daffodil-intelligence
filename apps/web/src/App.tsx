@@ -97,6 +97,7 @@ export default function App() {
       <Route path={ROUTES.privacy} element={<PrivacyPage />} />
       <Route path={ROUTES.googleCallback} element={<GoogleCallbackPage />} />
       <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
+      <Route path={ROUTES.publicResearchs} element={<ResearchsPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route

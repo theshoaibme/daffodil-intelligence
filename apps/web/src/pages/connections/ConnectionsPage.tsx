@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { Network, ArrowLeft, Cpu, Chrome, Server, CheckCircle2 } from "lucide-react";
+import { Network, Cpu, Chrome, Server, CheckCircle2 } from "lucide-react";
 import { Button, Badge } from "@components/ui";
 import { ROUTES } from "@lib";
 import { useMcpStatus } from "@hooks";
+import { Header } from "@layout";
 
 export function ConnectionsPage() {
   const navigate = useNavigate();
@@ -11,26 +12,7 @@ export function ConnectionsPage() {
 
   return (
     <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
-      <header className="border-b border-outline-variant/40 bg-surface-container-lowest/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-surface-container-high rounded-full text-on-surface-variant hover:text-on-surface transition-colors border-0 bg-transparent cursor-pointer"
-              title="Back"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <span className="font-semibold text-lg flex items-center gap-2">
-              <Network className="text-primary" size={20} />
-              Connection Center
-            </span>
-          </div>
-          <Button variant="outlined" size="sm" onClick={() => navigate(ROUTES.home)}>
-            Go to chat
-          </Button>
-        </div>
-      </header>
+      <Header />
 
       <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 flex-1 flex flex-col justify-center">
         <div className="rounded-[2.5rem] border border-outline-variant/40 bg-surface-container-lowest p-6 sm:p-10 shadow-sm relative overflow-hidden">

@@ -36,7 +36,7 @@ export function LandingPage() {
             <Logo size="md" />
             <nav className="hidden sm:flex items-center gap-5 sm:gap-7">
               <Link
-                to={ROUTES.researchs}
+                to={ROUTES.publicResearchs}
                 className="text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors"
               >
                 Researchs

@@ -18,6 +18,7 @@ export const ROUTES = {
   telegramAuth: "/intelligence/auth/telegram",
   copycat: "/copycat",
   researchs: "/intelligence/researchs",
+  publicResearchs: "/researchs",
   connections: "/intelligence/connections",
 } as const;
 
