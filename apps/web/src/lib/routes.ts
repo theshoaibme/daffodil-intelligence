@@ -19,7 +19,7 @@ export const ROUTES = {
   copycat: "/copycat",
   researchs: "/intelligence/researchs",
   publicResearchs: "/researchs",
-  connections: "/intelligence/connections",
+  connections: "/connections",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

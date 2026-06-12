@@ -98,6 +98,7 @@ export default function App() {
       <Route path={ROUTES.googleCallback} element={<GoogleCallbackPage />} />
       <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
       <Route path={ROUTES.publicResearchs} element={<ResearchsPage />} />
+      <Route path={ROUTES.connections} element={<ConnectionsPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route
@@ -120,7 +121,6 @@ export default function App() {
         <Route path={ROUTES.account} element={<AccountPage />} />
         <Route path={ROUTES.copycat} element={<CopycatAuthPage />} />
         <Route path={ROUTES.researchs} element={<ResearchsPage />} />
-        <Route path={ROUTES.connections} element={<ConnectionsPage />} />
       </Route>
     </Routes>
   );

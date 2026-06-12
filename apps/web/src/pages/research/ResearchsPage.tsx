@@ -2,16 +2,14 @@ import { useNavigate } from "react-router-dom";
 import { Telescope, Search, BookOpen, Link2, Sparkles, MessageSquare, Database, History, CheckCircle2, FileText } from "lucide-react";
 import { Button } from "@components/ui";
 import { ROUTES } from "@lib";
-import { Header } from "@layout";
+import { PublicLayout } from "@layout";
 
 export function ResearchsPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
-      <Header />
-
-      <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 flex-1 flex flex-col justify-center">
+    <PublicLayout>
+      <main className="max-w-[90rem] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex-1 flex flex-col justify-center">
         <div className="rounded-[2.5rem] bg-surface-container-lowest p-6 sm:p-10 shadow-sm relative overflow-hidden">
           {/* Subtle gradient accent */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
@@ -194,6 +192,6 @@ export function ResearchsPage() {
           </div>
         </div>
       </main>
-    </div>
+    </PublicLayout>
   );
 }

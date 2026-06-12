@@ -3,7 +3,7 @@ import { Network, Cpu, Chrome, Server, CheckCircle2 } from "lucide-react";
 import { Button, Badge } from "@components/ui";
 import { ROUTES } from "@lib";
 import { useMcpStatus } from "@hooks";
-import { Header } from "@layout";
+import { PublicLayout } from "@layout";
 
 export function ConnectionsPage() {
   const navigate = useNavigate();
@@ -11,11 +11,9 @@ export function ConnectionsPage() {
   const isConnected = mcpStatusObj.status === "connected";
 
   return (
-    <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
-      <Header />
-
-      <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 flex-1 flex flex-col justify-center">
-        <div className="rounded-[2.5rem] border border-outline-variant/40 bg-surface-container-lowest p-6 sm:p-10 shadow-sm relative overflow-hidden">
+    <PublicLayout>
+      <main className="max-w-[90rem] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex-1 flex flex-col justify-center">
+        <div className="rounded-[2.5rem] bg-surface-container-lowest p-6 sm:p-10 shadow-sm relative overflow-hidden">
           {/* Subtle gradient accent */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -38,7 +36,7 @@ export function ConnectionsPage() {
 
           <div className="space-y-4 mt-8 relative z-10">
             {/* MCP Integration Item */}
-            <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-low/60 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="rounded-3xl bg-surface-container-low/60 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-2xl bg-primary/10 text-primary mt-1">
                   <Server size={22} />
@@ -77,7 +75,7 @@ export function ConnectionsPage() {
             </div>
 
             {/* Google OAuth Integration Item */}
-            <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-low/60 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="rounded-3xl bg-surface-container-low/60 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-2xl bg-primary/10 text-primary mt-1">
                   <Chrome size={22} />
@@ -103,7 +101,7 @@ export function ConnectionsPage() {
             </div>
 
             {/* Workspace Agent Runtime Item */}
-            <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-low/60 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="rounded-3xl bg-surface-container-low/60 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-2xl bg-primary/10 text-primary mt-1">
                   <Cpu size={22} />
@@ -130,6 +128,6 @@ export function ConnectionsPage() {
           </div>
         </div>
       </main>
-    </div>
+    </PublicLayout>
   );
 }
