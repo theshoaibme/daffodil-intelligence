@@ -11,3 +11,6 @@ export * from "./ModelManagementPage";
 export * from "./RegisterPage";
 export * from "./SkillsPage";
 export * from "./CopycatAuthPage";
+export * from "./ResearchsPage";
+export * from "./ConnectionsPage";
+
