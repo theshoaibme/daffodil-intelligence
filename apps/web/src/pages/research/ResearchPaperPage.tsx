@@ -28,7 +28,7 @@ export function ResearchPaperPage() {
         Back to research library
       </Link>
 
-      <article className="max-w-4xl space-y-6">
+      <article className="w-full space-y-6">
           <div className="space-y-3">
             <span className="inline-flex text-[11px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
               {paper.category}
