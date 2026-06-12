@@ -5,4 +5,5 @@ export {
 } from "./Sidebar";
 export type { SidebarProps } from "./Sidebar/types";
 export * from "./Header";
+export * from "./UserMenu";
 export * from "./AuthLayout";

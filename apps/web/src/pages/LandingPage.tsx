@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
-import { BookOpen, MapPin, Shield, ArrowRight } from "lucide-react";
+import { BookOpen, MapPin, Shield } from "lucide-react";
 import { Logo } from "@components/logo";
+import { UserMenu } from "@layout";
+import { useAuth } from "@context";
 import { ROUTES } from "@lib";
 
-const LANDING_WIDTH = "max-w-[88rem] mx-auto w-full px-5 sm:px-8 lg:px-12 xl:px-16";
+const LANDING_WIDTH = "max-w-[90rem] mx-auto w-full px-5 sm:px-8 lg:px-10 xl:px-12";
 
 const features = [
   {
@@ -24,53 +26,52 @@ const features = [
 ];
 
 export function LandingPage() {
+  const { isAuthenticated, isLoading } = useAuth();
+
   return (
     <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
       <header className="sticky top-0 z-20 bg-surface-container-lowest/90 backdrop-blur-md">
         <div className={`${LANDING_WIDTH} h-16 sm:h-[4.25rem] flex items-center justify-between`}>
-          <Link to={ROUTES.landing} className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <Link
+            to={isAuthenticated ? ROUTES.home : ROUTES.landing}
+            className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
             <Logo size="md" />
           </Link>
-          <nav className="flex items-center gap-2 sm:gap-4">
-            <Link
-              to={ROUTES.login}
-              className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface rounded-xl transition-colors"
-            >
-              Sign in
-            </Link>
-            <Link
-              to={ROUTES.register}
-              className="px-5 py-2.5 text-sm font-medium bg-primary text-on-primary rounded-full hover:opacity-90 transition-opacity"
-            >
-              Get started
-            </Link>
-          </nav>
+
+          {!isLoading && (
+            <nav className="flex items-center gap-2 sm:gap-4">
+              {isAuthenticated ? (
+                <UserMenu signOutRedirect={ROUTES.landing} showWorkspaceLink />
+              ) : (
+                <>
+                  <Link
+                    to={ROUTES.login}
+                    className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface rounded-xl transition-colors"
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    to={ROUTES.register}
+                    className="px-5 py-2.5 text-sm font-medium bg-primary text-on-primary rounded-full hover:opacity-90 transition-opacity"
+                  >
+                    Get started
+                  </Link>
+                </>
+              )}
+            </nav>
+          )}
         </div>
       </header>
 
       <main className="flex-1">
         <section className={`${LANDING_WIDTH} pt-16 sm:pt-20 lg:pt-28 pb-20 lg:pb-28 text-center`}>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-medium tracking-tight leading-[1.08] max-w-5xl xl:max-w-6xl mx-auto mb-6 lg:mb-8">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-6xl font-medium tracking-tight leading-[1.08] max-w-4xl mx-auto mb-6 lg:mb-8">
             Your guide to campus life
           </h1>
-          <p className="text-base sm:text-lg lg:text-xl text-on-surface-variant max-w-2xl lg:max-w-3xl mx-auto mb-10 lg:mb-12 leading-relaxed">
+          <p className="text-base sm:text-lg lg:text-xl text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
             Study support, career guidance, and campus services — all in one workspace.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-            <Link
-              to={ROUTES.register}
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              Get started
-              <ArrowRight size={16} />
-            </Link>
-            <Link
-              to={ROUTES.login}
-              className="inline-flex items-center px-7 py-3.5 rounded-full bg-surface-container-high/80 text-sm font-semibold hover:bg-surface-container-high transition-colors"
-            >
-              Sign in
-            </Link>
-          </div>
         </section>
 
         <section className="bg-surface-container-low/50">
