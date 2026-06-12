@@ -56,12 +56,70 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           <div className="flex items-center gap-6 sm:gap-10">
             <Logo size="md" />
             <nav className="hidden sm:flex items-center gap-5 sm:gap-7">
-              <Link
-                to={ROUTES.publicResearchs}
-                className="text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors"
-              >
-                Researchs
-              </Link>
+              {/* Researchs dropdown */}
+              <div className="relative group">
+                <Link
+                  to={ROUTES.publicResearchs}
+                  className="text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1"
+                >
+                  Researchs
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="mt-px opacity-60 transition-transform duration-200 group-hover:rotate-180">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </Link>
+
+                {/* Dropdown — full width */}
+                <div className="fixed left-0 right-0 top-[64px] pt-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[70]">
+                  <div className="shadow-xl px-6 py-5 bg-surface-container-lowest">
+                    <div className="max-w-[90rem] mx-auto">
+                      <Link
+                        to={ROUTES.publicResearchs}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors mb-3"
+                      >
+                        All Research
+                      </Link>
+                      <div className="h-px bg-outline-variant/10 mb-3" />
+                      <div className="grid grid-cols-3 gap-x-6 gap-y-0.5">
+                        {[
+                          "Computer Science",
+                          "Artificial Intelligence",
+                          "Machine Learning",
+                          "Natural Language Processing",
+                          "Computer Vision",
+                          "Deep Learning",
+                          "Data Science",
+                          "AI & Education",
+                          "Smart Grids",
+                          "Cybersecurity",
+                          "Bioinformatics",
+                          "Quantum Computing",
+                          "Robotics",
+                          "Cloud Computing",
+                          "Internet of Things",
+                          "Blockchain",
+                          "Human-Computer Interaction",
+                          "Software Engineering",
+                        ].map((cat) => (
+                          <Link
+                            key={cat}
+                            to={`${ROUTES.publicResearchs}?category=${encodeURIComponent(cat)}`}
+                            className="group/item flex items-center justify-between px-3 py-2 rounded-lg text-xs text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all"
+                          >
+                            {cat}
+                            <svg
+                              width="10" height="10" viewBox="0 0 10 10" fill="none"
+                              className="opacity-0 translate-x-1 group-hover/item:opacity-60 group-hover/item:translate-x-0 transition-all duration-150 shrink-0"
+                            >
+                              <path d="M3.5 2L7 5L3.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <Link
                 to={ROUTES.connections}
                 className="text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors"

@@ -1,4 +1,4 @@
-import { Award, ExternalLink, Search } from "lucide-react";
+import { Award, Search } from "lucide-react";
 import { ResearchPaper } from "./types";
 
 interface ResearchDropdownProps {

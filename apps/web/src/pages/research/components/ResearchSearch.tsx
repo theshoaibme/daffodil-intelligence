@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { FileText, Plus, LayoutGrid, List, ChevronDown } from "lucide-react";
 import { ResearchPaper } from "./types";
 import { ResearchPaperCard } from "./ResearchPaperCard";
@@ -11,8 +12,12 @@ import { getPapers, addPaper, generateId, CATEGORIES } from "./paperStore";
 type ViewMode = "grid" | "list";
 
 export function ResearchSearch() {
+  const [searchParams] = useSearchParams();
+  const initialCategory = searchParams.get("category") || "All";
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState(
+    CATEGORIES.includes(initialCategory) ? initialCategory : "All"
+  );
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
