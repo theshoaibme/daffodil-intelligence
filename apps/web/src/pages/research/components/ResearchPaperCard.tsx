@@ -10,7 +10,7 @@ export function ResearchPaperCard({ paper }: ResearchPaperCardProps) {
     <div className="p-5 flex flex-col justify-between bg-surface-container-low/70 rounded-2xl transition-all duration-200 hover:bg-surface-container-low hover:shadow-md h-[270px]">
       <div className="space-y-2 min-w-0">
         <div className="flex justify-between items-start gap-2">
-          <span className="text-[10px] font-semibold tracking-wider text-primary uppercase bg-primary/10 px-2.5 py-1 rounded-full">
+          <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
             {paper.category}
           </span>
           <span className="text-[11px] font-medium text-on-surface-variant/70">

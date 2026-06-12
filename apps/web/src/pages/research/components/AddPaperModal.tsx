@@ -58,7 +58,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd }: AddPaperModalProps) {
         
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
-            <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
               Paper Title *
             </label>
             <input
@@ -73,7 +73,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd }: AddPaperModalProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
                 Authors *
               </label>
               <input
@@ -87,7 +87,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd }: AddPaperModalProps) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
                 Publish Year *
               </label>
               <input
@@ -102,7 +102,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd }: AddPaperModalProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
                 Category *
               </label>
               <select
@@ -117,7 +117,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd }: AddPaperModalProps) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
                 Publisher / Journal
               </label>
               <input
@@ -131,7 +131,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd }: AddPaperModalProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
               Paper URL (Optional)
             </label>
             <input
@@ -144,7 +144,7 @@ export function AddPaperModal({ isOpen, onClose, onAdd }: AddPaperModalProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
               Abstract *
             </label>
             <textarea

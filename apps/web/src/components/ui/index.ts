@@ -6,3 +6,4 @@ export * from './SidebarItem';
 export * from './HeaderIcon';
 export * from './SuggestionChip';
 export * from './DropdownItem';
+export * from './PlaceholdersAndVanishInput';

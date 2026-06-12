@@ -7,13 +7,13 @@ interface ResearchDropdownProps {
 export function ResearchDropdown({ topSearches, recentResearchSearches, onSelectSearch }: ResearchDropdownProps) {
   return (
     <div 
-      className="absolute left-0 right-0 top-full mt-2 z-50 rounded-3xl shadow-2xl p-5 space-y-4 text-left border border-outline-variant/20"
-      style={{ backgroundColor: "var(--color-surface-container-lowest, #ffffff)", opacity: 1 }}
+      className="absolute left-0 right-0 top-full mt-2 z-50 rounded-3xl shadow-2xl p-5 space-y-4 text-left"
+      style={{ backgroundColor: "var(--color-surface-container-low, #f4f2ff)", opacity: 1 }}
     >
       
       {/* Top Searches Section */}
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-primary uppercase tracking-wider">Top Searches</h4>
+        <h4 className="text-xs font-semibold text-primary">Top Searches</h4>
         <div className="flex flex-wrap gap-2">
           {topSearches.map((term) => (
             <button
@@ -33,7 +33,7 @@ export function ResearchDropdown({ topSearches, recentResearchSearches, onSelect
 
       {/* Recent Research Searches Section */}
       <div className="space-y-1.5">
-        <h4 className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Research Searches</h4>
+        <h4 className="text-xs font-semibold text-primary mb-1">Research Searches</h4>
         {recentResearchSearches.map((term) => (
           <button
             key={term}

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, FileText, Plus } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import { ResearchPaper } from "./types";
 import { ResearchPaperCard } from "./ResearchPaperCard";
 import { AddPaperModal } from "./AddPaperModal";
 import { ResearchDropdown } from "./ResearchDropdown";
 import { ResearchPagination } from "./ResearchPagination";
+import { PlaceholdersAndVanishInput } from "@ui";
 
 export function ResearchSearch() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -170,20 +171,20 @@ export function ResearchSearch() {
       {/* Centered Search & Category Filter Section */}
       <div className="flex flex-col items-center gap-4 text-center relative z-20 max-w-2xl mx-auto">
         <div ref={searchRef} className="relative w-full">
-          <div className="relative w-full">
-            <Search
-              size={20}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60 pointer-events-none"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onFocus={() => setIsDropdownOpen(true)}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search papers by title, author, abstract..."
-              className="w-full bg-surface-container-lowest rounded-full pl-12 pr-6 py-3.5 text-base text-on-surface placeholder:text-on-surface-variant/75 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent outline-none border border-outline-variant/10 shadow-sm transition-all"
-            />
-          </div>
+          <PlaceholdersAndVanishInput
+            placeholders={[
+              "Search papers by title, author, abstract...",
+              "e.g. Attention Is All You Need",
+              "e.g. BERT: Pre-training of Deep Bidirectional Transformers",
+              "e.g. Comparison of Quantum Cryptography Protocols",
+            ]}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setIsDropdownOpen(true)}
+            onSubmit={() => {
+              setIsDropdownOpen(false);
+            }}
+          />
 
           {isDropdownOpen && (
             <ResearchDropdown
