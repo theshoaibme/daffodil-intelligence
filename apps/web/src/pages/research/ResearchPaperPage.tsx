@@ -1,8 +1,13 @@
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, Award, ExternalLink, Tag } from "lucide-react";
+import { ArrowLeft, Award, Download, ExternalLink, FileText, Tag } from "lucide-react";
 import { PublicLayout, StudioPageHeader } from "@layout";
 import { isStudioPath, PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
 import { getPaperById } from "./components/paperStore";
+import {
+  getPaperPdfDownloadUrl,
+  getPaperPdfFilename,
+  getPaperPdfUrl,
+} from "./lib/paperPdf";
 
 export function ResearchPaperPage() {
   const { paperId } = useParams<{ paperId: string }>();
@@ -15,6 +20,10 @@ export function ResearchPaperPage() {
   if (!paper) {
     return <Navigate to={listPath} replace />;
   }
+
+  const pdfUrl = getPaperPdfUrl(paper);
+  const pdfDownloadUrl = getPaperPdfDownloadUrl(paper);
+  const pdfFilename = getPaperPdfFilename(paper);
 
   const content = (
     <main
@@ -75,16 +84,83 @@ export function ResearchPaperPage() {
             </section>
           )}
 
-          {paper.url && (
-            <a
-              href={paper.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              View original source
-              <ExternalLink size={14} />
-            </a>
+          {(pdfUrl || paper.url) && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold text-on-surface flex items-center gap-2">
+                <FileText size={16} className="text-primary" />
+                Access paper
+              </h2>
+              <div className="flex flex-wrap gap-3">
+                {pdfUrl && (
+                  <>
+                    <a
+                      href={pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-opacity"
+                    >
+                      View PDF
+                      <ExternalLink size={14} />
+                    </a>
+                    {pdfDownloadUrl && (
+                      <a
+                        href={pdfDownloadUrl}
+                        download={pdfFilename}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-surface-container-low text-on-surface text-sm font-semibold hover:bg-surface-container transition-colors"
+                      >
+                        Download PDF
+                        <Download size={14} />
+                      </a>
+                    )}
+                  </>
+                )}
+                {paper.url && (
+                  <a
+                    href={paper.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-surface-container-low text-on-surface text-sm font-semibold hover:bg-surface-container transition-colors"
+                  >
+                    {pdfUrl ? "Original source" : "View original source"}
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+              </div>
+            </section>
+          )}
+
+          {pdfUrl && (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-on-surface">Full paper</h2>
+              <div className="rounded-3xl border border-outline-variant/15 bg-surface-container-lowest overflow-hidden">
+                <object
+                  data={pdfUrl}
+                  type="application/pdf"
+                  aria-label={`${paper.title} — PDF`}
+                  className="w-full min-h-[70vh] sm:min-h-[80vh] bg-white block"
+                >
+                  <iframe
+                    title={`${paper.title} — PDF`}
+                    src={pdfUrl}
+                    className="w-full min-h-[70vh] sm:min-h-[80vh] bg-white"
+                  />
+                </object>
+              </div>
+              <p className="text-xs text-on-surface-variant/70">
+                PDF not loading?{" "}
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary font-medium hover:underline"
+                >
+                  Open the full paper in a new tab
+                </a>
+                .
+              </p>
+            </section>
           )}
       </article>
     </main>
