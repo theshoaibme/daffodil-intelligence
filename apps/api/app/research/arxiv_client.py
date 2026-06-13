@@ -131,10 +131,11 @@ async def iter_category_papers(
     limit: int,
     seen_ids: set[str],
     client: httpx.AsyncClient,
+    start_offset: int = 0,
 ) -> AsyncIterator[ArxivPaper]:
     """Yield up to `limit` unique papers for a category."""
     collected = 0
-    start = 0
+    start = start_offset
 
     while collected < limit:
         params = {
@@ -153,14 +154,22 @@ async def iter_category_papers(
         if not batch:
             break
 
+        new_in_batch = 0
         for paper in batch:
             if paper.arxiv_id in seen_ids:
                 continue
             seen_ids.add(paper.arxiv_id)
             yield paper
             collected += 1
+            new_in_batch += 1
             if collected >= limit:
                 return
+
+        if new_in_batch == 0 and len(batch) > 0:
+            # All results in this page were duplicates — advance deeper.
+            start += len(batch)
+            await asyncio.sleep(REQUEST_DELAY_SEC)
+            continue
 
         if len(batch) < params["max_results"]:
             break

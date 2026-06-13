@@ -19,6 +19,38 @@ logger = logging.getLogger("app.research.bulk_seed")
 DEFAULT_MIN_TOTAL = 10_000
 
 
+async def _load_existing_arxiv_ids(session_maker) -> tuple[set[str], dict[str, int]]:
+    """Load known arXiv IDs and per-category counts from the database."""
+    import re
+
+    from sqlalchemy import select
+
+    seen: set[str] = set()
+    category_counts: dict[str, int] = {}
+
+    async with session_maker() as session:
+        rows = (
+            await session.execute(
+                select(ResearchPaper.id, ResearchPaper.url, ResearchPaper.category)
+            )
+        ).all()
+
+        for paper_id, url, category in rows:
+            if category:
+                category_counts[category] = category_counts.get(category, 0) + 1
+
+            if paper_id.startswith("arxiv-"):
+                seen.add(paper_id.removeprefix("arxiv-"))
+                continue
+
+            if url:
+                match = re.search(r"arxiv\.org/abs/([^#?\s]+)", url, re.IGNORECASE)
+                if match:
+                    seen.add(re.sub(r"v\d+$", "", match.group(1)))
+
+    return seen, category_counts
+
+
 def _paper_to_row(paper) -> dict:
     return {
         "id": paper.paper_id,
@@ -68,7 +100,7 @@ async def seed_research_from_arxiv(
         return {"inserted": 0, "skipped": 0, "total_in_db": current_total}
 
     categories = list(RESEARCH_CATEGORIES) or list(CATEGORY_ARXIV_QUERIES.keys())
-    seen_ids: set[str] = set()
+    seen_ids, category_counts = await _load_existing_arxiv_ids(session_maker)
     inserted = 0
     skipped = 0
 
@@ -114,6 +146,7 @@ async def seed_research_from_arxiv(
                 batch_rows: list[dict] = []
                 category_count = 0
                 fetch_limit = min(per_category, remaining)
+                start_offset = category_counts.get(category, 0)
 
                 async for paper in iter_category_papers(
                     category,
@@ -121,6 +154,7 @@ async def seed_research_from_arxiv(
                     limit=fetch_limit,
                     seen_ids=seen_ids,
                     client=client,
+                    start_offset=start_offset,
                 ):
                     batch_rows.append(_paper_to_row(paper))
                     category_count += 1

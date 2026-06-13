@@ -180,6 +180,10 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <Link to={ROUTES.pricing} className={navLinkClass}>
                 Pricing
               </Link>
+
+              <Link to={ROUTES.home} className={navLinkClass}>
+                Studio
+              </Link>
             </nav>
 
             {!isLoading && (

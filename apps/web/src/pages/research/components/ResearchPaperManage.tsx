@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, LayoutGrid, List, Plus, Search } from "lucide-react";
+import { Loader } from "@ui";
 import { mapResearchPaper, researchApi, ROUTES } from "@lib";
 import { ResearchPaper } from "./types";
 import { PaperForm, PaperFormValues } from "./PaperForm";
@@ -223,8 +224,8 @@ export function ResearchPaperManage() {
         </div>
 
         {loading ? (
-          <div className="p-10 text-center rounded-3xl bg-surface-container-low/50 text-on-surface-variant">
-            Loading papers...
+          <div className="flex justify-center p-10 rounded-3xl bg-surface-container-low/50">
+            <Loader variant="spinner" diameter={36} strokeWidth={3} color="primary" message="Loading papers..." />
           </div>
         ) : error ? (
           <div className="p-10 text-center rounded-3xl bg-surface-container-low/50 text-error space-y-3">

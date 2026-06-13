@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { ArrowLeft, Award, Download, ExternalLink, FileText, Tag } from "lucide-react";
 import { Header, PublicLayout } from "@layout";
+import { Loader } from "@ui";
 import { isStudioPath, mapResearchPaper, PUBLIC_LAYOUT_WIDTH, researchApi, ROUTES } from "@lib";
 import { ResearchPaper } from "./components/types";
 import {
@@ -48,9 +49,9 @@ export function ResearchPaperPage() {
   if (loading) {
     const shell = (
       <main
-        className={`${workspace ? "max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8" : PUBLIC_LAYOUT_WIDTH} py-8 sm:py-12 flex-1 animate-fadeIn`}
+        className={`${workspace ? "max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8" : PUBLIC_LAYOUT_WIDTH} py-8 sm:py-12 flex-1 animate-fadeIn flex items-center justify-center min-h-[40vh]`}
       >
-        <p className="text-on-surface-variant">Loading paper...</p>
+        <Loader variant="spinner" diameter={36} strokeWidth={3} color="primary" message="Loading paper..." />
       </main>
     );
     if (workspace) {

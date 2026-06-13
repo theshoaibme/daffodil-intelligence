@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from ..core.database import get_session_maker, is_mock_database
 from ..models.research import ResearchPaper
@@ -15,7 +15,7 @@ logger = logging.getLogger("app.research")
 
 
 async def ensure_research_papers_seeded() -> int:
-    """Insert seed papers when the table exists but has no rows. Returns rows inserted."""
+    """Insert bundled seed papers that are not yet in the database. Returns rows inserted."""
     if is_mock_database() or get_session_maker() is None:
         return 0
 
@@ -24,11 +24,13 @@ async def ensure_research_papers_seeded() -> int:
         return 0
 
     async with session_maker() as session:
-        total = (await session.execute(select(func.count()).select_from(ResearchPaper))).scalar_one()
-        if total:
-            return 0
+        existing_ids = set((await session.execute(select(ResearchPaper.id))).scalars().all())
 
+        inserted = 0
         for paper in SEED_PAPERS:
+            if paper["id"] in existing_ids:
+                continue
+
             pdf_url = paper.get("pdfUrl") or paper.get("pdf_url")
             pdf_file_name = paper.get("pdfFileName") or paper.get("pdf_file_name")
             if not pdf_url:
@@ -52,8 +54,9 @@ async def ensure_research_papers_seeded() -> int:
                     is_public=True,
                 )
             )
+            inserted += 1
 
-        await session.commit()
-        count = len(SEED_PAPERS)
-        logger.info("Seeded %s research papers", count)
-        return count
+        if inserted:
+            await session.commit()
+            logger.info("Seeded %s research papers", inserted)
+        return inserted

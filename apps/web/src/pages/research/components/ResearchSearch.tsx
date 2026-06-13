@@ -6,7 +6,7 @@ import { ResearchPaper } from "./types";
 import { ResearchPaperCard } from "./ResearchPaperCard";
 import { ResearchDropdown } from "./ResearchDropdown";
 import { ResearchPagination } from "./ResearchPagination";
-import { PlaceholdersAndVanishInput } from "@ui";
+import { Loader, PlaceholdersAndVanishInput } from "@ui";
 import { useResearchCategories } from "../hooks/useResearchCategories";
 
 type ViewMode = "grid" | "list";
@@ -283,8 +283,8 @@ export function ResearchSearch() {
       {/* Paper Cards */}
       <div className="text-left">
         {loading ? (
-          <div className="p-12 text-center bg-surface-container-low/30 rounded-3xl text-on-surface-variant">
-            Loading papers...
+          <div className="flex justify-center p-12 rounded-3xl bg-surface-container-low/30">
+            <Loader variant="spinner" diameter={36} strokeWidth={3} color="primary" message="Loading papers..." />
           </div>
         ) : loadError ? (
           <div className="p-12 text-center bg-surface-container-low/30 rounded-3xl text-on-surface-variant space-y-2">
