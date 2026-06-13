@@ -91,16 +91,6 @@ export function mapCorrespondence(item: ApiCorrespondence): ConnectionMessage {
   };
 }
 
-async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), init);
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || `Request failed: ${res.status}`);
-  }
-  if (res.status === 204) return {} as T;
-  return res.json();
-}
-
 async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(apiUrl(path), {
     ...init,

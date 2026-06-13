@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install --filter daffodil-web...",
+  "buildCommand": "pnpm turbo build --filter=daffodil-web",
+  "outputDirectory": "apps/web/dist",
+  "framework": "vite",
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+}
