@@ -15,3 +15,4 @@ from .hub import (
     GlobalRulesetLink,
 )
 from .research import ResearchPaper
+from .connection import UserResearchConnection, ConnectionCorrespondence

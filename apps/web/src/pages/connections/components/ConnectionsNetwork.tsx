@@ -11,8 +11,7 @@ import {
 import { Loader } from "@ui";
 import { ROUTES } from "@lib";
 import { useAuth } from "@context";
-import { useResearchConnections } from "../hooks/useResearchConnections";
-import { useConnectionState } from "../hooks/useConnectionState";
+import { useConnectionsNetwork } from "../hooks/useConnectionsNetwork";
 import type { ConnectionKind, ResearchConnection } from "../types";
 import { ConnectionCard } from "./ConnectionCard";
 import { ConnectionMessageDialog } from "./ConnectionMessageDialog";
@@ -28,9 +27,20 @@ interface ConnectionsNetworkProps {
 export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProps) {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { connections, loading, error, refresh } = useResearchConnections();
-  const { getStatus, connect, acceptConnection, sendMessage, getMessages, connectedCount } =
-    useConnectionState();
+  const {
+    connections,
+    stats,
+    loading,
+    error,
+    refresh,
+    getStatus,
+    connect,
+    acceptConnection,
+    sendMessage,
+    loadMessages,
+    getMessages,
+    connectedCount,
+  } = useConnectionsNetwork(isAuthenticated);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
@@ -60,9 +70,6 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
     return filtered.slice(start, start + ITEMS_PER_PAGE);
   }, [filtered, currentPage]);
 
-  const researcherCount = connections.filter((c) => c.kind === "researcher").length;
-  const institutionCount = connections.filter((c) => c.kind === "institution").length;
-
   const requireAuth = (action: () => void) => {
     if (!workspace || isAuthenticated) {
       action();
@@ -75,19 +82,22 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
     requireAuth(() => {
       const status = getStatus(item.id);
       if (status === "pending") {
-        acceptConnection(item.id);
+        void acceptConnection(item.id);
       } else if (status === "available") {
-        connect(item.id);
+        void connect(item.id);
       }
     });
   };
 
   const handleMessage = (item: ResearchConnection) => {
-    if (!workspace && !isAuthenticated) {
+    if (!isAuthenticated) {
       navigate(ROUTES.login);
       return;
     }
-    requireAuth(() => setActiveMessage(item));
+    requireAuth(() => {
+      void loadMessages(item.id);
+      setActiveMessage(item);
+    });
   };
 
   return (
@@ -116,9 +126,9 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { label: "Researchers", value: researcherCount, icon: GraduationCap },
-          { label: "Institutions", value: institutionCount, icon: Building2 },
-          { label: "Your connections", value: workspace ? connectedCount : "—", icon: Users },
+          { label: "Researchers", value: stats.researchers, icon: GraduationCap },
+          { label: "Institutions", value: stats.institutions, icon: Building2 },
+          { label: "Your connections", value: isAuthenticated ? connectedCount : "—", icon: Users },
         ].map(({ label, value, icon: Icon }) => (
           <div
             key={label}
@@ -193,7 +203,7 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
             <p>{error}</p>
             <button
               type="button"
-              onClick={() => refresh(true)}
+              onClick={() => refresh()}
               className="cursor-pointer border-0 bg-transparent text-sm font-semibold text-primary hover:underline"
             >
               Retry
@@ -210,7 +220,7 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
                 <ConnectionCard
                   key={item.id}
                   item={item}
-                  status={workspace ? getStatus(item.id) : "available"}
+                  status={isAuthenticated ? getStatus(item.id) : "available"}
                   workspace={workspace}
                   onConnect={() => handleConnect(item)}
                   onMessage={() => handleMessage(item)}
@@ -257,7 +267,9 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
           connection={activeMessage}
           messages={getMessages(activeMessage.id)}
           onClose={() => setActiveMessage(null)}
-          onSend={(payload) => sendMessage(activeMessage.id, payload)}
+          onSend={(payload) => {
+            void sendMessage(activeMessage.id, payload);
+          }}
         />
       )}
     </div>

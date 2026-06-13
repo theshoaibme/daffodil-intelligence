@@ -20,6 +20,7 @@ from app.models import kit  # noqa: F401
 from app.models import user  # noqa: F401
 from app.models import telegram  # noqa: F401
 from app.models import research  # noqa: F401
+from app.models import connection  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
