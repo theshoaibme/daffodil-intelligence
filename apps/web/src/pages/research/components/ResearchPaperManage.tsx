@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, LayoutGrid, List, Plus, Search } from "lucide-react";
 import { Loader } from "@ui";
-import { mapResearchPaper, researchApi, ROUTES } from "@lib";
+import { mapResearchPaper, researchApi, ROUTES, invalidatePublicResearchPaperCache } from "@lib";
 import { ResearchPaper } from "./types";
 import { PaperForm, PaperFormValues } from "./PaperForm";
 import { ResearchPaperManageCard } from "./ResearchPaperManageCard";
@@ -84,6 +84,7 @@ export function ResearchPaperManage() {
   const handleCreate = async (values: PaperFormValues) => {
     try {
       await researchApi.create(values);
+      invalidatePublicResearchPaperCache();
       await refresh();
       setShowCreateForm(false);
     } catch (err) {
@@ -95,6 +96,7 @@ export function ResearchPaperManage() {
     if (!editingPaper) return;
     try {
       await researchApi.update(editingPaper.id, values);
+      invalidatePublicResearchPaperCache();
       await refresh();
       setEditingPaper(null);
     } catch (err) {
@@ -107,6 +109,7 @@ export function ResearchPaperManage() {
     if (!confirmed) return;
     try {
       await researchApi.delete(paper.id);
+      invalidatePublicResearchPaperCache();
       if (editingPaper?.id === paper.id) setEditingPaper(null);
       await refresh();
     } catch (err) {

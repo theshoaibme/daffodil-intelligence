@@ -17,7 +17,11 @@ export interface ResearchConnection {
 export interface ConnectionMessage {
   id: string;
   connectionId: string;
+  subject: string;
+  salutation: string;
   body: string;
+  closing: string;
   sentAt: string;
   direction: "outgoing";
+  purpose?: string;
 }

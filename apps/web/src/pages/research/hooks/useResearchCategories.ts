@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CATEGORY_OTHERS, researchApi } from "@lib/researchApi";
 
 const DEFAULT_CATEGORIES = [
@@ -39,7 +39,7 @@ export function useResearchCategories() {
     refresh();
   }, [refresh]);
 
-  const filterCategories = ["All", ...categories];
+  const filterCategories = useMemo(() => ["All", ...categories], [categories]);
 
   return { categories, formCategories, filterCategories, loading, refresh };
 }

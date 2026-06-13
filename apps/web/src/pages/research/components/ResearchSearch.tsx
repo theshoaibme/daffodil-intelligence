@@ -40,7 +40,7 @@ export function ResearchSearch() {
     if (filterCategories.includes(initialCategory)) {
       setSelectedCategory(initialCategory);
     }
-  }, [filterCategories, initialCategory]);
+  }, [initialCategory, filterCategories]);
 
   const loadPapers = useCallback(async () => {
     setLoading(true);
@@ -70,7 +70,7 @@ export function ResearchSearch() {
       loadPapers();
     }, searchQuery ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [loadPapers, searchQuery]);
+  }, [loadPapers]);
 
   useEffect(() => {
     if (!isDropdownOpen) return;

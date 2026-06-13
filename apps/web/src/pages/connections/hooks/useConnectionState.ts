@@ -51,19 +51,41 @@ export function useConnectionState() {
     setStatuses((prev) => ({ ...prev, [connectionId]: "connected" }));
   }, []);
 
-  const sendMessage = useCallback((connectionId: string, body: string) => {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    const message: ConnectionMessage = {
-      id: `${connectionId}-${Date.now()}`,
-      connectionId,
-      body: trimmed,
-      sentAt: new Date().toISOString(),
-      direction: "outgoing",
-    };
-    setMessages((prev) => [...prev, message]);
-    setStatuses((prev) => ({ ...prev, [connectionId]: "connected" }));
-  }, []);
+  const sendMessage = useCallback(
+    (
+      connectionId: string,
+      payload: {
+        subject: string;
+        salutation: string;
+        body: string;
+        closing: string;
+        purpose?: string;
+      },
+    ) => {
+      const subject = payload.subject.trim();
+      const body = payload.body.trim();
+      if (!subject || !body) return;
+
+      const message: ConnectionMessage = {
+        id: `${connectionId}-${Date.now()}`,
+        connectionId,
+        subject,
+        salutation: payload.salutation.trim(),
+        body,
+        closing: payload.closing.trim(),
+        purpose: payload.purpose,
+        sentAt: new Date().toISOString(),
+        direction: "outgoing",
+      };
+      setMessages((prev) => [...prev, message]);
+      setStatuses((prev) => {
+        const current = prev[connectionId] ?? "available";
+        if (current === "connected") return prev;
+        return { ...prev, [connectionId]: "pending" };
+      });
+    },
+    [],
+  );
 
   const getMessages = useCallback(
     (connectionId: string) => messages.filter((m) => m.connectionId === connectionId),

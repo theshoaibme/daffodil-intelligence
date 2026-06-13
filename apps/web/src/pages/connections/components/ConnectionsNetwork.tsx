@@ -87,10 +87,7 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
       navigate(ROUTES.login);
       return;
     }
-    requireAuth(() => {
-      if (getStatus(item.id) !== "connected") return;
-      setActiveMessage(item);
-    });
+    requireAuth(() => setActiveMessage(item));
   };
 
   return (
@@ -100,8 +97,8 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
           Research connections
         </h2>
         <p className="max-w-3xl text-sm leading-relaxed text-on-surface-variant">
-          Discover researchers and institutions from your paper library. Connect, message, and
-          collaborate around shared publications — a LinkedIn-style network built on research.
+          Discover researchers and institutions from your paper library. Connect, send formal
+          correspondence, and collaborate around shared publications.
         </p>
         {!workspace && !isAuthenticated && (
           <p className="text-sm text-on-surface-variant">
@@ -112,7 +109,7 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
             <Link to={ROUTES.login} className="font-semibold text-primary hover:underline">
               sign in
             </Link>{" "}
-            to connect and message researchers.
+            to connect and send formal correspondence.
           </p>
         )}
       </div>
@@ -196,7 +193,7 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
             <p>{error}</p>
             <button
               type="button"
-              onClick={() => refresh()}
+              onClick={() => refresh(true)}
               className="cursor-pointer border-0 bg-transparent text-sm font-semibold text-primary hover:underline"
             >
               Retry
@@ -260,7 +257,7 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
           connection={activeMessage}
           messages={getMessages(activeMessage.id)}
           onClose={() => setActiveMessage(null)}
-          onSend={(body) => sendMessage(activeMessage.id, body)}
+          onSend={(payload) => sendMessage(activeMessage.id, payload)}
         />
       )}
     </div>

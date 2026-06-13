@@ -31,7 +31,6 @@ export function ConnectionCard({
   onMessage,
 }: ConnectionCardProps) {
   const Icon = item.kind === "institution" ? Building2 : GraduationCap;
-  const canMessage = status === "connected";
   const connectLabel = status === "pending" ? "Accept" : status === "connected" ? "Connected" : "Connect";
 
   return (
@@ -106,11 +105,10 @@ export function ConnectionCard({
           <button
             type="button"
             onClick={onMessage}
-            className="inline-flex items-center gap-1 rounded-full border-0 bg-transparent px-2 py-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer disabled:opacity-40 disabled:no-underline"
-            disabled={workspace && !canMessage}
+            className="inline-flex items-center gap-1 rounded-full border-0 bg-transparent px-2 py-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer"
           >
             <MessageSquare size={12} />
-            Message
+            Correspond
           </button>
         </div>
       </div>
