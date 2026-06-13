@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, FileUp, Link2, Upload, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@ui";
 import { ResearchPaper } from "./types";
-import { PAPER_CATEGORIES } from "./paperStore";
+import { CATEGORY_OTHERS, PAPER_CATEGORIES, PAPER_FORM_CATEGORIES } from "./paperStore";
 
 export type PaperFormValues = Omit<ResearchPaper, "id" | "citations">;
 
@@ -19,17 +19,32 @@ interface PaperFormProps {
   onCancel?: () => void;
 }
 
+function resolveCategoryChoice(category: string): {
+  choice: string;
+  custom: string;
+} {
+  if (!category) return { choice: "", custom: "" };
+  if (PAPER_CATEGORIES.includes(category)) return { choice: category, custom: "" };
+  return { choice: CATEGORY_OTHERS, custom: category };
+}
+
 const emptyForm = (): PaperFormValues => ({
   title: "",
   authors: "",
   year: new Date().getFullYear().toString(),
   source: "",
-  category: "Computer Science",
+  category: "",
   abstract: "",
   url: "",
   pdfUrl: "",
   tags: [],
 });
+
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+function isUploadedPdfUrl(value?: string): boolean {
+  return Boolean(value?.startsWith("data:application/pdf"));
+}
 
 function toFormValues(paper: ResearchPaper): PaperFormValues {
   return {
@@ -41,6 +56,7 @@ function toFormValues(paper: ResearchPaper): PaperFormValues {
     abstract: paper.abstract,
     url: paper.url ?? "",
     pdfUrl: paper.pdfUrl ?? "",
+    pdfFileName: paper.pdfFileName,
     tags: paper.tags ?? [],
   };
 }
@@ -48,16 +64,40 @@ function toFormValues(paper: ResearchPaper): PaperFormValues {
 export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFormProps) {
   const [form, setForm] = useState<PaperFormValues>(initial ? toFormValues(initial) : emptyForm());
   const [tagsInput, setTagsInput] = useState((initial?.tags ?? []).join(", "));
+  const [uploadedPdfName, setUploadedPdfName] = useState<string | null>(
+    initial?.pdfFileName ?? (isUploadedPdfUrl(initial?.pdfUrl) ? "Uploaded PDF" : null),
+  );
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [categoryChoice, setCategoryChoice] = useState(() =>
+    resolveCategoryChoice(initial?.category ?? "").choice,
+  );
+  const [customCategory, setCustomCategory] = useState(() =>
+    resolveCategoryChoice(initial?.category ?? "").custom,
+  );
+  const [categoryError, setCategoryError] = useState<string | null>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initial) {
       setForm(toFormValues(initial));
       setTagsInput((initial.tags ?? []).join(", "));
+      setUploadedPdfName(
+        initial.pdfFileName ?? (isUploadedPdfUrl(initial.pdfUrl) ? "Uploaded PDF" : null),
+      );
+      const { choice, custom } = resolveCategoryChoice(initial.category);
+      setCategoryChoice(choice);
+      setCustomCategory(custom);
     } else {
       setForm(emptyForm());
       setTagsInput("");
+      setUploadedPdfName(null);
+      setCategoryChoice("");
+      setCustomCategory("");
     }
+    setPdfError(null);
+    setCategoryError(null);
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
     firstFieldRef.current?.focus();
   }, [initial]);
 
@@ -70,6 +110,20 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
     e.preventDefault();
     if (!form.title || !form.authors || !form.abstract) return;
 
+    const category =
+      categoryChoice === CATEGORY_OTHERS ? customCategory.trim() : categoryChoice.trim();
+
+    if (!category) {
+      setCategoryError(
+        categoryChoice === CATEGORY_OTHERS
+          ? "Please enter a custom category."
+          : "Please select a category.",
+      );
+      return;
+    }
+
+    setCategoryError(null);
+
     const tags = tagsInput
       .split(",")
       .map((t) => t.trim())
@@ -77,11 +131,51 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
 
     onSubmit({
       ...form,
+      category,
       source: form.source || "Local Library",
       url: form.url?.trim() || undefined,
       pdfUrl: form.pdfUrl?.trim() || undefined,
+      pdfFileName: uploadedPdfName ?? undefined,
       tags: tags.length > 0 ? tags : undefined,
     });
+  };
+
+  const handlePdfFile = (file: File | null) => {
+    if (!file) return;
+
+    const isPdf =
+      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      setPdfError("Please upload a PDF file.");
+      return;
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      setPdfError("PDF must be 10MB or smaller.");
+      return;
+    }
+
+    setPdfError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return;
+      setForm((prev) => ({ ...prev, pdfUrl: reader.result as string }));
+      setUploadedPdfName(file.name);
+    };
+    reader.onerror = () => setPdfError("Failed to read PDF file.");
+    reader.readAsDataURL(file);
+  };
+
+  const clearUploadedPdf = () => {
+    setForm((prev) => ({ ...prev, pdfUrl: "" }));
+    setUploadedPdfName(null);
+    setPdfError(null);
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
+  };
+
+  const handlePdfUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadedPdfName(null);
+    setPdfError(null);
+    setForm((prev) => ({ ...prev, pdfUrl: e.target.value }));
   };
 
   const fieldClass =
@@ -148,25 +242,48 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
+          <div className="space-y-3">
             <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-              Category
+              Category <span className="text-primary">*</span>
             </label>
             <Select
-              value={form.category}
-              onValueChange={(value) => setForm((prev) => ({ ...prev, category: value }))}
+              value={categoryChoice || undefined}
+              onValueChange={(value) => {
+                setCategoryChoice(value);
+                setCategoryError(null);
+                if (value !== CATEGORY_OTHERS) {
+                  setCustomCategory("");
+                  setForm((prev) => ({ ...prev, category: value }));
+                } else {
+                  setForm((prev) => ({ ...prev, category: "" }));
+                }
+              }}
             >
-              <SelectTrigger aria-label="Category">
+              <SelectTrigger aria-label="Category" aria-required="true">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {PAPER_CATEGORIES.map((c) => (
+                {PAPER_FORM_CATEGORIES.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {categoryChoice === CATEGORY_OTHERS && (
+              <input
+                type="text"
+                required
+                value={customCategory}
+                onChange={(e) => {
+                  setCustomCategory(e.target.value);
+                  setCategoryError(null);
+                }}
+                placeholder="Enter custom category"
+                className={inputClass}
+              />
+            )}
+            {categoryError && <p className="text-xs text-error">{categoryError}</p>}
           </div>
           <div>
             <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
@@ -182,11 +299,14 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-              Paper URL{" "}
-              <span className="text-on-surface-variant/40 font-normal">(optional)</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Link2 size={14} className="text-primary/80" />
+                Paper link{" "}
+                <span className="text-on-surface-variant/40 font-normal">(optional)</span>
+              </span>
             </label>
             <input
               type="url"
@@ -196,18 +316,64 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
               className={inputClass}
             />
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
-              PDF URL{" "}
-              <span className="text-on-surface-variant/40 font-normal">(optional)</span>
+
+          <div className="space-y-3">
+            <label className="block text-xs font-semibold text-on-surface-variant">
+              PDF{" "}
+              <span className="text-on-surface-variant/40 font-normal">(upload or link)</span>
             </label>
+
+            <input
+              ref={pdfInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={(e) => handlePdfFile(e.target.files?.[0] ?? null)}
+            />
+
+            {uploadedPdfName ? (
+              <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-container-lowest px-4 py-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileUp size={16} className="text-primary shrink-0" />
+                  <span className="text-sm text-on-surface truncate">{uploadedPdfName}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearUploadedPdf}
+                  className="p-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer border-0"
+                  aria-label="Remove uploaded PDF"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => pdfInputRef.current?.click()}
+                className="w-full flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-outline-variant/40 bg-surface-container-lowest px-4 py-6 text-on-surface-variant hover:text-on-surface hover:border-primary/40 hover:bg-surface-container-high/30 transition-colors cursor-pointer"
+              >
+                <Upload size={20} className="text-primary" />
+                <span className="text-sm font-medium text-on-surface">Upload PDF</span>
+                <span className="text-xs text-on-surface-variant/70">Max 10MB</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-outline-variant/20" />
+              <span className="text-xs text-on-surface-variant/60">or paste link</span>
+              <div className="h-px flex-1 bg-outline-variant/20" />
+            </div>
+
             <input
               type="url"
-              value={form.pdfUrl}
-              onChange={set("pdfUrl")}
+              value={isUploadedPdfUrl(form.pdfUrl) ? "" : form.pdfUrl}
+              onChange={handlePdfUrlChange}
               placeholder="https://arxiv.org/pdf/..."
-              className={inputClass}
+              className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+              disabled={Boolean(uploadedPdfName)}
             />
+
+            {pdfError && <p className="text-xs text-error">{pdfError}</p>}
           </div>
         </div>
 

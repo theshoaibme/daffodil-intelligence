@@ -17,6 +17,10 @@ export const CATEGORIES = [
 
 export const PAPER_CATEGORIES = CATEGORIES.filter((c) => c !== "All");
 
+export const CATEGORY_OTHERS = "Others";
+
+export const PAPER_FORM_CATEGORIES = [...PAPER_CATEGORIES, CATEGORY_OTHERS];
+
 let _papers: ResearchPaper[] = [
   {
     id: "attention-2017",

@@ -32,6 +32,7 @@ export function getPaperPdfDownloadUrl(paper: ResearchPaper): string | undefined
 }
 
 export function getPaperPdfFilename(paper: ResearchPaper): string {
+  if (paper.pdfFileName) return paper.pdfFileName;
   const safe = paper.id.replace(/[^a-z0-9-]/gi, "-");
   return `${safe}.pdf`;
 }

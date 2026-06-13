@@ -9,5 +9,6 @@ export interface ResearchPaper {
   abstract: string;
   url?: string;
   pdfUrl?: string;
+  pdfFileName?: string;
   tags?: string[];
 }
