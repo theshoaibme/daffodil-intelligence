@@ -24,11 +24,11 @@ export function ResearchPaperCard({ paper, view = "grid" }: ResearchPaperCardPro
         <div className="w-px h-10 bg-outline-variant/15 shrink-0" />
 
         {/* Center: Title + Authors + Abstract */}
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 space-y-1 overflow-hidden">
+          <div className="flex items-center gap-2 min-w-0">
             <Link
               to={paperPath}
-              className="font-semibold text-sm text-on-surface line-clamp-1 leading-snug hover:text-primary transition-colors"
+              className="flex-1 min-w-0 font-semibold text-sm text-on-surface line-clamp-1 leading-snug hover:text-primary transition-colors break-words"
             >
               {paper.title}
             </Link>
@@ -39,7 +39,9 @@ export function ResearchPaperCard({ paper, view = "grid" }: ResearchPaperCardPro
           <p className="text-xs text-on-surface-variant/70 truncate">
             {paper.authors}
           </p>
-          <p className="text-xs text-on-surface-variant/50 leading-relaxed line-clamp-1">{paper.abstract}</p>
+          <p className="text-xs text-on-surface-variant/50 leading-relaxed line-clamp-1 break-words">
+            {paper.abstract}
+          </p>
         </div>
 
         {/* Right: Citations + Link */}
@@ -61,27 +63,29 @@ export function ResearchPaperCard({ paper, view = "grid" }: ResearchPaperCardPro
 
   // Grid view (default)
   return (
-    <div className="p-5 flex flex-col justify-between bg-surface-container-low rounded-2xl transition-all duration-200 hover:bg-surface-container hover:shadow-md h-[270px]">
-      <div className="space-y-2 min-w-0">
-        <div className="flex justify-between items-start gap-2">
-          <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+    <div className="p-5 flex h-[270px] flex-col overflow-hidden bg-surface-container-low rounded-2xl transition-all duration-200 hover:bg-surface-container hover:shadow-md">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden min-w-0">
+        <div className="flex shrink-0 justify-between items-start gap-2">
+          <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full truncate max-w-[70%]">
             {paper.category}
           </span>
-          <span className="text-[11px] font-medium text-on-surface-variant/70">{paper.year}</span>
+          <span className="text-[11px] font-medium text-on-surface-variant/70 shrink-0">{paper.year}</span>
         </div>
 
         <Link
           to={paperPath}
-          className="font-semibold text-base text-on-surface line-clamp-2 leading-snug hover:text-primary transition-colors block"
+          className="shrink-0 font-semibold text-base text-on-surface line-clamp-2 leading-snug hover:text-primary transition-colors block break-words"
         >
           {paper.title}
         </Link>
 
-        <p className="text-xs text-on-surface-variant/80 italic truncate">
+        <p className="shrink-0 text-xs text-on-surface-variant/80 italic truncate">
           By {paper.authors} • {paper.source}
         </p>
 
-        <p className="text-xs text-on-surface-variant leading-relaxed line-clamp-3">{paper.abstract}</p>
+        <p className="min-h-0 flex-1 text-xs text-on-surface-variant leading-relaxed line-clamp-3 break-words overflow-hidden">
+          {paper.abstract}
+        </p>
       </div>
 
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-outline-variant/10 shrink-0">

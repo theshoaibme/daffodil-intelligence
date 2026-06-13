@@ -16,6 +16,7 @@
     "test": "turbo test",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
+    "research:seed": "pnpm --filter daffodil-api research:seed",
     "docker:up": "docker compose up -d",
     "docker:infra": "docker compose up -d postgres redis minio adminer qdrant",
     "docker:down": "docker compose down",

@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { ROUTES } from "@lib";
+import { PublicLayout } from "@layout";
+import { PUBLIC_LAYOUT_WIDTH } from "@lib";
 
 interface LegalPageProps {
   title: string;
@@ -8,17 +8,16 @@ interface LegalPageProps {
 
 function LegalPage({ title, children }: LegalPageProps) {
   return (
-    <div className="min-h-screen bg-background text-on-surface font-sans px-4 py-10 sm:px-6">
-      <div className="max-w-2xl mx-auto">
-        <Link to={ROUTES.landing} className="text-sm text-primary hover:underline">
-          ← Daffodil Intelligence
-        </Link>
-        <h1 className="text-3xl font-medium mt-6 mb-4">{title}</h1>
-        <div className="prose prose-sm max-w-none text-on-surface-variant space-y-4 leading-relaxed">
-          {children}
+    <PublicLayout>
+      <main className={`${PUBLIC_LAYOUT_WIDTH} flex-1 py-10 sm:py-16 animate-fadeIn`}>
+        <div className="max-w-2xl">
+          <h1 className="mb-4 text-3xl font-medium">{title}</h1>
+          <div className="prose prose-sm max-w-none space-y-4 leading-relaxed text-on-surface-variant">
+            {children}
+          </div>
         </div>
-      </div>
-    </div>
+      </main>
+    </PublicLayout>
   );
 }
 

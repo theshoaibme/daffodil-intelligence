@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from ..core.database import get_session_maker, is_mock_database
 from ..models.research import ResearchPaper
 from .seed_data import SEED_PAPERS
+from .seed_utils import derive_arxiv_pdf
 
 logger = logging.getLogger("app.research")
 
@@ -28,6 +29,11 @@ async def ensure_research_papers_seeded() -> int:
             return 0
 
         for paper in SEED_PAPERS:
+            pdf_url = paper.get("pdfUrl") or paper.get("pdf_url")
+            pdf_file_name = paper.get("pdfFileName") or paper.get("pdf_file_name")
+            if not pdf_url:
+                pdf_url, pdf_file_name = derive_arxiv_pdf(paper.get("url"))
+
             session.add(
                 ResearchPaper(
                     id=paper["id"],
@@ -40,8 +46,8 @@ async def ensure_research_papers_seeded() -> int:
                     category=paper["category"],
                     abstract=paper["abstract"],
                     url=paper.get("url"),
-                    pdf_url=paper.get("pdfUrl") or paper.get("pdf_url"),
-                    pdf_file_name=paper.get("pdfFileName") or paper.get("pdf_file_name"),
+                    pdf_url=pdf_url,
+                    pdf_file_name=pdf_file_name,
                     tags=paper.get("tags") or [],
                     is_public=True,
                 )

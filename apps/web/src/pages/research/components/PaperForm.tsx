@@ -183,12 +183,12 @@ export function PaperForm({ initial, submitLabel, formCategories, onSubmit, onCa
   const fieldClass =
     "bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm border-0 selection:bg-primary selection:text-on-primary autofill-light dark:autofill-dark";
 
-  const inputClass = `w-full px-4 py-2.5 rounded-xl ${fieldClass}`;
+  const inputClass = `w-full min-w-0 px-4 py-2.5 rounded-xl ${fieldClass}`;
 
-  const textareaClass = `block w-full min-h-[140px] px-4 py-3 rounded-2xl resize-y leading-relaxed ${fieldClass}`;
+  const textareaClass = `block w-full min-w-0 min-h-[140px] px-4 py-3 rounded-2xl resize-y leading-relaxed ${fieldClass}`;
 
   return (
-    <div className="rounded-3xl bg-surface-container-low">
+    <div className="overflow-hidden rounded-3xl bg-surface-container-low">
       <div className="flex items-center gap-3 px-6 sm:px-8 pt-6 pb-4">
         <div className="p-2 rounded-xl bg-primary/10">
           <BookOpen size={18} className="text-primary" />

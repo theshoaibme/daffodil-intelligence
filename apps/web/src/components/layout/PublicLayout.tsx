@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Logo } from "../logo";
+import { PublicFooter } from "./PublicFooter";
 import { UserMenu } from "./UserMenu";
 import { useAuth } from "@context";
 import { PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
@@ -207,7 +208,8 @@ export function PublicLayout({ children }: PublicLayoutProps) {
         </div>
       </header>
 
-      {children}
+      <div className="flex flex-1 flex-col">{children}</div>
+      <PublicFooter />
     </div>
   );
 }

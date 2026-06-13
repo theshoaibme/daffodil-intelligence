@@ -70,9 +70,9 @@ export function ResearchPaperManageCard({
 
         <div className="w-px h-10 bg-outline-variant/15 shrink-0" />
 
-        <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex-1 min-w-0 space-y-1 overflow-hidden">
           <div className="flex items-center gap-2 min-w-0">
-            <p className="font-semibold text-sm text-on-surface line-clamp-1 leading-snug">
+            <p className="flex-1 min-w-0 font-semibold text-sm text-on-surface line-clamp-1 leading-snug break-words">
               {paper.title}
             </p>
             <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
@@ -80,7 +80,7 @@ export function ResearchPaperManageCard({
             </span>
           </div>
           <p className="text-xs text-on-surface-variant/70 truncate">{paper.authors}</p>
-          <p className="text-xs text-on-surface-variant/50 leading-relaxed line-clamp-1 hidden sm:block">
+          <p className="text-xs text-on-surface-variant/50 leading-relaxed line-clamp-1 hidden sm:block break-words overflow-hidden">
             {paper.abstract}
           </p>
         </div>
@@ -102,24 +102,24 @@ export function ResearchPaperManageCard({
   }
 
   return (
-    <div className="p-5 flex flex-col justify-between bg-surface-container-low rounded-2xl transition-all duration-200 hover:bg-surface-container min-h-[240px]">
-      <div className="space-y-2 min-w-0">
-        <div className="flex justify-between items-start gap-2">
-          <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+    <div className="flex h-[240px] flex-col overflow-hidden p-5 bg-surface-container-low rounded-2xl transition-all duration-200 hover:bg-surface-container">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden min-w-0">
+        <div className="flex shrink-0 justify-between items-start gap-2">
+          <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full truncate max-w-[70%]">
             {paper.category}
           </span>
-          <span className="text-[11px] font-medium text-on-surface-variant/70">{paper.year}</span>
+          <span className="text-[11px] font-medium text-on-surface-variant/70 shrink-0">{paper.year}</span>
         </div>
 
-        <p className="font-semibold text-base text-on-surface line-clamp-2 leading-snug">
+        <p className="shrink-0 font-semibold text-base text-on-surface line-clamp-2 leading-snug break-words">
           {paper.title}
         </p>
 
-        <p className="text-xs text-on-surface-variant/80 italic truncate">
+        <p className="shrink-0 text-xs text-on-surface-variant/80 italic truncate">
           By {paper.authors} • {paper.source}
         </p>
 
-        <p className="text-xs text-on-surface-variant leading-relaxed line-clamp-3">
+        <p className="min-h-0 flex-1 text-xs text-on-surface-variant leading-relaxed line-clamp-3 break-words overflow-hidden">
           {paper.abstract}
         </p>
       </div>

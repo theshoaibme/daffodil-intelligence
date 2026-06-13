@@ -56,12 +56,6 @@ export function LandingPage() {
           </div>
         </section>
       </main>
-
-      <footer className="py-8 lg:py-10">
-        <div className={`${PUBLIC_LAYOUT_WIDTH} text-center text-base text-on-surface-variant`}>
-          <span>© {new Date().getFullYear()} Daffodil Intelligence</span>
-        </div>
-      </footer>
     </PublicLayout>
   );
 }

@@ -89,7 +89,7 @@ export function ResearchPaperPage() {
             <span className="inline-flex text-[11px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
               {paper.category}
             </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-on-surface leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-on-surface leading-tight break-words">
               {paper.title}
             </h1>
             <p className="text-base text-on-surface-variant italic">{paper.authors}</p>
@@ -107,7 +107,7 @@ export function ResearchPaperPage() {
 
           <section className="rounded-3xl bg-surface-container-low p-6 sm:p-8 space-y-4">
             <h2 className="text-lg font-semibold text-on-surface">Abstract</h2>
-            <p className="text-sm sm:text-base text-on-surface-variant leading-relaxed">
+            <p className="text-sm sm:text-base text-on-surface-variant leading-relaxed break-words overflow-hidden">
               {paper.abstract}
             </p>
           </section>
