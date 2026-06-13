@@ -7,24 +7,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui";
+import { CATEGORY_OTHERS } from "@lib/researchApi";
 import { ResearchPaper } from "./types";
-import { CATEGORY_OTHERS, PAPER_CATEGORIES, PAPER_FORM_CATEGORIES } from "./paperStore";
 
 export type PaperFormValues = Omit<ResearchPaper, "id" | "citations">;
 
 interface PaperFormProps {
   initial?: ResearchPaper;
   submitLabel: string;
+  formCategories: string[];
   onSubmit: (values: PaperFormValues) => void;
   onCancel?: () => void;
 }
 
-function resolveCategoryChoice(category: string): {
+function resolveCategoryChoice(category: string, presetCategories: string[]): {
   choice: string;
   custom: string;
 } {
   if (!category) return { choice: "", custom: "" };
-  if (PAPER_CATEGORIES.includes(category)) return { choice: category, custom: "" };
+  if (presetCategories.includes(category)) return { choice: category, custom: "" };
   return { choice: CATEGORY_OTHERS, custom: category };
 }
 
@@ -61,7 +62,8 @@ function toFormValues(paper: ResearchPaper): PaperFormValues {
   };
 }
 
-export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFormProps) {
+export function PaperForm({ initial, submitLabel, formCategories, onSubmit, onCancel }: PaperFormProps) {
+  const presetCategories = formCategories.filter((c) => c !== CATEGORY_OTHERS);
   const [form, setForm] = useState<PaperFormValues>(initial ? toFormValues(initial) : emptyForm());
   const [tagsInput, setTagsInput] = useState((initial?.tags ?? []).join(", "));
   const [uploadedPdfName, setUploadedPdfName] = useState<string | null>(
@@ -69,10 +71,10 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
   );
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [categoryChoice, setCategoryChoice] = useState(() =>
-    resolveCategoryChoice(initial?.category ?? "").choice,
+    resolveCategoryChoice(initial?.category ?? "", presetCategories).choice,
   );
   const [customCategory, setCustomCategory] = useState(() =>
-    resolveCategoryChoice(initial?.category ?? "").custom,
+    resolveCategoryChoice(initial?.category ?? "", presetCategories).custom,
   );
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
@@ -85,7 +87,7 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
       setUploadedPdfName(
         initial.pdfFileName ?? (isUploadedPdfUrl(initial.pdfUrl) ? "Uploaded PDF" : null),
       );
-      const { choice, custom } = resolveCategoryChoice(initial.category);
+      const { choice, custom } = resolveCategoryChoice(initial.category, presetCategories);
       setCategoryChoice(choice);
       setCustomCategory(custom);
     } else {
@@ -99,7 +101,7 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
     setCategoryError(null);
     if (pdfInputRef.current) pdfInputRef.current.value = "";
     firstFieldRef.current?.focus();
-  }, [initial]);
+  }, [initial, presetCategories.join("|")]);
 
   const set =
     (field: keyof PaperFormValues) =>
@@ -263,7 +265,7 @@ export function PaperForm({ initial, submitLabel, onSubmit, onCancel }: PaperFor
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {PAPER_FORM_CATEGORIES.map((c) => (
+                {formCategories.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>

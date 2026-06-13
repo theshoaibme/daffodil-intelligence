@@ -14,3 +14,4 @@ from .hub import (
     GlobalSkillLink,
     GlobalRulesetLink,
 )
+from .research import ResearchPaper

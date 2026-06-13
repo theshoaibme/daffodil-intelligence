@@ -1,24 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, LayoutGrid, List, Plus, Search } from "lucide-react";
-import { ROUTES } from "@lib";
+import { mapResearchPaper, researchApi, ROUTES } from "@lib";
 import { ResearchPaper } from "./types";
-import {
-  addPaper,
-  deletePaper,
-  generateId,
-  getPapers,
-  updatePaper,
-} from "./paperStore";
 import { PaperForm, PaperFormValues } from "./PaperForm";
 import { ResearchPaperManageCard } from "./ResearchPaperManageCard";
 import { ResearchPagination } from "./ResearchPagination";
+import { useResearchCategories } from "../hooks/useResearchCategories";
 
 type ViewMode = "grid" | "list";
 const ITEMS_PER_PAGE = 9;
 
 export function ResearchPaperManage() {
-  const [papers, setPapers] = useState<ResearchPaper[]>(getPapers);
+  const { formCategories } = useResearchCategories();
+  const [papers, setPapers] = useState<ResearchPaper[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPaper, setEditingPaper] = useState<ResearchPaper | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -27,7 +24,22 @@ export function ResearchPaperManage() {
   const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
   const viewDropdownRef = useRef<HTMLDivElement>(null);
 
-  const refresh = () => setPapers(getPapers());
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await researchApi.listManage({ limit: 500 });
+      setPapers(res.items.map(mapResearchPaper));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load papers");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -68,30 +80,37 @@ export function ResearchPaperManage() {
     }
   }, [currentPage, totalPages]);
 
-  const handleCreate = (values: PaperFormValues) => {
-    const newPaper: ResearchPaper = {
-      ...values,
-      id: generateId(values.title),
-      citations: 0,
-    };
-    addPaper(newPaper);
-    refresh();
-    setShowCreateForm(false);
+  const handleCreate = async (values: PaperFormValues) => {
+    try {
+      await researchApi.create(values);
+      await refresh();
+      setShowCreateForm(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create paper");
+    }
   };
 
-  const handleUpdate = (values: PaperFormValues) => {
+  const handleUpdate = async (values: PaperFormValues) => {
     if (!editingPaper) return;
-    updatePaper(editingPaper.id, values);
-    refresh();
-    setEditingPaper(null);
+    try {
+      await researchApi.update(editingPaper.id, values);
+      await refresh();
+      setEditingPaper(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update paper");
+    }
   };
 
-  const handleDelete = (paper: ResearchPaper) => {
+  const handleDelete = async (paper: ResearchPaper) => {
     const confirmed = window.confirm(`Delete "${paper.title}"? This cannot be undone.`);
     if (!confirmed) return;
-    deletePaper(paper.id);
-    if (editingPaper?.id === paper.id) setEditingPaper(null);
-    refresh();
+    try {
+      await researchApi.delete(paper.id);
+      if (editingPaper?.id === paper.id) setEditingPaper(null);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete paper");
+    }
   };
 
   return (
@@ -100,16 +119,13 @@ export function ResearchPaperManage() {
         <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-on-surface">
           Manage research papers
         </h2>
-        {/* <p className="text-sm text-on-surface-variant max-w-2xl">
-          Create, edit, and delete papers in your library. Changes here are reflected on the public
-          research page.
-        </p> */}
       </div>
 
       {editingPaper ? (
         <PaperForm
           key={editingPaper.id}
           initial={editingPaper}
+          formCategories={formCategories}
           submitLabel="Save changes"
           onSubmit={handleUpdate}
           onCancel={() => setEditingPaper(null)}
@@ -117,6 +133,7 @@ export function ResearchPaperManage() {
       ) : showCreateForm ? (
         <PaperForm
           key="create"
+          formCategories={formCategories}
           submitLabel="Create"
           onSubmit={handleCreate}
           onCancel={() => setShowCreateForm(false)}
@@ -205,7 +222,22 @@ export function ResearchPaperManage() {
           </div>
         </div>
 
-        {filteredPapers.length === 0 ? (
+        {loading ? (
+          <div className="p-10 text-center rounded-3xl bg-surface-container-low/50 text-on-surface-variant">
+            Loading papers...
+          </div>
+        ) : error ? (
+          <div className="p-10 text-center rounded-3xl bg-surface-container-low/50 text-error space-y-3">
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={() => refresh()}
+              className="text-sm font-semibold text-primary hover:underline cursor-pointer border-0 bg-transparent"
+            >
+              Retry
+            </button>
+          </div>
+        ) : filteredPapers.length === 0 ? (
           <div className="p-10 text-center rounded-3xl bg-surface-container-low/50 text-on-surface-variant">
             {papers.length === 0
               ? "No papers yet. Click Create new paper to add your first one."

@@ -15,6 +15,7 @@ export * from "./mcpConfig";
 export * from "./mcpApi";
 export * from "./agentMode";
 export * from "./memoryApi";
+export * from "./researchApi";
 export * from "./models";
 export * from "./motion";
 export * from "./n8nWorkflowParser";

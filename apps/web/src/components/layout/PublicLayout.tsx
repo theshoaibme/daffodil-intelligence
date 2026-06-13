@@ -4,31 +4,11 @@ import { Logo } from "../logo";
 import { UserMenu } from "./UserMenu";
 import { useAuth } from "@context";
 import { PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
+import { useResearchCategories } from "../../pages/research/hooks/useResearchCategories";
 
 interface PublicLayoutProps {
   children: React.ReactNode;
 }
-
-const RESEARCH_CATEGORIES = [
-  "Computer Science",
-  "Artificial Intelligence",
-  "Machine Learning",
-  "Natural Language Processing",
-  "Computer Vision",
-  "Deep Learning",
-  "Data Science",
-  "AI & Education",
-  "Smart Grids",
-  "Cybersecurity",
-  "Bioinformatics",
-  "Quantum Computing",
-  "Robotics",
-  "Cloud Computing",
-  "Internet of Things",
-  "Blockchain",
-  "Human-Computer Interaction",
-  "Software Engineering",
-] as const;
 
 const CLOSE_DELAY_MS = 150;
 
@@ -37,6 +17,7 @@ const navLinkClass =
 
 export function PublicLayout({ children }: PublicLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
+  const { categories: researchCategories } = useResearchCategories();
   const [isVisible, setIsVisible] = useState(true);
   const [researchOpen, setResearchOpen] = useState(false);
   const lastScrollY = useRef(0);
@@ -160,7 +141,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                       </Link>
                       <div className="h-px bg-outline-variant/10 mb-3" />
                       <div className="grid grid-cols-3 gap-x-6 gap-y-0.5">
-                        {RESEARCH_CATEGORIES.map((cat) => (
+                        {researchCategories.map((cat) => (
                           <Link
                             key={cat}
                             to={`${ROUTES.publicResearchs}?category=${encodeURIComponent(cat)}`}

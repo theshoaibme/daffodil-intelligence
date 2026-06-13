@@ -1,8 +1,9 @@
+import { useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { ArrowLeft, Award, Download, ExternalLink, FileText, Tag } from "lucide-react";
 import { Header, PublicLayout } from "@layout";
-import { isStudioPath, PUBLIC_LAYOUT_WIDTH, ROUTES } from "@lib";
-import { getPaperById } from "./components/paperStore";
+import { isStudioPath, mapResearchPaper, PUBLIC_LAYOUT_WIDTH, researchApi, ROUTES } from "@lib";
+import { ResearchPaper } from "./components/types";
 import {
   getPaperPdfDownloadUrl,
   getPaperPdfFilename,
@@ -14,8 +15,54 @@ export function ResearchPaperPage() {
   const location = useLocation();
   const workspace = isStudioPath(location.pathname);
   const listPath = workspace ? ROUTES.research : ROUTES.publicResearchs;
+  const [paper, setPaper] = useState<ResearchPaper | undefined>();
+  const [loading, setLoading] = useState(true);
 
-  const paper = paperId ? getPaperById(decodeURIComponent(paperId)) : undefined;
+  useEffect(() => {
+    if (!paperId) {
+      setPaper(undefined);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
+    researchApi
+      .getPublic(decodeURIComponent(paperId))
+      .then((res) => {
+        if (!cancelled) setPaper(mapResearchPaper(res));
+      })
+      .catch(() => {
+        if (!cancelled) setPaper(undefined);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paperId]);
+
+  if (loading) {
+    const shell = (
+      <main
+        className={`${workspace ? "max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8" : PUBLIC_LAYOUT_WIDTH} py-8 sm:py-12 flex-1 animate-fadeIn`}
+      >
+        <p className="text-on-surface-variant">Loading paper...</p>
+      </main>
+    );
+    if (workspace) {
+      return (
+        <div className="min-h-screen bg-background text-on-surface font-sans flex flex-col">
+          <Header />
+          {shell}
+        </div>
+      );
+    }
+    return <PublicLayout>{shell}</PublicLayout>;
+  }
 
   if (!paper) {
     return <Navigate to={listPath} replace />;

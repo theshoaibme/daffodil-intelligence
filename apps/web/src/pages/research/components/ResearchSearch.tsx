@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { isStudioPath, researchPaperPath, ROUTES } from "@lib";
+import { isStudioPath, mapResearchPaper, researchApi, researchPaperPath, ROUTES } from "@lib";
 import { FileText, Plus, LayoutGrid, List, ChevronDown } from "lucide-react";
 import { ResearchPaper } from "./types";
 import { ResearchPaperCard } from "./ResearchPaperCard";
 import { ResearchDropdown } from "./ResearchDropdown";
 import { ResearchPagination } from "./ResearchPagination";
 import { PlaceholdersAndVanishInput } from "@ui";
-import { getPapers, CATEGORIES } from "./paperStore";
+import { useResearchCategories } from "../hooks/useResearchCategories";
 
 type ViewMode = "grid" | "list";
 
@@ -16,19 +16,83 @@ export function ResearchSearch() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const workspace = isStudioPath(location.pathname);
+  const { filterCategories } = useResearchCategories();
   const initialCategory = searchParams.get("category") || "All";
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(
-    CATEGORIES.includes(initialCategory) ? initialCategory : "All"
+    filterCategories.includes(initialCategory) ? initialCategory : "All",
   );
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
-  const [papers, setPapers] = useState<ResearchPaper[]>(getPapers);
+  const [papers, setPapers] = useState<ResearchPaper[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [dropdownPapers, setDropdownPapers] = useState<ResearchPaper[]>([]);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const viewDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (filterCategories.includes(initialCategory)) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [filterCategories, initialCategory]);
+
+  const loadPapers = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await researchApi.listPublic({
+        category: selectedCategory,
+        q: searchQuery.trim() || undefined,
+        page: currentPage,
+        limit: 16,
+      });
+      setPapers(res.items.map(mapResearchPaper));
+      setTotal(res.total);
+      setTotalPages(res.total_pages);
+    } catch (err) {
+      setPapers([]);
+      setTotal(0);
+      setTotalPages(1);
+      setLoadError(err instanceof Error ? err.message : "Failed to load papers");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, searchQuery, currentPage]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadPapers();
+    }, searchQuery ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [loadPapers, searchQuery]);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await researchApi.listPublic({
+          category: selectedCategory,
+          q: searchQuery.trim() || undefined,
+          page: 1,
+          limit: 20,
+        });
+        if (!cancelled) setDropdownPapers(res.items.map(mapResearchPaper));
+      } catch {
+        if (!cancelled) setDropdownPapers([]);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isDropdownOpen, searchQuery, selectedCategory]);
 
   const topSearches = [
     "Deep Learning",
@@ -67,26 +131,14 @@ export function ResearchSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredPapers = papers.filter((item) => {
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.authors.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.abstract.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredPapers = dropdownPapers;
 
   // Reset page to 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedCategory]);
 
-  // Pagination Settings
-  const itemsPerPage = 16;
-  const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = papers;
 
   const handleAddPaper = () => {
     navigate(ROUTES.research);
@@ -102,10 +154,7 @@ export function ResearchSearch() {
     navigate(researchPaperPath(paperId, { workspace }));
   };
 
-  // Only show categories that have papers
-  const activeCategories = CATEGORIES.filter(
-    (cat) => cat === "All" || papers.some((p) => p.category === cat)
-  );
+  const activeCategories = filterCategories;
 
   return (
     <div className="space-y-6 sm:space-y-8 relative">
@@ -164,7 +213,7 @@ export function ResearchSearch() {
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-lg sm:text-xl font-semibold text-on-surface flex items-center gap-2">
           <FileText className="text-primary" size={20} />
-          Research Library ({filteredPapers.length})
+          Research Library ({total})
         </h3>
 
         {/* Right-side controls */}
@@ -233,7 +282,16 @@ export function ResearchSearch() {
 
       {/* Paper Cards */}
       <div className="text-left">
-        {currentItems.length > 0 ? (
+        {loading ? (
+          <div className="p-12 text-center bg-surface-container-low/30 rounded-3xl text-on-surface-variant">
+            Loading papers...
+          </div>
+        ) : loadError ? (
+          <div className="p-12 text-center bg-surface-container-low/30 rounded-3xl text-on-surface-variant space-y-2">
+            <p>Could not load research papers.</p>
+            <p className="text-sm opacity-80">{loadError}</p>
+          </div>
+        ) : currentItems.length > 0 ? (
           viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {currentItems.map((paper) => (
@@ -255,7 +313,7 @@ export function ResearchSearch() {
       </div>
 
       {/* Pagination */}
-      {filteredPapers.length > 0 && totalPages > 1 && (
+      {total > 0 && totalPages > 1 && (
         <div className="flex justify-center mt-4 pt-4 border-t border-outline-variant/10">
           <ResearchPagination
             currentPage={currentPage}
