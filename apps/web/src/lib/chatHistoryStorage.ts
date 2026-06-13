@@ -114,6 +114,7 @@ export function formatHistoryDate(iso: string): string {
 }
 
 export function createHistorySession(title = "New chat"): ChatHistoryEntry {
+  const entries = pruneEmptyGenericSessions(loadChatHistory());
   const entry: ChatHistoryEntry = {
     id: generateChatSessionId(),
     title,
@@ -121,10 +122,39 @@ export function createHistorySession(title = "New chat"): ChatHistoryEntry {
     chatId: null,
     messages: [],
   };
-  const entries = [entry, ...loadChatHistory()];
-  saveChatHistory(entries);
+  const next = [entry, ...entries];
+  saveChatHistory(next);
   setActiveHistoryId(entry.id);
   return entry;
+}
+
+/** Remove stale empty "New agent" stubs before creating a fresh session. */
+function pruneEmptyGenericSessions(entries: ChatHistoryEntry[]): ChatHistoryEntry[] {
+  return entries.filter(
+    (entry) =>
+      !(
+        entry.messages.length === 0 &&
+        entry.chatId == null &&
+        isGenericTitle(entry.title)
+      )
+  );
+}
+
+/** Link a server chat id to a sidebar session before messages are persisted. */
+export function bindChatIdToSession(sessionId: string, chatId: number): ChatHistoryEntry[] {
+  const entries = loadChatHistory();
+  const index = entries.findIndex((entry) => entry.id === sessionId);
+  if (index < 0) return entries;
+  if (entries[index].chatId === chatId) return entries;
+
+  const next = [...entries];
+  next[index] = {
+    ...next[index],
+    chatId,
+    updatedAt: new Date().toISOString(),
+  };
+  saveChatHistory(next);
+  return next;
 }
 
 export function upsertHistoryEntry(
@@ -149,13 +179,10 @@ export function upsertHistoryEntry(
       saveChatHistory(entries);
       return { entries, activeId };
     }
+    return { entries, activeId };
   }
 
-  const id = generateChatSessionId();
-  const next = [{ id, ...payload }, ...entries];
-  saveChatHistory(next);
-  setActiveHistoryId(id);
-  return { entries: next, activeId: id };
+  return { entries, activeId };
 }
 
 export function deleteHistoryEntry(id: string): ChatHistoryEntry[] {
@@ -163,6 +190,103 @@ export function deleteHistoryEntry(id: string): ChatHistoryEntry[] {
   saveChatHistory(entries);
   if (getActiveHistoryId() === id) setActiveHistoryId(null);
   return entries;
+}
+
+function isGenericTitle(title: string): boolean {
+  const normalized = title.trim().toLowerCase();
+  return !normalized || normalized === "new chat" || normalized === "new agent";
+}
+
+export interface ServerChatSummary {
+  id: number;
+  title: string;
+  created_at: string;
+}
+
+/** Merge API chat rows into local history (by chatId) without dropping local messages. */
+export function mergeServerChats(serverChats: ServerChatSummary[]): ChatHistoryEntry[] {
+  const entries = loadChatHistory();
+  const byChatId = new Map<number, number>();
+  entries.forEach((entry, index) => {
+    if (entry.chatId != null) byChatId.set(entry.chatId, index);
+  });
+
+  let changed = false;
+  const next = [...entries];
+
+  for (const chat of serverChats) {
+    const idx = byChatId.get(chat.id);
+    if (idx !== undefined) {
+      const existing = next[idx];
+      const serverTitle = chat.title?.trim() || "Chat";
+      if (isGenericTitle(existing.title) && !isGenericTitle(serverTitle)) {
+        next[idx] = { ...existing, title: serverTitle, updatedAt: chat.created_at };
+        changed = true;
+      }
+      continue;
+    }
+
+    next.push({
+      id: generateChatSessionId(),
+      title: chat.title?.trim() || "Chat",
+      updatedAt: chat.created_at,
+      chatId: chat.id,
+      messages: [],
+    });
+    changed = true;
+  }
+
+  next.sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+
+  if (changed) saveChatHistory(next);
+  return next;
+}
+
+export function apiMessagesToStoredMessages(
+  messages: Array<{
+    id: number;
+    role: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+    created_at: string;
+  }>
+): ChatHistoryEntry["messages"] {
+  return messages.map((message) => ({
+    id: `msg-${message.id}`,
+    role: message.role as "user" | "assistant",
+    content: message.content,
+    timestamp: message.created_at,
+    metadata: message.metadata,
+  }));
+}
+
+export function updateHistoryMessages(
+  id: string,
+  messages: ChatHistoryEntry["messages"]
+): ChatHistoryEntry[] {
+  const entries = loadChatHistory();
+  const index = entries.findIndex((entry) => entry.id === id);
+  if (index < 0) return entries;
+
+  const next = [...entries];
+  next[index] = {
+    ...next[index],
+    messages,
+    updatedAt: new Date().toISOString(),
+    title: messages.length
+      ? deriveTitle(
+          messages.map((m) => ({
+            ...m,
+            isStreaming: false,
+            timestamp: new Date(m.timestamp),
+          }))
+        )
+      : next[index].title,
+  };
+  saveChatHistory(next);
+  return next;
 }
 
 export function getHistoryEntry(id: string): {

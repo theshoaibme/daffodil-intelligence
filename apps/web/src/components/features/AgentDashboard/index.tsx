@@ -3,21 +3,23 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Check, Pencil, RefreshCw, X } from "lucide-react";
 import { useAgents } from "@hooks";
-import { ROUTES } from "@lib";
-import { modeSpringSoft } from "@lib";
+import { ROUTES, modeSpringSoft } from "@lib";
 import { AgentFlowCanvas } from "./AgentFlowCanvas";
 import { clearLayout } from "./layoutStorage";
+
 export interface AgentDashboardProps {
   embedded?: boolean;
   /** Fill parent container (e.g. agent hub flow tab below page header). */
   fillParent?: boolean;
   onClose?: () => void;
+  sessionId?: string | null;
 }
 
 export default function AgentDashboard({
   embedded = false,
   fillParent = false,
   onClose,
+  sessionId = null,
 }: AgentDashboardProps) {
   const { agents, loading, error, refetch } = useAgents();
   const [editing, setEditing] = useState(false);
@@ -46,7 +48,7 @@ export default function AgentDashboard({
   };
 
   const shellClass = embedded
-    ? "relative w-full h-full min-h-0 flex flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-[#f4f2ff] shadow-md"
+    ? "relative w-full h-full min-h-0 flex flex-col overflow-hidden rounded-2xl bg-[#f4f2ff] shadow-md"
     : fillParent
       ? "flex flex-col h-full min-h-0 bg-transparent overflow-hidden relative"
       : "flex flex-col h-screen bg-[#f4f2ff] overflow-hidden relative";
@@ -64,7 +66,7 @@ export default function AgentDashboard({
   return (
     <Shell className={shellClass} {...shellProps}>
       <div
-        className={`absolute right-3 z-30 flex items-center gap-2 ${fillParent ? "top-14" : "top-3"}`}
+        className={`absolute right-3 z-30 flex items-center gap-2 ${fillParent ? "top-14" : embedded ? "top-2" : "top-3"}`}
       >
         {!embedded && !fillParent ? (
           <Link
@@ -84,7 +86,7 @@ export default function AgentDashboard({
           </button>
         ) : null}
 
-        {!editing ? (
+        {!embedded && !editing ? (
           <>
             <button
               type="button"
@@ -103,14 +105,14 @@ export default function AgentDashboard({
               Edit
             </button>
           </>
-        ) : (
+        ) : !embedded && editing ? (
           <>
             <button
               type="button"
               onClick={resetLayout}
               className="px-3 py-2 rounded-xl text-xs font-medium text-on-surface-variant hover:bg-surface-container-lowest/80"
             >
-              Reset layout
+              Reset to default
             </button>
             <button
               type="button"
@@ -129,7 +131,7 @@ export default function AgentDashboard({
               Save
             </button>
           </>
-        )}
+        ) : null}
       </div>
 
       {savedToast && (
@@ -146,6 +148,8 @@ export default function AgentDashboard({
           saveSignal={saveSignal}
           graphReady={!loading}
           belowHeader={fillParent}
+          simulationOnly={embedded}
+          sessionId={sessionId}
         />
       </div>
 

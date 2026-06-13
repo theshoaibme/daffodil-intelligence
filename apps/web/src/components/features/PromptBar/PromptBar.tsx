@@ -1,19 +1,32 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { Network } from "lucide-react";
 import { AgentSelector } from "./AgentSelector";
 import { McpConfigureDialog } from "./McpConfigureDialog";
 import { ModelSelector } from "./ModelSelector";
 import { ContextUseRing } from "./ContextUseRing";
 import { FileAttachmentButton, MicButton, SendButton, StopButton } from "./ActionButtons";
-import { AUTO_MODEL_ID, BOTTOM_BAR_LAYOUT_ID, enterOrSkip, modeSpring, type ChatContextUsage } from "@lib";
+import { VoiceRecordingBadge } from "./VoiceRecordingBadge";
+import { VoiceRecordingControls } from "./VoiceRecordingControls";
+import { useVoiceRecorder } from "@hooks";
+import { voiceBlobToPayload, type VoiceAttachmentPayload } from "@lib/api";
+import {
+  AGENT_MODE_PLACEHOLDERS,
+  CHAT_INPUT_SHELL_CLASS,
+  GLM_5_1_MODEL_ID,
+  BOTTOM_BAR_LAYOUT_ID,
+  enterOrSkip,
+  modeSpring,
+  type AgentMode,
+  type ChatContextUsage,
+} from "@lib";
 import { useLocalStorageState } from "@hooks";
 import { useMcpStatus } from "@hooks";
 
 interface PromptBarProps {
   prompt: string;
   setPrompt: (val: string) => void;
-  isSent?: boolean;
-  handleSend: (modelId: string) => void;
+  handleSend: (modelId: string, voice?: VoiceAttachmentPayload) => void;
   agentMenuOpen: boolean;
   setAgentMenuOpen: (open: boolean) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
@@ -22,10 +35,14 @@ interface PromptBarProps {
   onCopycatMode?: () => void;
   copycatActive?: boolean;
   uiReady?: boolean;
-  selectedTools: string[];
-  onToggleTool: (tool: string) => void;
+  selectedAgentMode: AgentMode;
+  onSelectAgentMode: (mode: AgentMode) => void;
+  agentVisualizeOpen?: boolean;
+  onToggleAgentVisualize?: () => void;
   /** When true, omit viewport-fixed wrapper — parent positions the bar in the main column. */
   embedded?: boolean;
+  /** Extra classes on the prompt shell (e.g. flush stack with task panel on mobile). */
+  shellClassName?: string;
 }
 
 export function PromptBar({
@@ -40,75 +57,178 @@ export function PromptBar({
   onCopycatMode,
   copycatActive = false,
   uiReady = true,
-  selectedTools,
-  onToggleTool,
+  selectedAgentMode,
+  onSelectAgentMode,
+  agentVisualizeOpen = false,
+  onToggleAgentVisualize,
   embedded = false,
+  shellClassName = "",
 }: PromptBarProps) {
   const [selectedModelId, setSelectedModelId] = useLocalStorageState(
     "di-dashboard-selected-model",
-    AUTO_MODEL_ID
+    GLM_5_1_MODEL_ID
   );
 
-  const submit = () => handleSend(selectedModelId);
+  const {
+    isRecording,
+    recording,
+    levels,
+    devices,
+    selectedDeviceId,
+    setSelectedDeviceId,
+    startRecording,
+    stopRecording,
+    discardRecording,
+  } = useVoiceRecorder();
+
+  const submit = () => {
+    if (recording) {
+      void (async () => {
+        const voice = await voiceBlobToPayload(
+          recording.blob,
+          recording.mimeType,
+          recording.durationMs
+        );
+        handleSend(selectedModelId, voice);
+        discardRecording();
+      })();
+      return;
+    }
+    handleSend(selectedModelId);
+  };
+
   const hasText = Boolean(prompt.trim());
-  const showSend = hasText && !isStreaming;
-  const showMic = !hasText && !isStreaming;
+  const hasVoice = Boolean(recording);
+  const showSend = (hasText || hasVoice) && !isStreaming && !isRecording;
+  const showMic = !hasText && !hasVoice && !isStreaming && !isRecording;
   const showStop = isStreaming;
+
+  const handleMicClick = () => {
+    void startRecording().catch((err) => {
+      console.error("Failed to start recording:", err);
+    });
+  };
 
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
   const {
     status: mcpStatus,
+    detail: mcpDetail,
     loading: mcpLoading,
+    syncing: mcpSyncing,
     localServers,
     isConfigured: mcpConfigured,
     updateLocalServers,
     refetch: refetchMcpStatus,
+    validateServer,
+    testServer,
+    testSelf,
   } = useMcpStatus();
 
   const promptBarInner = (
     <>
-      <textarea
-        ref={textareaRef}
-        rows={1}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (hasText && !isStreaming) {
-              submit();
-            }
-          }
-        }}
-        placeholder="What would you like to change or create?"
-        className="w-full bg-transparent border-none outline-none resize-none text-sm text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
-      />
+      <AnimatePresence mode="wait" initial={false}>
+        {hasVoice && recording ? (
+          <motion.div
+            key="voice-badge"
+            initial={{ opacity: 0, scale: 0.96, y: 4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: -4 }}
+            transition={{ duration: 0.18 }}
+            className="min-h-[36px] flex items-center"
+          >
+            <VoiceRecordingBadge durationMs={recording.durationMs} onDiscard={discardRecording} />
+          </motion.div>
+        ) : isRecording ? (
+          <motion.div
+            key="recording"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="px-1.5 py-1 min-h-[36px] text-sm text-on-surface-variant"
+          >
+            Recording…
+          </motion.div>
+        ) : (
+          <motion.textarea
+            key="textarea"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18 }}
+            ref={textareaRef}
+            rows={1}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (hasText && !isStreaming) {
+                  submit();
+                }
+              }
+            }}
+            placeholder={AGENT_MODE_PLACEHOLDERS[selectedAgentMode]}
+            className="w-full min-w-0 bg-transparent border-none outline-none resize-none text-sm text-on-surface placeholder-on-surface-variant focus:ring-0 px-1.5 py-1 leading-relaxed max-h-[200px]"
+          />
+        )}
+      </AnimatePresence>
 
       <div className="flex items-center justify-between px-0.5">
         <div className="flex items-center gap-1">
           <AgentSelector
             isOpen={agentMenuOpen}
             setIsOpen={setAgentMenuOpen}
-            selectedTools={selectedTools}
-            onToggleTool={onToggleTool}
+            selectedMode={selectedAgentMode}
+            onSelectMode={onSelectAgentMode}
             onCopycatMode={onCopycatMode}
             copycatActive={copycatActive}
             mcpConfigured={mcpConfigured}
             onConfigureMcp={() => setMcpDialogOpen(true)}
           />
           <ModelSelector selectedModelId={selectedModelId} onChange={setSelectedModelId} />
+          {selectedAgentMode === "Agent" && onToggleAgentVisualize && (
+            <button
+              type="button"
+              onClick={onToggleAgentVisualize}
+              aria-pressed={agentVisualizeOpen}
+              aria-label="Toggle agent visualization"
+              className={`flex items-center gap-1 rounded-full cursor-pointer outline-none border-0 pl-2 pr-1.5 py-1 text-xs font-medium leading-none transition-colors ${
+                agentVisualizeOpen
+                  ? "bg-primary/15 text-primary ring-1 ring-primary/30"
+                  : "bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+              }`}
+            >
+              <span className="shrink-0 [&>svg]:size-3.5">
+                <Network size={14} strokeWidth={2} />
+              </span>
+              <span className={agentVisualizeOpen ? "thinking-shimmer" : undefined}>
+                Visualize
+              </span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5">
           {context && <ContextUseRing context={context} />}
-          <FileAttachmentButton />
+          {!isRecording && <FileAttachmentButton />}
+          {isRecording && (
+            <VoiceRecordingControls
+              levels={levels}
+              devices={devices}
+              selectedDeviceId={selectedDeviceId}
+              onSelectDevice={setSelectedDeviceId}
+              onStop={stopRecording}
+            />
+          )}
           {showStop && <StopButton />}
           {showSend && <SendButton onClick={submit} />}
-          {showMic && <MicButton />}
+          {showMic && <MicButton onClick={handleMicClick} />}
         </div>
       </div>
     </>
   );
+
+  const shellClasses = `${CHAT_INPUT_SHELL_CLASS} glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto ${shellClassName}`;
 
   return (
     <>
@@ -116,31 +236,42 @@ export function PromptBar({
         open={mcpDialogOpen}
         onClose={() => setMcpDialogOpen(false)}
         status={mcpStatus}
+        detail={mcpDetail}
         localServers={localServers}
         onLocalServersChange={updateLocalServers}
         onRefreshStatus={refetchMcpStatus}
         loading={mcpLoading}
+        syncing={mcpSyncing}
+        onValidateServer={validateServer}
+        onTestServer={testServer}
+        onTestSelf={testSelf}
       />
       {embedded ? (
         <motion.div
           layoutId={BOTTOM_BAR_LAYOUT_ID}
+          layout
           initial={enterOrSkip(uiReady, { opacity: 0, y: 14, scale: 0.96 })}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            scale: 1,
+          }}
           exit={{ opacity: 0, y: 10, scale: 0.94 }}
           transition={modeSpring}
-          className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto"
+          className={shellClasses}
         >
           {promptBarInner}
         </motion.div>
       ) : (
-        <div className="fixed bottom-6 left-0 right-0 z-30 flex justify-center w-full px-4 pointer-events-none">
+        <div className="fixed bottom-6 left-0 right-0 z-30 flex justify-center w-full px-3 sm:px-4 pointer-events-none">
           <motion.div
             layoutId={BOTTOM_BAR_LAYOUT_ID}
+            layout
             initial={enterOrSkip(uiReady, { opacity: 0, y: 14, scale: 0.96 })}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.94 }}
             transition={modeSpring}
-            className="w-full max-w-xl glass-gradient-panel border border-outline-variant/40 flex flex-col gap-1 rounded-3xl px-2.5 py-2 relative shadow-md pointer-events-auto"
+            className={shellClasses}
           >
             {promptBarInner}
           </motion.div>

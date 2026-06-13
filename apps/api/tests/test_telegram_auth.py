@@ -422,5 +422,5 @@ def test_google_callback_redirects_to_frontend():
 
     assert result.status_code == 302
     assert result.headers["location"].startswith(
-        "http://localhost:3000/intelligence/auth/telegram?token="
+        "http://localhost:3000/studio/auth/telegram?token="
     )

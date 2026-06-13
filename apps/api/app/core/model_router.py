@@ -13,6 +13,16 @@ def _hf_available() -> bool:
     settings = get_settings()
     return settings.HUGGINGFACE_ENABLED and bool(settings.HUGGINGFACE_API_KEY)
 
+
+def _default_model_id(*, use_groq: bool) -> str:
+    """Pick the default model for Auto routing."""
+    settings = get_settings()
+    if _hf_available():
+        return GLM_5_1_CATALOG_ID
+    if use_groq:
+        return settings.GROQ_FAST_MODEL
+    return settings.ANTIGRAVITY_MODEL
+
 _REASONING_KEYWORDS = (
     "prove",
     "analyze",
@@ -85,7 +95,7 @@ def resolve_model_for_turn(
     use_groq = settings.GROQ_FAST_CHAT and bool(settings.GROQ_API_KEY)
     groq_fast = settings.GROQ_FAST_MODEL
     groq_strong = settings.GROQ_MODEL
-    default = default_model or (groq_fast if use_groq else settings.ANTIGRAVITY_MODEL)
+    default = default_model or _default_model_id(use_groq=use_groq)
 
     if model_id and model_id != AUTO_MODEL_ID:
         from .hf_models import is_hf_model
@@ -115,11 +125,15 @@ def resolve_model_for_turn(
         return "gemini-2.5-pro", True, "long_context"
 
     if any(k in lower for k in _COMPLEX_KEYWORDS) or word_count > 100:
+        if _hf_available():
+            return GLM_5_1_CATALOG_ID, True, "complex_hf"
         if use_groq:
             return groq_strong, True, "complex"
         return "gemini-2.5-flash", True, "complex"
 
     if word_count <= 25 and any(k in lower for k in _FAST_KEYWORDS):
+        if _hf_available():
+            return GLM_5_1_CATALOG_ID, True, "fast_hf"
         return groq_fast if use_groq else "gemini-2.0-flash-lite", True, "fast_simple"
 
     return default, True, "default"

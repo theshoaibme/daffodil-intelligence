@@ -78,6 +78,8 @@ export function useComputerStream() {
             latency_ms: data.latency_ms,
             backend: data.backend,
           });
+        } else if (data.type === "chat_action") {
+          window.dispatchEvent(new CustomEvent("di-chat-action", { detail: data.command }));
         }
       } catch (e) {
         console.error("Frame parse error:", e);
@@ -275,6 +277,12 @@ export function useComputerStream() {
     []
   );
 
+  const sendChatAction = useCallback((command: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ action: "chat_action", command }));
+    }
+  }, []);
+
   useEffect(() => {
     let poll: ReturnType<typeof setInterval> | undefined;
     const checkStatus = async () => {
@@ -322,5 +330,6 @@ export function useComputerStream() {
     stopRecording,
     replayRecording,
     stopReplay,
+    sendChatAction,
   };
 }

@@ -15,10 +15,18 @@ from ..memory import memory_service
 from ..prompts.modes import build_mode_system_prompt, mode_status_messages
 from ..skills.resolver import resolve_runtime_config
 from . import groq_chat, hf_chat, orchestrator
-from .chat_router import groq_model_for_routing, should_use_fast_groq, should_use_hf_chat
+from .chat_router import (
+    groq_model_for_routing,
+    should_force_full_runtime,
+    should_use_fast_groq,
+    should_use_hf_chat,
+)
+from .task_policy import classify_turn, should_emit_task_tree
 from .intent_router import route_message
+from .routine_turn import run_routine_fast_path, should_use_routine_fast_path, stream_routine_fast_path
 from .stream_signals import stream_turn_preamble
 from .tool_context import clear_turn_context, set_turn_context
+from .task_events import emit_task, reset_turn_tasks
 from .trace import estimate_tokens, trace_recorder
 
 
@@ -49,6 +57,77 @@ def _apply_mode_system(
     return mode_block
 
 
+def _resolve_turn_mcp_specs(metadata: Optional[dict]):
+    from ..mcp.builder import McpBuilder
+
+    meta = metadata or {}
+    raw_servers = meta.get("mcp_servers")
+    if not isinstance(raw_servers, list):
+        return None
+
+    specs = []
+    for entry in raw_servers:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()
+        command = str(entry.get("command") or "").strip()
+        if not name or not command:
+            continue
+        try:
+            specs.append(McpBuilder.from_name_command(name, command))
+        except ValueError:
+            continue
+    return specs or None
+
+
+async def _resolve_turn_metadata(
+    user_id: Any,
+    metadata: Optional[dict],
+    message: Optional[str] = None,
+) -> dict:
+    """Fill department/section from profile and memory — no hardcoded defaults."""
+    from ..automation.routine_mcp import ensure_mcp_in_metadata, mcp_servers_for_user
+    from ..automation.routine_memory import recall_user_section
+    from ..automation.routine_resolver import normalize_section
+
+    meta = dict(metadata or {})
+    uid = int(user_id or 0)
+
+    if uid and not meta.get("department"):
+        try:
+            from sqlalchemy import select
+
+            from ..core.database import get_session_maker
+            from ..models.user import User
+
+            session_maker = get_session_maker()
+            if session_maker:
+                async with session_maker() as session:
+                    row = await session.execute(select(User).where(User.id == uid))
+                    user = row.scalar_one_or_none()
+                    if user:
+                        if user.department:
+                            meta["department"] = user.department
+                        if user.student_id and not meta.get("student_id"):
+                            meta["student_id"] = user.student_id
+        except Exception:
+            pass
+
+    if meta.get("section"):
+        meta["section"] = normalize_section(str(meta["section"])) or None
+    elif uid:
+        recalled = await recall_user_section(uid)
+        if recalled:
+            meta["section"] = recalled
+
+    if uid and not meta.get("mcp_servers"):
+        servers = mcp_servers_for_user(uid)
+        if servers:
+            meta["mcp_servers"] = servers
+
+    return ensure_mcp_in_metadata(meta, message)
+
+
 def _apply_turn_context(
     *,
     user_id: Any,
@@ -59,9 +138,11 @@ def _apply_turn_context(
     set_turn_context(
         user_id=int(user_id or 0),
         student_id=meta.get("student_id"),
-        section=meta.get("section") or "64_I",
+        section=meta.get("section"),
+        department=meta.get("department"),
         selected_tools=meta.get("selected_tools") or [],
         telegram_chat_id=int(telegram_chat_id) if telegram_chat_id else None,
+        mcp_specs=_resolve_turn_mcp_specs(meta),
     )
 
 
@@ -78,8 +159,13 @@ async def run_turn(
     metadata: Optional[dict] = None,
 ) -> dict:
     """Run one non-streaming turn through the main agent runtime."""
-    _apply_turn_context(user_id=user_id, metadata=metadata)
+    resolved_metadata = await _resolve_turn_metadata(user_id, metadata, message)
+    _apply_turn_context(user_id=user_id, metadata=resolved_metadata)
     try:
+        if should_use_routine_fast_path(message, agent_id):
+            return await run_routine_fast_path(
+                message, user_id=user_id, metadata=resolved_metadata
+            )
         return await _run_turn_inner(
             message,
             user_id=user_id,
@@ -89,7 +175,7 @@ async def run_turn(
             attachments=attachments,
             lang=lang,
             model_id=model_id,
-            metadata=metadata,
+            metadata=resolved_metadata,
         )
     finally:
         clear_turn_context()
@@ -132,6 +218,7 @@ async def _run_turn_inner(
         model_id=resolved_model,
         attachments=bool(attachments),
         include_tools=cfg.tool_names,
+        metadata=meta,
     )
     use_fast_groq = should_use_fast_groq(
         attachments=bool(attachments),
@@ -142,6 +229,9 @@ async def _run_turn_inner(
         persona=cfg.persona,
         include_tools=cfg.tool_names,
     ) and not use_hf
+    if should_force_full_runtime(meta):
+        use_hf = False
+        use_fast_groq = False
     groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
     active_model = groq_model if use_fast_groq else resolved_model
     active_routing = "groq_fast" if use_fast_groq else ("hf_glm" if use_hf else routing)
@@ -205,8 +295,15 @@ async def run_turn_stream(
     metadata: Optional[dict] = None,
 ) -> AsyncIterator[dict]:
     """Stream one turn through the main agent runtime."""
-    _apply_turn_context(user_id=user_id, metadata=metadata)
+    resolved_metadata = await _resolve_turn_metadata(user_id, metadata, message)
+    _apply_turn_context(user_id=user_id, metadata=resolved_metadata)
     try:
+        if should_use_routine_fast_path(message, agent_id):
+            async for event in stream_routine_fast_path(
+                message, user_id=user_id, metadata=resolved_metadata
+            ):
+                yield event
+            return
         async for event in _run_turn_stream_inner(
             message,
             user_id=user_id,
@@ -216,7 +313,7 @@ async def run_turn_stream(
             attachments=attachments,
             lang=lang,
             model_id=model_id,
-            metadata=metadata,
+            metadata=resolved_metadata,
         ):
             yield event
     finally:
@@ -260,6 +357,7 @@ async def _run_turn_stream_inner(
         model_id=resolved_model,
         attachments=bool(attachments),
         include_tools=cfg.tool_names,
+        metadata=meta,
     )
     use_fast_groq = should_use_fast_groq(
         attachments=bool(attachments),
@@ -270,6 +368,9 @@ async def _run_turn_stream_inner(
         persona=cfg.persona,
         include_tools=cfg.tool_names,
     ) and not use_hf
+    if should_force_full_runtime(meta):
+        use_hf = False
+        use_fast_groq = False
     groq_model = groq_model_for_routing(routing) if use_fast_groq else resolved_model
     active_model = groq_model if use_fast_groq else resolved_model
     active_routing = "groq_fast" if use_fast_groq else ("hf_glm" if use_hf else routing)
@@ -282,6 +383,16 @@ async def _run_turn_stream_inner(
         model_id=display_model,
         engine=engine,
     )
+
+    is_nested = bool(meta.get("_nested_turn"))
+    complexity = classify_turn(
+        message,
+        meta,
+        routing,
+        use_fast_groq,
+        use_hf,
+    )
+    emit_tasks = should_emit_task_tree(complexity) and not is_nested
 
     yield {
         "type": "model",
@@ -299,7 +410,24 @@ async def _run_turn_stream_inner(
     trace_recorder.add_tokens(turn_id, estimate_tokens(prompt) + estimate_tokens(extra_system or ""))
     trace_recorder.event(turn_id, type="model", name=display_model or "auto", detail=active_routing or "")
     trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="active")
-    yield {"type": "agent", "agent_id": cfg.agent_id, "name": cfg.agent_id, "status": "active"}
+
+    root_task_id: Optional[str] = None
+    if emit_tasks:
+        reset_turn_tasks()
+        root_task = emit_task(
+            kind="agent",
+            name=cfg.agent_id or "main",
+            title=f"Orchestrator ({cfg.agent_id or 'main'})",
+            status="active",
+            agent_id=cfg.agent_id or "main",
+            depth=0,
+        )
+        root_task_id = root_task["task_id"]
+        yield root_task
+
+    if recall_block:
+        trace_recorder.event(turn_id, type="memory", name="recall_notes", status="active")
+        yield {"type": "memory", "name": "recall_notes", "status": "active"}
 
     status_lines = mode_status_messages(
         metadata,
@@ -310,6 +438,7 @@ async def _run_turn_stream_inner(
     async for signal in stream_turn_preamble(
         status_lines=status_lines,
         routing=active_routing,
+        simulate_thinking=False,
     ):
         stype = signal.get("type")
         if stype in ("thinking", "status"):
@@ -320,17 +449,60 @@ async def _run_turn_stream_inner(
             )
         yield signal
 
+    async def _stream_orchestrator():
+        async for event in orchestrator.run_stream(
+            prompt,
+            user_id=user_id,
+            chat_id=chat_id,
+            persona=cfg.persona,
+            attachments=attachments,
+            lang=lang,
+            agent_id=cfg.agent_id,
+            extra_system=extra_system or None,
+            model=resolved_model,
+            include_tools=cfg.tool_names,
+            metadata=meta,
+        ):
+            etype = event.get("type") if isinstance(event, dict) else None
+            if etype == "content":
+                trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
+            elif etype in ("tool", "thinking", "subagent", "status", "memory", "task", "ui"):
+                trace_recorder.event(
+                    turn_id,
+                    type=etype,
+                    name=event.get("name", "") or event.get("task_id", ""),
+                    status=event.get("status", ""),
+                    detail=(event.get("content", "") or event.get("title", "") or "")[:160],
+                )
+            yield event
+
     try:
         if use_hf and hf_chat.is_available():
-            async for event in hf_chat.stream_chat(
-                prompt,
-                extra_system=extra_system or None,
-                model=resolved_model,
-            ):
-                etype = event.get("type") if isinstance(event, dict) else None
-                if etype == "content":
-                    trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
-                yield event
+            hf_failed = False
+            try:
+                async for event in hf_chat.stream_chat(
+                    prompt,
+                    extra_system=extra_system or None,
+                    model=resolved_model,
+                ):
+                    etype = event.get("type") if isinstance(event, dict) else None
+                    if etype == "content":
+                        trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
+                    yield event
+            except Exception as hf_err:
+                hf_failed = True
+                trace_recorder.event(
+                    turn_id,
+                    type="status",
+                    detail=f"HF fallback: {hf_err}",
+                )
+                yield {
+                    "type": "status",
+                    "content": "Switching to full agent runtime for tools and delegation.",
+                }
+            if hf_failed:
+                async for event in _stream_orchestrator():
+                    yield event
         elif use_fast_groq and groq_chat.is_available():
             async for event in groq_chat.stream_chat(
                 prompt,
@@ -342,31 +514,21 @@ async def _run_turn_stream_inner(
                     trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
                 yield event
         else:
-            async for event in orchestrator.run_stream(
-                prompt,
-                user_id=user_id,
-                chat_id=chat_id,
-                persona=cfg.persona,
-                attachments=attachments,
-                lang=lang,
-                agent_id=cfg.agent_id,
-                extra_system=extra_system or None,
-                model=resolved_model,
-                include_tools=cfg.tool_names,
-                metadata=meta,
-            ):
-                etype = event.get("type") if isinstance(event, dict) else None
-                if etype == "content":
-                    trace_recorder.add_tokens(turn_id, estimate_tokens(event.get("content", "")))
-                elif etype in ("tool", "thinking", "subagent", "status"):
-                    trace_recorder.event(
-                        turn_id,
-                        type=etype,
-                        name=event.get("name", ""),
-                        status=event.get("status", ""),
-                        detail=(event.get("content", "") or "")[:160],
-                    )
+            async for event in _stream_orchestrator():
                 yield event
-    finally:
+
         trace_recorder.event(turn_id, type="agent", name=cfg.agent_id, status="success")
+        if emit_tasks and root_task_id:
+            yield emit_task(
+                task_id=root_task_id,
+                kind="agent",
+                name=cfg.agent_id or "main",
+                title=f"Orchestrator ({cfg.agent_id or 'main'})",
+                status="success",
+                agent_id=cfg.agent_id or "main",
+                depth=0,
+            )
+    finally:
+        if emit_tasks:
+            reset_turn_tasks()
         trace_recorder.end_turn(turn_id)

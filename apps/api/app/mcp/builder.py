@@ -165,12 +165,33 @@ class McpBuilder:
         return specs
 
     @classmethod
-    def build_antigravity_servers(cls, include_self: bool = False) -> list[Any]:
+    def merge_specs(
+        cls,
+        base: list[McpServerSpec],
+        extra: list[McpServerSpec] | None = None,
+    ) -> list[McpServerSpec]:
+        merged = list(base)
+        seen = {spec.name.lower() for spec in merged}
+        for spec in extra or []:
+            key = spec.name.lower()
+            if key in seen:
+                continue
+            merged.append(spec)
+            seen.add(key)
+        return merged
+
+    @classmethod
+    def build_antigravity_servers(
+        cls,
+        include_self: bool = False,
+        extra_specs: list[McpServerSpec] | None = None,
+    ) -> list[Any]:
         settings = get_settings()
         if not settings.MCP_ENABLED or not _ANTIGRAVITY_MCP:
             return []
+        specs = cls.merge_specs(cls.get_configured_specs(include_self=include_self), extra_specs)
         servers: list[Any] = []
-        for spec in cls.get_configured_specs(include_self=include_self):
+        for spec in specs:
             built = cls.to_antigravity_server(spec)
             if built is not None:
                 servers.append(built)

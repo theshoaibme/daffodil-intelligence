@@ -71,19 +71,21 @@ def _register_tools_with_mcp(mcp):
                 return tool_executor
 
             executor = make_executor(tool_name)
-            input_schema = tool_schema.get("inputSchema") or {
-                "type": "object",
-                "properties": {},
-            }
-            mcp.tool(
+            mcp.add_tool(
+                executor,
                 name=tool_name,
                 description=tool_description,
-                input_schema=input_schema,
-            )(executor)
+            )
 
-        logger.info(f"MCP server registered {registry.count} tools")
+        logger.info("MCP server registered %s tools", registry.count)
     except Exception as e:
-        logger.error(f"Failed to register tools with MCP: {e}")
+        logger.error("Failed to register tools with MCP: %s", e)
+
+
+def reset_mcp_server() -> None:
+    """Clear cached server (tests after code changes)."""
+    global _mcp_server
+    _mcp_server = None
 
 
 _mcp_server = None

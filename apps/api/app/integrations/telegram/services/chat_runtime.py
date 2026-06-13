@@ -62,13 +62,11 @@ def build_turn_metadata(
     agent_id: str,
 ) -> Dict[str, Any]:
     student_id = ""
-    section = "64_I"
     if account:
         student_id = (account.student_id or "").strip()
 
     return {
         "student_id": student_id or None,
-        "section": section,
         "department": (account.department or "").strip() if account else "",
         "selected_tools": _selected_tools_for_agent(agent_id),
         "telegram_chat_id": telegram_id,

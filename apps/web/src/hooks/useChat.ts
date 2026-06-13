@@ -1,36 +1,51 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   createChat,
   sendMessage,
+  type VoiceAttachmentPayload,
 } from "../lib/api";
 import type { StreamEvent } from "../lib/api";
-import { emitFlow, getFlow, resetFlow } from "../lib/flowBus";
+import {
+  activeAgentsFromTasks,
+  activeToolsFromTasks,
+  memoryActiveFromTasks,
+  reduceAgentTasks,
+  tasksToPanelItems,
+  type AgentTaskNode,
+} from "../lib/agentTasks";
+import { getFlow, resetFlow, setFlow } from "../lib/flowBus";
 import type { ChatContextUsage } from "../lib/chatContext";
-
-function humanizeName(name: string): string {
-  return name
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
+import { coerceUiBlock, mergeUiBlocks } from "../lib/uiBlocks/coerce";
+import type { UiBlock } from "../lib/uiBlocks/types";
+import { useEventStore } from "../engine/stores/eventStore";
+import { eventBus } from "../engine/EventBus";
+import { useSessionStream } from "./useSessionStream";
+import { useSessionSync } from "./useSessionSync";
+import { cleanThinkingText } from "../lib/thinkingText";
+function syncFlowFromTasks(tasks: AgentTaskNode[], inputId: string | null) {
+  const current = getFlow();
+  const hasActiveTasks = tasks.some((t) => t.status === "active");
+  const activeAgents = activeAgentsFromTasks(tasks);
+  const withoutMain = activeAgents.filter(
+    (id) => id !== "main" && id !== "supervisor" && id !== "default"
+  );
+  const modelTask = tasks.find((t) => t.kind === "model");
+  const modelLabel = modelTask?.title?.replace(/^Model:\s*/i, "").trim();
+  setFlow({
+    modelActive: hasActiveTasks || current.modelActive,
+    activeAgentIds: withoutMain.length > 0 ? withoutMain : activeAgents,
+    activeTools: activeToolsFromTasks(tasks),
+    memoryActive: memoryActiveFromTasks(tasks),
+    activeInputId: inputId ?? current.activeInputId,
+    activeModelId: modelLabel || current.activeModelId,
+  });
 }
 
-function normalizeStatus(status?: string): ThinkingStep["status"] {
-  if (status === "success" || status === "done" || status === "completed") return "success";
-  if (status === "active" || status === "running" || status === "start") return "active";
-  return "active";
-}
-
-function upsertStep(
-  steps: ThinkingStep[],
-  id: string,
-  title: string,
-  status: ThinkingStep["status"]
-): ThinkingStep[] {
-  const existing = steps.find((s) => s.id === id);
-  if (!existing) {
-    return [...steps, { id, title, status }];
+function pruneLegacyTasks(tasks: AgentTaskNode[]): AgentTaskNode[] {
+  if (!tasks.some((t) => t.id.startsWith("task-") || t.id.startsWith("root-"))) {
+    return tasks;
   }
-  return steps.map((s) => (s.id === id ? { ...s, status } : s));
+  return tasks.filter((t) => !t.id.startsWith("agent:") && !t.id.startsWith("tool:"));
 }
 
 export interface ChatMessage {
@@ -42,8 +57,21 @@ export interface ChatMessage {
     agent?: string;
     tools_used?: string[];
     sources?: string[];
+    ui_blocks?: UiBlock[];
+    [key: string]: unknown;
   };
   isStreaming?: boolean;
+}
+
+function withCoercedUiBlocks(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((m) => {
+    const raw = m.metadata?.ui_blocks;
+    if (!Array.isArray(raw) || raw.length === 0) return m;
+    return {
+      ...m,
+      metadata: { ...m.metadata, ui_blocks: mergeUiBlocks(raw) },
+    };
+  });
 }
 
 export interface ThinkingStep {
@@ -64,13 +92,59 @@ export function useChat(options?: UseChatOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStreamingContent, setCurrentStreamingContent] = useState("");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [agentTasks, setAgentTasks] = useState<AgentTaskNode[]>([]);
   const [thinkingText, setThinkingText] = useState("");
   const [thinkingMs, setThinkingMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastContext, setLastContext] = useState<ChatContextUsage | null>(null);
   const sendGenerationRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const thinkingStartRef = useRef<number | null>(null);
+  const thinkingAccumRef = useRef("");
+
+  useSessionStream(chatId);
+  useSessionSync(chatId, true);
+
+  useEffect(() => {
+    if (!chatId) return;
+    const sessionId = String(chatId);
+    const graph = useEventStore.getState().getSession(sessionId).agentGraph;
+    setFlow({
+      activeAgentIds: graph.activeAgentIds,
+      activeTools: graph.activeTools,
+      modelActive: graph.modelActive,
+      activeInputId: graph.activeInputId ?? undefined,
+      activeModelId: graph.activeModelId ?? undefined,
+      memoryActive: graph.memoryActive,
+    });
+  }, [chatId, agentTasks]);
+
+  const patchAssistantMessage = useCallback(
+    (
+      assistantMessageId: string,
+      patch: Partial<ChatMessage> | ((message: ChatMessage) => ChatMessage)
+    ) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== assistantMessageId) return m;
+          return typeof patch === "function" ? patch(m) : { ...m, ...patch };
+        })
+      );
+    },
+    []
+  );
+
+  useEffect(() => {
+    const panel = tasksToPanelItems(agentTasks);
+    setThinkingSteps(
+      panel.map((p) => ({
+        id: p.id,
+        title: p.text,
+        status: p.active ? ("active" as const) : ("success" as const),
+      }))
+    );
+  }, [agentTasks]);
 
   const stopThinkingTimer = useCallback(() => {
     if (thinkingTimerRef.current) {
@@ -86,12 +160,21 @@ export function useChat(options?: UseChatOptions) {
 
   const loadSession = useCallback((nextChatId: number | null, nextMessages: ChatMessage[]) => {
     sendGenerationRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    eventBus.clearPending();
+    if (chatId) useEventStore.getState().clearSession(String(chatId));
+    if (nextChatId != null && nextChatId !== chatId) {
+      useEventStore.getState().clearSession(String(nextChatId));
+    }
     stopThinkingTimer();
     resetFlow();
     thinkingStartRef.current = null;
+    thinkingAccumRef.current = "";
     setChatId(nextChatId);
-    setMessages(nextMessages);
+    setMessages(withCoercedUiBlocks(nextMessages));
     setThinkingSteps([]);
+    setAgentTasks([]);
     setThinkingText("");
     setThinkingMs(null);
     setCurrentStreamingContent("");
@@ -99,7 +182,27 @@ export function useChat(options?: UseChatOptions) {
     setIsLoading(false);
     setIsStreaming(false);
     setLastContext(null);
-  }, [stopThinkingTimer]);
+  }, [chatId, stopThinkingTimer]);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    sendGenerationRef.current += 1;
+    stopThinkingTimer();
+    setIsStreaming(false);
+    setIsLoading(false);
+    eventBus.publishImmediate({
+      v: 1,
+      id: `cancel-${Date.now()}`,
+      seq: 0,
+      ts: new Date().toISOString(),
+      session_id: String(chatId ?? 0),
+      turn_id: "",
+      source: {},
+      type: "stream.cancelled",
+      payload: {},
+    });
+  }, [chatId, stopThinkingTimer]);
 
   const initializeChat = useCallback(async () => {
     try {
@@ -119,9 +222,12 @@ export function useChat(options?: UseChatOptions) {
   const send = useCallback(async (
     content: string,
     modelId?: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
+    voice?: VoiceAttachmentPayload
   ) => {
     const generation = sendGenerationRef.current;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     try {
       setError(null);
@@ -140,16 +246,36 @@ export function useChat(options?: UseChatOptions) {
       const userMessage: ChatMessage = {
         id: `user-${Date.now()}`,
         role: "user",
-        content,
+        content: voice ? "" : content,
         timestamp: new Date(),
+        ...(voice
+          ? {
+              metadata: {
+                voice_message: true,
+                voice_duration_ms: voice.duration_ms,
+              },
+            }
+          : {}),
       };
       
       setMessages(prev => [...prev, userMessage]);
 
       setThinkingSteps([]);
+      setAgentTasks([]);
       setThinkingText("");
+      thinkingAccumRef.current = "";
       setThinkingMs(0);
-      resetFlow();
+      setLastContext(null);
+      const channel = (metadata?.channel as string) || "chat";
+      const inputId = channel === "telegram" ? "input-telegram" : "input-chat";
+      setFlow({
+        activeInputId: inputId,
+        activeAgentIds: [],
+        activeTools: [],
+        memoryActive: false,
+        modelActive: true,
+        activeModelId: modelId,
+      });
       thinkingStartRef.current = Date.now();
       stopThinkingTimer();
       thinkingTimerRef.current = setInterval(() => {
@@ -170,6 +296,13 @@ export function useChat(options?: UseChatOptions) {
       setMessages(prev => [...prev, assistantMessage]);
       setCurrentStreamingContent("");
 
+      const turnId = `turn-${Date.now()}`;
+      useEventStore.getState().resetTurn(String(currentChatId), turnId, assistantMessageId);
+      useEventStore.getState().setActiveInput(
+        String(currentChatId),
+        channel === "telegram" ? "input-telegram" : "input-chat"
+      );
+
       let fullContent = "";
 
       const response = await sendMessage(
@@ -177,23 +310,9 @@ export function useChat(options?: UseChatOptions) {
         content,
         (chunk) => {
           if (isSendStale(generation)) return;
-          if (thinkingTimerRef.current) {
-            stopThinkingTimer();
-            if (thinkingStartRef.current != null) {
-              setThinkingMs(Date.now() - thinkingStartRef.current);
-            }
-            setThinkingSteps((prev) =>
-              prev.map((s) => (s.status === "active" ? { ...s, status: "success" } : s))
-            );
-          }
           fullContent += chunk;
           setCurrentStreamingContent(fullContent);
-
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMessageId ? { ...m, content: fullContent } : m
-            )
-          );
+          patchAssistantMessage(assistantMessageId, { content: fullContent });
         },
         modelId,
         (ctx) => {
@@ -202,58 +321,65 @@ export function useChat(options?: UseChatOptions) {
         metadata,
         (event: StreamEvent) => {
           if (isSendStale(generation)) return;
+          const inputId = getFlow().activeInputId ?? "input-chat";
+
           if (event.type === "thinking" && event.content) {
-            setThinkingText((prev) => prev + event.content);
-          } else if (event.type === "status" && event.content) {
-            setThinkingSteps((prev) => [
-              ...prev,
-              {
-                id: `status:${prev.length}`,
-                title: event.content!,
-                status: "success",
-              },
-            ]);
-          } else if (event.type === "model" && event.content) {
-            setThinkingSteps((prev) =>
-              upsertStep(
-                prev,
-                "model",
-                `Model: ${event.content}${event.name ? ` (${event.name})` : ""}`,
-                "success"
-              )
-            );
-            emitFlow({ modelActive: true });
-          } else if (event.type === "tool" && event.name) {
-            setThinkingSteps((prev) =>
-              upsertStep(
-                prev,
-                `tool:${event.name}`,
-                `Using ${humanizeName(event.name!)}`,
-                normalizeStatus(event.status)
-              )
-            );
-            if (normalizeStatus(event.status) === "active") {
-              emitFlow({
-                modelActive: true,
-                activeTools: Array.from(
-                  new Set([...getFlow().activeTools, event.name!])
-                ),
-              });
-            }
-          } else if ((event.type === "agent" || event.type === "subagent") && event.name) {
-            const label = event.type === "subagent" ? "Delegating to" : "Agent";
-            setThinkingSteps((prev) =>
-              upsertStep(
-                prev,
-                `${event.type}:${event.agent_id ?? event.name}`,
-                `${label} ${humanizeName(event.name!)}`,
-                normalizeStatus(event.status)
-              )
-            );
-            const id = event.agent_id ?? event.name!;
-            emitFlow({ modelActive: true, activeAgentIds: [id] });
+            thinkingAccumRef.current += event.content;
+            const nextThinking = thinkingAccumRef.current;
+            setThinkingText(nextThinking);
+            patchAssistantMessage(assistantMessageId, (message) => ({
+              ...message,
+              metadata: { ...message.metadata, thinking_text: nextThinking },
+            }));
+            return;
           }
-        }
+
+          if (event.type === "status" && event.content?.trim()) {
+            // Status (Mode/Model/Engine) belongs in the task panel, not thinking UI.
+            setAgentTasks((prev) => {
+              const reduced = reduceAgentTasks(prev, event);
+              const next = pruneLegacyTasks(reduced);
+              syncFlowFromTasks(next, inputId);
+              return next;
+            });
+            return;
+          }
+
+          if (event.type === "ui" && event.block) {
+            const block = coerceUiBlock(event.block);
+            if (!block) return;
+            patchAssistantMessage(assistantMessageId, (message) => {
+              const existing = (message.metadata?.ui_blocks as UiBlock[] | undefined) ?? [];
+              return {
+                ...message,
+                metadata: {
+                  ...message.metadata,
+                  ui_blocks: mergeUiBlocks(existing, [block]),
+                },
+              };
+            });
+            return;
+          }
+
+          if (
+            event.type === "task" ||
+            event.type === "tool" ||
+            event.type === "agent" ||
+            event.type === "subagent" ||
+            event.type === "memory" ||
+            event.type === "model" ||
+            event.type === "status"
+          ) {
+            setAgentTasks((prev) => {
+              const reduced = reduceAgentTasks(prev, event);
+              const next = pruneLegacyTasks(reduced);
+              syncFlowFromTasks(next, inputId);
+              return next;
+            });
+          }
+        },
+        voice,
+        { signal: abortRef.current.signal, sessionId: String(currentChatId) }
       );
 
       if (isSendStale(generation)) return;
@@ -265,32 +391,61 @@ export function useChat(options?: UseChatOptions) {
         }
       }
 
-      setThinkingSteps(prev => 
-        prev.map(s => ({ ...s, status: "success" }))
-      );
+      setAgentTasks([]);
 
-      setMessages(prev => 
-        prev.map(m => 
-          m.id === assistantMessageId 
-            ? { 
-                ...m, 
-                content: response.content,
-                metadata: response.metadata,
-                isStreaming: false,
-              } 
-            : m
-        )
-      );
+      const finalThinking = cleanThinkingText(thinkingAccumRef.current);
+      const finalThinkingMs =
+        thinkingStartRef.current != null
+          ? Date.now() - thinkingStartRef.current
+          : null;
+
+      patchAssistantMessage(assistantMessageId, (message) => {
+        const streamedBlocks = (message.metadata?.ui_blocks as UiBlock[] | undefined) ?? [];
+        const finalBlocks = mergeUiBlocks(
+          streamedBlocks,
+          (response.metadata?.ui_blocks as UiBlock[] | undefined) ?? []
+        );
+        const streamed = message.content || "";
+        const fromResponse = response.content || "";
+        const finalContent =
+          fromResponse.length >= streamed.length ? fromResponse : streamed;
+        return {
+          ...message,
+          content: finalContent,
+          metadata: {
+            ...message.metadata,
+            ...response.metadata,
+            ...(finalThinking ? { thinking_text: finalThinking } : {}),
+            ...(finalThinkingMs != null ? { thinking_ms: finalThinkingMs } : {}),
+            ui_blocks: finalBlocks.length ? finalBlocks : undefined,
+          },
+          isStreaming: false,
+        };
+      });
 
       setIsStreaming(false);
       setCurrentStreamingContent("");
+      setThinkingText("");
       resetFlow();
+      eventBus.publishImmediate({
+        v: 1,
+        id: `done-${Date.now()}`,
+        seq: 0,
+        ts: new Date().toISOString(),
+        session_id: String(currentChatId),
+        turn_id: turnId,
+        source: {},
+        type: "stream.done",
+        payload: {},
+      });
 
       return response;
     } catch (err) {
       stopThinkingTimer();
       resetFlow();
       if (isSendStale(generation)) return;
+      setAgentTasks([]);
+      setThinkingText("");
       setError(err instanceof Error ? err.message : "Failed to send message");
       setIsStreaming(false);
       throw err;
@@ -299,11 +454,47 @@ export function useChat(options?: UseChatOptions) {
         setIsLoading(false);
       }
     }
-  }, [chatId, isSendStale, stopThinkingTimer]);
+  }, [chatId, isSendStale, patchAssistantMessage, stopThinkingTimer]);
 
   const clearChat = useCallback(() => {
     loadSession(null, []);
   }, [loadSession]);
+
+  const truncateFromMessage = useCallback(
+    (messageId: string) => {
+      sendGenerationRef.current += 1;
+      abortRef.current?.abort();
+      stopThinkingTimer();
+      resetFlow();
+      thinkingStartRef.current = null;
+      setAgentTasks([]);
+      setThinkingSteps([]);
+      setThinkingText("");
+      setThinkingMs(null);
+      setCurrentStreamingContent("");
+      setError(null);
+      setIsLoading(false);
+      setIsStreaming(false);
+      setMessages((prev) => {
+        const index = prev.findIndex((message) => message.id === messageId);
+        if (index < 0) return prev;
+        return prev.slice(0, index);
+      });
+    },
+    [stopThinkingTimer]
+  );
+
+  const regenerate = useCallback(
+    async (messageId: string, modelId?: string) => {
+      const index = messages.findIndex((m) => m.id === messageId);
+      if (index < 0) return;
+      const prior = messages[index - 1];
+      if (!prior || prior.role !== "user") return;
+      truncateFromMessage(messageId);
+      await send(prior.content, modelId, prior.metadata as Record<string, unknown> | undefined);
+    },
+    [messages, send, truncateFromMessage]
+  );
 
   return {
     chatId,
@@ -312,13 +503,17 @@ export function useChat(options?: UseChatOptions) {
     isStreaming,
     currentStreamingContent,
     thinkingSteps,
+    agentTasks,
     thinkingText,
     thinkingMs,
     error,
     lastContext,
     send,
+    cancel,
+    regenerate,
     clearChat,
     loadSession,
     initializeChat,
+    truncateFromMessage,
   };
 }

@@ -5,12 +5,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class EventAgent(BaseAgent):
-    name = "Event Agent"
+class CampusEventsAgent(BaseAgent):
+    name = "Campus Events Agent"
     description = "Handles campus events, workshops, seminars, clubs, and activities"
     tools = ["get_events", "register_event", "create_event", "get_calendar", "join_club"]
 
-    SYSTEM_PROMPT = """You are the Event Agent for Daffodil Intelligence.
+    SYSTEM_PROMPT = """You are the Campus Events Agent for Daffodil Intelligence.
 You help students with:
 - Campus events and workshops
 - Club activities and registrations

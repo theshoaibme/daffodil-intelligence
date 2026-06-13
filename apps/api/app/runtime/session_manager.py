@@ -34,10 +34,15 @@ except Exception:  # pragma: no cover - import guard
 
 
 class StreamEvent(TypedDict, total=False):
-    type: Literal["content", "thinking", "tool", "agent", "subagent", "context"]
+    type: Literal["content", "thinking", "tool", "agent", "subagent", "memory", "context", "ui"]
     content: str
     name: str
+    agent_id: str
     status: Literal["active", "success"]
+    block: Dict[str, Any]
+    source: str
+    mcp_server: str
+    tool_name: str
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +144,11 @@ class SessionManager:
         if new_conv:
             self._index.set(key, new_conv)
 
+        from .task_events import pop_pending_ui_events
+
+        ui_events = pop_pending_ui_events()
+        ui_blocks = [e["block"] for e in ui_events if isinstance(e.get("block"), dict)]
+
         return {
             "content": content,
             "tool_calls": [getattr(t, "name", str(t)) for t in tool_calls],
@@ -146,6 +156,8 @@ class SessionManager:
             "persona": persona.value if isinstance(persona, AgentPersona) else str(persona),
             "conversation_id": new_conv,
             "model_id": model,
+            "ui_events": ui_events,
+            "ui_blocks": ui_blocks,
         }
 
     async def stream(
@@ -177,10 +189,44 @@ class SessionManager:
             response = await agent.chat(prompt)
             active_tools: List[str] = []
 
+            def _tool_source(name: str) -> Dict[str, str]:
+                from ..tools.registry import get_registry
+                from .tool_context import get_turn_mcp_specs
+
+                if get_registry().get(name):
+                    return {"source": "local"}
+                specs = get_turn_mcp_specs()
+                server = specs[0].name if specs else "mcp"
+                return {"source": "mcp", "mcp_server": server}
+
             def _complete_tools() -> List[StreamEvent]:
+                from .task_events import pop_pending_tool_events, pop_pending_ui_events
+
                 events: List[StreamEvent] = []
+                nested = pop_pending_tool_events()
+                task_events = [e for e in nested if e.get("type") == "task"]
+                other_nested = [e for e in nested if e.get("type") != "task"]
+                for nested_event in task_events + other_nested:
+                    events.append(nested_event)  # type: ignore[arg-type]
+                for ui_event in pop_pending_ui_events():
+                    events.append(ui_event)  # type: ignore[arg-type]
                 for name in active_tools:
-                    events.append({"type": "tool", "name": name, "status": "success"})
+                    if name in ("invoke_agent", "parallel_invoke_agents"):
+                        events.append(
+                            {
+                                "type": "subagent",
+                                "name": name,
+                                "status": "success",
+                            }
+                        )
+                    meta = _tool_source(name)
+                    tool_evt: StreamEvent = {
+                        "type": "tool",
+                        "name": name,
+                        "status": "success",
+                        **meta,  # type: ignore[arg-type]
+                    }
+                    events.append(tool_evt)
                 active_tools.clear()
                 return events
 
@@ -210,7 +256,26 @@ class SessionManager:
                         yield event
                     name = chunk.name or "tool"
                     active_tools.append(name)
-                    yield {"type": "tool", "name": name, "status": "active"}
+                    tool_event: StreamEvent = {
+                        "type": "tool",
+                        "name": name,
+                        "status": "active",
+                        **_tool_source(name),  # type: ignore[arg-type]
+                    }
+                    if name in ("invoke_agent", "parallel_invoke_agents"):
+                        sub_id = _invoke_agent_type(chunk) or (
+                            "routine" if name == "invoke_agent" else "parallel"
+                        )
+                        tool_event["agent_id"] = sub_id
+                        yield {
+                            "type": "subagent",
+                            "name": sub_id,
+                            "agent_id": sub_id,
+                            "status": "active",
+                        }
+                    elif name in _MEMORY_TOOLS or name.startswith("memory_"):
+                        yield {"type": "memory", "name": name, "status": "active"}
+                    yield tool_event
 
             for event in _complete_tools():
                 yield event
@@ -238,6 +303,36 @@ async def _collect(response: Any, attr: str) -> List[Any]:
 
 
 _SUBAGENT_MARKERS = ("sub-agent", "subagent", "delegat", "spawn agent")
+_MEMORY_TOOLS = frozenset(
+    {
+        "recall_notes",
+        "store_note",
+        "list_memories",
+        "memory_search",
+        "remember",
+    }
+)
+
+
+def _tool_call_payload(chunk: Any) -> dict:
+    for attr in ("arguments", "args", "input", "parameters"):
+        raw = getattr(chunk, attr, None)
+        if not raw:
+            continue
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except Exception:
+                continue
+        if isinstance(raw, dict):
+            return raw
+    return {}
+
+
+def _invoke_agent_type(chunk: Any) -> str:
+    payload = _tool_call_payload(chunk)
+    agent_type = payload.get("agent_type") or payload.get("agent_id") or ""
+    return str(agent_type).strip().lower()
 
 
 def _is_subagent_thought(text: str) -> bool:

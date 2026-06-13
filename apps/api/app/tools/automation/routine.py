@@ -3,39 +3,137 @@
 from __future__ import annotations
 
 from ..base import BaseTool, ToolParameter, ToolResult
-from ...automation.routines_data import get_section_routine
+from ...automation.routine_fetch import fetch_class_routine, routine_has_schedule
+from ...automation.routine_memory import recall_user_section
+from ...automation.routine_pdf_reader import read_routine_pdf_fast
+from ...automation.routine_resolver import resolve_section
 from ...automation.store import automation_store
 from ...automation.telegram_notify import resolve_telegram_chat_id_for_user
-from ...runtime.tool_context import get_section, get_user_id
+from ...runtime.tool_context import get_department, get_section, get_user_id
 
 
 class GetClassRoutineTool(BaseTool):
     name = "get_class_routine"
     description = (
-        "Get class routine for a CSE section (time, room, course, teacher). "
-        "Optionally filter by weekday name (Monday, Tuesday, ...)."
+        "Get class routine for a section from data/routines/*.csv, section uploads, "
+        "or department PDFs under data/routines/{department}/. MCP mode uses the same "
+        "registry tools (no invented schedules). Day: weekday or today/tomorrow/yesterday."
     )
     category = "automation"
     parameters = [
         ToolParameter(
             name="section",
             type="string",
-            description="Section id e.g. 64_I",
+            description="Section id (optional — from memory or profile)",
             required=False,
-            default="64_I",
         ),
         ToolParameter(
             name="day",
             type="string",
-            description="Weekday name e.g. Monday (optional; omit for full week)",
+            description="Weekday (Monday) or relative: today, tomorrow, yesterday (optional; omit for full week)",
+            required=False,
+        ),
+        ToolParameter(
+            name="department",
+            type="string",
+            description="Department e.g. CSE (optional — from user profile)",
+            required=False,
+        ),
+        ToolParameter(
+            name="routine_kind",
+            type="string",
+            description="Special routine bundle: improvement_exam (no section required)",
             required=False,
         ),
     ]
 
-    async def execute(self, section: str = "64_I", day: str = None, **kwargs) -> ToolResult:
-        sec = section or get_section()
-        data = get_section_routine(sec, day.strip() if day else None)
-        return self.ok(data)
+    async def execute(
+        self,
+        section: str = None,
+        day: str = None,
+        department: str = None,
+        routine_kind: str = None,
+        **kwargs,
+    ) -> ToolResult:
+        uid = get_user_id()
+        dept = (department or get_department() or "").strip() or None
+        kind = (routine_kind or kwargs.get("routine_kind") or "").strip().lower()
+        turn_message = str(kwargs.get("message") or "")
+
+        if kind in ("improvement_exam", "improvement"):
+            data = await fetch_class_routine(
+                user_id=uid,
+                day=day,
+                routine_kind="improvement_exam",
+                message=turn_message,
+            )
+            if routine_has_schedule(data):
+                return self.ok(data)
+            hint = data.get("hint") or "Improvement exam routine not found in data/routines/."
+            return self.fail(hint)
+
+        explicit = (section or get_section(default="") or "").strip()
+        sec = resolve_section(section=explicit, department=dept) if explicit else ""
+        if not sec and uid:
+            sec = await recall_user_section(uid)
+        if not sec:
+            return self.fail(
+                "Section unknown. Ask the user for their section, or save it with "
+                "store_note (tag=section) / assign a routine skill."
+            )
+
+        data = await fetch_class_routine(
+            user_id=uid,
+            section=sec,
+            day=day,
+            department=dept,
+            message=turn_message,
+        )
+        if data.get("error") == "section_required":
+            return self.fail(data.get("hint") or "Section required")
+        if routine_has_schedule(data):
+            return self.ok(data)
+        if data.get("source") == "csv" and data.get("day"):
+            return self.ok(data)
+
+        hint = data.get("hint") or (
+            f"No routine in data/routines for section `{sec}`. "
+            "Upload CSV/PDF to data/routines/ or save section with store_note."
+        )
+        return self.fail(hint)
+
+
+class ReadDepartmentRoutinePdfTool(BaseTool):
+    name = "read_department_routine_pdf"
+    description = (
+        "Legacy alias for department routine PDFs. Prefer read_routine_pdf or read_pdf."
+    )
+    category = "automation"
+    parameters = [
+        ToolParameter(name="department", type="string", description="Department", required=False),
+        ToolParameter(name="section", type="string", description="Section code", required=False),
+    ]
+
+    async def execute(
+        self,
+        department: str = None,
+        section: str = None,
+        **kwargs,
+    ) -> ToolResult:
+        dept = (department or get_department() or "").strip()
+        if not dept:
+            return self.fail("Department required — set on profile or pass department")
+        sec = resolve_section(section=section or get_section(default=""), department=dept)
+        if not sec:
+            uid = get_user_id()
+            if uid:
+                sec = await recall_user_section(uid)
+        if not sec:
+            return self.fail("Section required for department routine PDF lookup")
+        result = read_routine_pdf_fast(dept, sec, max_chars=6000)
+        if not result.get("text"):
+            return self.fail(f"No routine PDF/text uploaded for {dept} section {sec}")
+        return self.ok({**result, "department": dept, "section": sec})
 
 
 class EnableRoutineAutomationTool(BaseTool):
@@ -46,13 +144,8 @@ class EnableRoutineAutomationTool(BaseTool):
     )
     category = "automation"
     parameters = [
-        ToolParameter(
-            name="section",
-            type="string",
-            description="Section e.g. 64_I",
-            required=False,
-            default="64_I",
-        ),
+        ToolParameter(name="section", type="string", description="Section code", required=False),
+        ToolParameter(name="department", type="string", description="Department", required=False),
         ToolParameter(
             name="daily_tomorrow",
             type="boolean",
@@ -72,7 +165,8 @@ class EnableRoutineAutomationTool(BaseTool):
 
     async def execute(
         self,
-        section: str = "64_I",
+        section: str = None,
+        department: str = None,
         daily_tomorrow: bool = True,
         hour_before_class: bool = True,
         user_id: str = None,
@@ -86,7 +180,12 @@ class EnableRoutineAutomationTool(BaseTool):
             return self.fail(
                 "Link Telegram first: open the DI Telegram bot and log in with the same email."
             )
-        sec = section or get_section()
+        dept = (department or get_department() or "").strip() or None
+        sec = resolve_section(section=section or get_section(default=""), department=dept)
+        if not sec:
+            sec = await recall_user_section(uid)
+        if not sec:
+            return self.fail("Section required before enabling routine automation")
         created = []
         if daily_tomorrow:
             sub = automation_store.upsert_subscription(
@@ -108,6 +207,7 @@ class EnableRoutineAutomationTool(BaseTool):
             {
                 "status": "enabled",
                 "section": sec,
+                "department": dept,
                 "telegram_chat_id": chat_id,
                 "subscriptions": created,
                 "note": "Requires Celery beat worker for scheduled delivery.",

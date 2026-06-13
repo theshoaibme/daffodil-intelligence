@@ -1,13 +1,20 @@
 import { memo, type ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Brain } from "lucide-react";
-import { RiBrainFill, RiChat3Fill, RiQuestionAnswerFill, RiTelegramFill } from "react-icons/ri";
+import {
+  RiBrainFill,
+  RiChat3Fill,
+  RiDatabase2Fill,
+  RiQuestionAnswerFill,
+  RiTelegramFill,
+} from "react-icons/ri";
 import { getAgentIconStyle } from "./agentIcons";
-import { ICON_SIZE, ROOT_HUB_Y } from "./flowLayout";
+import { ICON_SIZE, ROOT_CARD_HEIGHT, ROOT_CARD_WIDTH, ROOT_HUB_Y, rootOutputHandleY } from "./flowLayout";
 import {
   getCategoryTheme,
   getIntegrationTheme,
   DEFAULT_NODE_THEME,
+  MEMORY_NODE_THEME,
   MODEL_NODE_THEME,
   NODE_RING_OFFSET,
   RESPONSE_NODE_THEME,
@@ -51,10 +58,15 @@ function IconNodeFrame({
         <Handle type="target" position={Position.Top} className="handle-muted" style={{ left: "50%" }} />
       )}
       {targetLeft && (
-        <Handle type="target" position={Position.Left} className="handle-muted" style={{ top: ICON_SIZE / 2 }} />
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="handle-muted"
+          style={{ top: "50%" }}
+        />
       )}
       {sourceRight && (
-        <Handle type="source" position={Position.Right} className="handle-primary" style={{ top: ICON_SIZE / 2 }} />
+        <Handle type="source" position={Position.Right} className="handle-primary" style={{ top: "50%" }} />
       )}
       {children}
       <NodeLabel themeText={theme.text}>{label}</NodeLabel>
@@ -90,14 +102,17 @@ function RootNode({ data }: NodeProps) {
   const inputs = (data.inputs as string[] | undefined) ?? [];
   const modelInputs = (data.modelInputs as string[] | undefined) ?? [];
   const outputHandle = data.outputHandle as string | undefined;
+  const sideOutputs = (data.sideOutputs as string[] | undefined) ?? [];
   const outputs = (data.outputs as string[] | undefined) ?? [];
   const theme = ROOT_NODE_THEME;
+  const sideOutputCount = sideOutputs.length || 2;
 
   return (
     <div
-      className={`root-node-shell relative min-w-[220px] rounded-sm px-4 py-2 text-center shadow-md backdrop-blur-sm ${theme.bg} ${
+      className={`root-node-shell relative rounded-sm px-4 py-2 text-center shadow-md backdrop-blur-sm ${theme.bg} ${
         data.working ? `ring-2 ring-primary/40 ${NODE_RING_OFFSET}` : ""
       }`}
+      style={{ minWidth: ROOT_CARD_WIDTH, minHeight: ROOT_CARD_HEIGHT }}
     >
       {modelInputs.map((inputId, index) => {
         const left = ((index + 0.5) / modelInputs.length) * 100;
@@ -124,15 +139,26 @@ function RootNode({ data }: NodeProps) {
         />
       ))}
 
-      {outputHandle && (
-        <Handle
-          id={outputHandle}
-          type="source"
-          position={Position.Right}
-          className="handle-primary"
-          style={{ top: ROOT_HUB_Y }}
-        />
-      )}
+      {sideOutputs.length > 0
+        ? sideOutputs.map((handleId, index) => (
+            <Handle
+              key={handleId}
+              id={handleId}
+              type="source"
+              position={Position.Right}
+              className="handle-primary"
+              style={{ top: rootOutputHandleY(index, sideOutputCount) }}
+            />
+          ))
+        : outputHandle && (
+            <Handle
+              id={outputHandle}
+              type="source"
+              position={Position.Right}
+              className="handle-primary"
+              style={{ top: ROOT_HUB_Y }}
+            />
+          )}
 
       <div className="mx-auto flex flex-col items-center" style={{ width: ICON_SIZE }}>
         <div
@@ -175,6 +201,24 @@ function ResponseOutputNode({ data }: NodeProps) {
         }`}
       >
         <RiQuestionAnswerFill size={26} className="text-emerald-600" />
+      </div>
+    </IconNodeFrame>
+  );
+}
+
+function MemoryOutputNode({ data }: NodeProps) {
+  const working = Boolean(data.working);
+  const theme = MEMORY_NODE_THEME;
+  const surface = DEFAULT_NODE_THEME;
+
+  return (
+    <IconNodeFrame label={data.label as string} theme={theme} targetLeft>
+      <div
+        className={`flex h-full w-full items-center justify-center rounded-full border-2 shadow-sm ${surface.iconBg} ${surface.border} ${
+          working ? `ring-2 ring-violet-500 ring-offset-2 ${NODE_RING_OFFSET}` : ""
+        }`}
+      >
+        <RiDatabase2Fill size={26} className="text-violet-600" />
       </div>
     </IconNodeFrame>
   );
@@ -245,6 +289,7 @@ export const flowNodeTypes = {
   model: memo(ModelNode),
   integration: memo(IntegrationInputNode),
   response: memo(ResponseOutputNode),
+  memory: memo(MemoryOutputNode),
   category: memo(CategoryNode),
   agent: memo(AgentNode),
 };

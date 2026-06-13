@@ -23,6 +23,12 @@ def daffodil_self_server() -> Any:
     return McpBuilder.to_antigravity_server(McpBuilder.daffodil_self_spec())
 
 
-def get_mcp_server_configs(include_self: bool = False) -> List[Any]:
+def get_mcp_server_configs(
+    include_self: bool = False,
+    extra_specs: list | None = None,
+) -> List[Any]:
     """Return MCP server configs for the agent to consume."""
-    return McpBuilder.build_antigravity_servers(include_self=include_self)
+    return McpBuilder.build_antigravity_servers(
+        include_self=include_self,
+        extra_specs=extra_specs,
+    )

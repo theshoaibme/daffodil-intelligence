@@ -41,11 +41,21 @@ async def test_google_web_search_uses_backend(monkeypatch):
     assert result.data["count"] == 1
 
 
-async def test_deep_research_orchestrates(monkeypatch):
+async def test_deep_research_parallel_group_shared(monkeypatch):
+    """Subqueries share one parallel_group and run via asyncio.gather."""
+    gather_calls: list = []
+    original_gather = __import__("asyncio").gather
+
+    async def tracking_gather(*coros, **kwargs):
+        gather_calls.append(len(coros))
+        return await original_gather(*coros, **kwargs)
+
+    monkeypatch.setattr("app.tools.browser.research.asyncio.gather", tracking_gather)
+
     async def fake_search(query, max_results=5):
         return {
             "query": query,
-            "results": [{"title": "Hit", "url": "https://example.com", "snippet": "x", "source": "test"}],
+            "results": [{"title": "Hit", "url": f"https://example.com/{query[:8]}", "snippet": "x", "source": "test"}],
             "count": 1,
             "backend": "test",
         }
@@ -64,9 +74,73 @@ async def test_deep_research_orchestrates(monkeypatch):
             )()
         ),
     )
-    result = await get_registry().execute("deep_research", query="async python")
+
+    from app.runtime.task_events import reset_turn_tasks, take_nested_events
+
+    reset_turn_tasks()
+    result = await get_registry().execute(
+        "deep_research",
+        query="async python; asyncio patterns; rust ownership",
+        max_subqueries=3,
+    )
+    assert result.success
+    assert gather_calls == [3]
+
+    events = [e for e in take_nested_events() if e.get("type") == "task" and e.get("name") == "subquery"]
+    groups = {e.get("parallel_group") for e in events}
+    assert len(groups) == 1
+    assert result.data.get("parallel_group") == next(iter(groups))
+
+
+async def test_deep_research_orchestrates(monkeypatch):
+    gather_calls = {"count": 0}
+    real_gather = __import__("asyncio").gather
+
+    async def tracking_gather(*coros, **kwargs):
+        gather_calls["count"] += 1
+        return await real_gather(*coros, **kwargs)
+
+    async def fake_search(query, max_results=5):
+        return {
+            "query": query,
+            "results": [{"title": "Hit", "url": "https://example.com", "snippet": "x", "source": "test"}],
+            "count": 1,
+            "backend": "test",
+        }
+
+    monkeypatch.setattr("app.tools.browser.research.asyncio.gather", tracking_gather)
+    monkeypatch.setattr("app.tools.browser.research.web_search", fake_search)
+    monkeypatch.setattr(
+        "app.tools.browser.search.FetchURLTool.execute",
+        AsyncMock(
+            return_value=type(
+                "R",
+                (),
+                {
+                    "success": True,
+                    "data": {"content": "page body", "status_code": 200},
+                },
+            )()
+        ),
+    )
+    from app.runtime.task_events import reset_turn_tasks, take_nested_events
+
+    reset_turn_tasks()
+    result = await get_registry().execute(
+        "deep_research",
+        query="async python; rust patterns",
+    )
     assert result.success
     assert result.data["source_count"] >= 1
+    assert gather_calls["count"] >= 1
+    assert result.data.get("parallel_group")
+
+    events = take_nested_events()
+    subquery_events = [
+        e for e in events if e.get("type") == "task" and e.get("name") == "subquery"
+    ]
+    groups = {e.get("parallel_group") for e in subquery_events if e.get("parallel_group")}
+    assert len(groups) == 1
 
 
 async def test_search_papers_mock_semantic_scholar(monkeypatch):

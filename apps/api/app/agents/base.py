@@ -28,19 +28,19 @@ class BaseAgent(ABC):
     @property
     def llm(self):
         if self._llm is None:
-            if settings.GROQ_API_KEY:
-                kwargs = {
-                    "model": settings.GROQ_MODEL,
-                    "temperature": 0.7,
-                    "api_key": settings.GROQ_API_KEY,
-                    "base_url": settings.GROQ_BASE_URL,
-                }
-            elif settings.HUGGINGFACE_API_KEY and settings.HUGGINGFACE_ENABLED:
+            if settings.HUGGINGFACE_API_KEY and settings.HUGGINGFACE_ENABLED:
                 kwargs = {
                     "model": settings.HUGGINGFACE_MODEL,
                     "temperature": 0.7,
                     "api_key": settings.HUGGINGFACE_API_KEY,
                     "base_url": settings.HUGGINGFACE_BASE_URL,
+                }
+            elif settings.GROQ_API_KEY:
+                kwargs = {
+                    "model": settings.GROQ_MODEL,
+                    "temperature": 0.7,
+                    "api_key": settings.GROQ_API_KEY,
+                    "base_url": settings.GROQ_BASE_URL,
                 }
             elif settings.OPENAI_API_KEY:
                 kwargs = {

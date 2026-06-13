@@ -14,6 +14,10 @@ _TOOL_KEYWORDS = (
     "class routine",
     "class schedule",
     "my routine",
+    "today routine",
+    "tomorrow routine",
+    "tomorrow class",
+    "daily routine",
     "cgpa",
     "gpa",
     "grade",
@@ -31,7 +35,9 @@ _TOOL_KEYWORDS = (
     "internship",
     "job",
     "invoke_agent",
+    "parallel_invoke_agents",
     "get_class_routine",
+    "deep_research",
     "deep_research",
     "google_web_search",
     "search_papers",
@@ -41,6 +47,12 @@ _TOOL_KEYWORDS = (
 _MAIN_AGENTS = frozenset({"main", "supervisor", "default", ""})
 # Modes that require Antigravity tool-calling (MCP alone is a hint only).
 _TOOL_MODES = frozenset({"Planning", "Research", "Agent"})
+
+
+def should_force_full_runtime(metadata: dict | None) -> bool:
+    """True when UI modes require Antigravity tool-calling."""
+    selected = (metadata or {}).get("selected_tools") or []
+    return any(mode in _TOOL_MODES for mode in selected)
 _FULL_RUNTIME_ROUTINGS = frozenset({
     "attachments",
     "code",
@@ -67,12 +79,23 @@ def should_use_hf_chat(
     model_id: str,
     attachments: bool = False,
     include_tools: Optional[List[str]] = None,
+    metadata: Optional[dict] = None,
 ) -> bool:
     """True when a turn should use Hugging Face Inference (e.g. GLM-5.1)."""
     settings = get_settings()
     if not settings.HUGGINGFACE_ENABLED or not settings.HUGGINGFACE_API_KEY:
         return False
     if attachments or include_tools:
+        return False
+    meta = metadata or {}
+    if meta.get("channel") == "telegram":
+        return False
+    if message_needs_tools(meta.get("_message", "")):
+        return False
+    selected = meta.get("selected_tools") or []
+    if should_force_full_runtime(meta):
+        return False
+    if settings.MCP_ENABLED and (meta.get("mcp_servers") or "MCP" in selected):
         return False
     return is_hf_model(model_id)
 
@@ -115,9 +138,9 @@ def should_use_fast_groq(
         return False
 
     selected = meta.get("selected_tools") or []
-    if settings.MCP_ENABLED and "MCP" in selected:
+    if settings.MCP_ENABLED and ("MCP" in selected or meta.get("mcp_servers")):
         return False
-    if any(mode in _TOOL_MODES for mode in selected):
+    if should_force_full_runtime(meta):
         return False
 
     aid = (agent_id or "").strip().lower()

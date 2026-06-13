@@ -1,4 +1,5 @@
 from .user import User, Chat, Message, Session, Document, Ticket
+from .simulation import SimulationLayout
 from .memory import AgentMemory
 from .telegram import TelegramProfileSession, PendingRegistrationRow, TelegramOutboundMessage
 from .kit import KitDevice, KitPairingCode, KitAuditEvent
@@ -13,3 +14,5 @@ from .hub import (
     GlobalSkillLink,
     GlobalRulesetLink,
 )
+from .research import ResearchPaper
+from .connection import UserResearchConnection, ConnectionCorrespondence

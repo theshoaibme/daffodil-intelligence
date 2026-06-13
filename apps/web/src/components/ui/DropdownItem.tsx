@@ -21,7 +21,7 @@ export function DropdownItem({ icon, text, onClick, active }: DropdownItemProps)
     >
       <div className={`flex items-center min-w-0 ${icon ? "gap-2.5" : ""}`}>
         {icon && (
-          <span className="shrink-0 text-on-surface-variant [&>svg]:size-4">{icon}</span>
+          <span className="shrink-0 text-on-surface-variant [&>svg]:size-3.5">{icon}</span>
         )}
         <span className="text-sm font-normal truncate">{text}</span>
       </div>

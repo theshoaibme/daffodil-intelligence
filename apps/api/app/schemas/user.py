@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AliasChoices, BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
@@ -85,11 +85,15 @@ class MessageResponse(BaseModel):
     id: int
     role: str
     content: str
-    metadata: Optional[dict] = None
+    metadata: Optional[dict] = Field(
+        default=None,
+        validation_alias=AliasChoices("meta", "metadata"),
+    )
     created_at: datetime
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class ContextUsageBreakdown(BaseModel):

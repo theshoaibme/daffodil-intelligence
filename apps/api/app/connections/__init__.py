@@ -1,0 +1,1 @@
+"""Research connections domain helpers."""

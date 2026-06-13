@@ -1,4 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { RenderEngine } from "../../../engine/RenderEngine";
+import { VirtualCardCanvas } from "../../canvas/VirtualCardCanvas";
+import { filterThreadCards } from "../../../engine/cardFilters";
+import { useEventStore } from "../../../engine/stores/eventStore";
+import { useShallow } from "zustand/react/shallow";
 import { AlertCircle } from "lucide-react";
 import type { ChatMessage } from "@hooks";
 import type { ThinkingStep } from "./ThinkingProcess";
@@ -6,47 +11,96 @@ import { ThinkingProcess } from "./ThinkingProcess";
 import { ResponseContent } from "./ResponseContent";
 import { parseResponseText } from "./responseParse";
 import { ActionButtons } from "./ActionButtons";
+import { UserMessageRow } from "./UserMessageRow";
+import { StructuredBlockRenderer } from "@components/ui/blocks";
+import { coerceUiBlocks } from "@lib/uiBlocks/coerce";
+import { normalizeUiBlocks } from "@lib/uiBlocks/normalize";
+import { sanitizeAssistantContent } from "@lib/uiBlocks/sanitizeContent";
+import type { UiBlock } from "@lib/uiBlocks/types";
+import { hasThinkingContent } from "@lib/thinkingText";
 
 export interface ConversationThreadProps {
+  sessionId?: string | null;
   messages: ChatMessage[];
   isStreaming?: boolean;
   thinkingSteps?: ThinkingStep[];
   thinkingText?: string;
   thinkingMs?: number | null;
+  hasActiveWork?: boolean;
   error?: string | null;
   variant?: "center" | "panel";
   onFullView?: () => void;
   onSidePanel?: () => void;
   showSidePanelFooter?: boolean;
   autoScroll?: boolean;
+  onEditUserMessage?: (messageId: string, content: string) => void;
+}
+
+function messageThinkingText(
+  message: ChatMessage,
+  isLast: boolean,
+  liveThinking: string
+): string {
+  const stored = String(message.metadata?.thinking_text ?? "");
+  if (isLast && liveThinking) return liveThinking;
+  return stored;
 }
 
 export function ConversationThread({
+  sessionId,
   messages,
   isStreaming = false,
-  thinkingSteps = [],
   thinkingText = "",
   thinkingMs = null,
+  hasActiveWork = false,
   error = null,
   variant = "center",
   onFullView,
   onSidePanel,
   showSidePanelFooter = false,
   autoScroll = true,
+  onEditUserMessage,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isPanel = variant === "panel";
   const lastAssistant = messages.filter((m) => m.role === "assistant").pop();
-  const isLastAssistantStreaming =
-    isStreaming && lastAssistant && (!lastAssistant.content.trim() || lastAssistant.isStreaming);
+  const latestTurnId = useEventStore((s) => {
+    if (!sessionId) return null;
+    const session = s.sessions[sessionId];
+    if (session?.stream?.turnId) return session.stream.turnId;
+    const cards = session?.cards ?? [];
+    return cards[cards.length - 1]?.turn_id ?? null;
+  });
+  const liveStreamText = useEventStore((s) =>
+    sessionId && isStreaming ? s.sessions[sessionId]?.stream.content ?? "" : ""
+  );
+  const cardFilter = useMemo(
+    () => (card: Parameters<typeof filterThreadCards>[0]) =>
+      filterThreadCards(card, {
+        excludeTypes: ["block", "result"],
+        inlineOnly: true,
+        turnId: isStreaming ? null : latestTurnId,
+      }),
+    [latestTurnId, isStreaming]
+  );
+  const visibleCardCount = useEventStore(
+    useShallow((s) => {
+      if (!sessionId) return 0;
+      const cards = s.sessions[sessionId]?.cards ?? [];
+      return cards.filter(cardFilter).length;
+    })
+  );
 
   useEffect(() => {
     if (!autoScroll || !scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [autoScroll, messages, isStreaming, thinkingText]);
+  }, [autoScroll, messages, isStreaming, thinkingText, hasActiveWork, visibleCardCount, liveStreamText]);
 
   const showActions = (message: ChatMessage, isLast: boolean) => {
-    if (message.role !== "assistant" || !message.content.trim()) return false;
+    const blocks = coerceUiBlocks((message.metadata?.ui_blocks as UiBlock[] | undefined) ?? []);
+    const display = sanitizeAssistantContent(message.content, blocks);
+    const hasUi = blocks.length > 0;
+    if (message.role !== "assistant" || (!display.trim() && !hasUi)) return false;
     if (isLast && isStreaming) return false;
     return true;
   };
@@ -70,58 +124,111 @@ export function ConversationThread({
 
             if (isUser) {
               return (
-                <div key={message.id} className="flex justify-end w-full">
-                  <div
-                    className={`rounded-3xl chat-bubble-user px-3 py-2 sm:px-3.5 sm:py-2.5 ${
-                      isPanel ? "max-w-[92%]" : "max-w-[88%] sm:max-w-[78%]"
-                    }`}
-                  >
-                    <p className="text-sm text-on-surface whitespace-pre-wrap break-words leading-relaxed">
-                      {message.content}
-                    </p>
-                  </div>
-                </div>
+                <UserMessageRow
+                  key={message.id}
+                  content={message.content}
+                  voiceMessage={Boolean(message.metadata?.voice_message)}
+                  voiceDurationMs={
+                    typeof message.metadata?.voice_duration_ms === "number"
+                      ? message.metadata.voice_duration_ms
+                      : undefined
+                  }
+                  isPanel={isPanel}
+                  disabled={isStreaming}
+                  onEdit={
+                    onEditUserMessage
+                      ? () => onEditUserMessage(message.id, message.content)
+                      : undefined
+                  }
+                />
               );
             }
 
-            const responseData = parseResponseText(message.content);
-            const showThinking =
-              isLast && isLastAssistantStreaming && !message.content.trim();
-            const showStreaming = isLast && isStreaming && Boolean(message.content.trim());
+            const uiBlocks = normalizeUiBlocks(
+              coerceUiBlocks((message.metadata?.ui_blocks as UiBlock[] | undefined) ?? [])
+            );
+            const isLiveStream = isLast && isStreaming;
+            const messageText = isLiveStream
+              ? liveStreamText.length > message.content.length
+                ? liveStreamText
+                : message.content || liveStreamText
+              : message.content;
+            const displayContent = sanitizeAssistantContent(messageText, uiBlocks, {
+              streaming: isLiveStream,
+            });
+            const visibleContent =
+              displayContent.trim() || (isLiveStream ? messageText.trim() : "");
+            const responseData = parseResponseText(visibleContent);
+            const hasBlocks = uiBlocks.length > 0;
+            const rawThinking = messageThinkingText(message, isLast, thinkingText);
+            const showThinking = hasThinkingContent(rawThinking);
+            const showStreaming = isLiveStream;
 
             return (
               <div key={message.id} className="flex flex-col items-start w-full">
-                <div className={`w-full text-left ${isPanel ? "px-0.5" : "px-1 sm:px-2 py-1"}`}>
+                <div className={`w-full text-left ${isPanel ? "px-0.5" : "px-0 sm:px-1"}`}>
                   {showThinking && (
-                    <div className="mb-3">
+                    <div className="mb-2.5">
                       <ThinkingProcess
-                        isThinking
-                        steps={thinkingSteps}
-                        thinkingText={thinkingText}
-                        thinkingMs={thinkingMs}
-                        isExpanded
-                        onToggleExpand={() => {}}
+                        key={`thinking-${message.id}`}
+                        isThinking={isLiveStream && showThinking}
+                        thinkingText={rawThinking}
+                        thinkingMs={
+                          isLast
+                            ? thinkingMs
+                            : (message.metadata?.thinking_ms as number | null)
+                        }
                       />
                     </div>
                   )}
 
-                  {message.content.trim() ? (
+                  {hasBlocks ? (
+                    <div className="mb-3">
+                      <StructuredBlockRenderer blocks={uiBlocks} />
+                    </div>
+                  ) : null}
+
+                  {visibleContent ? (
                     <div className="min-h-[1.5rem] [&_.no-scrollbar]:max-h-none">
                       <ResponseContent
                         isThinking={false}
                         isStreaming={showStreaming}
                         data={responseData}
                         variant="chat"
+                        preNormalized={!isLiveStream}
                       />
                     </div>
-                  ) : !showThinking ? (
+                  ) : isLiveStream ? (
+                    <div className="min-h-[1.5rem] flex items-center gap-1.5 py-1">
+                      <span
+                        className="inline-block w-1.5 h-3.5 bg-primary/60 rounded-sm animate-pulse"
+                        aria-hidden
+                      />
+                      <span className="text-xs text-on-surface-variant/70">Writing…</span>
+                    </div>
+                  ) : !showThinking && !hasBlocks && !(isLast && visibleCardCount > 0) ? (
                     <p className="text-sm text-on-surface-variant/70">No response yet.</p>
+                  ) : null}
+
+                  {isLast && sessionId && (isStreaming || visibleCardCount > 0) ? (
+                    <div className="mt-3 w-full">
+                      {visibleCardCount > 50 ? (
+                        <VirtualCardCanvas sessionId={sessionId} filter={cardFilter} />
+                      ) : (
+                        <RenderEngine
+                          sessionId={sessionId}
+                          inlineOnly
+                          excludeCardTypes={["block", "result"]}
+                          turnId={isStreaming ? null : latestTurnId}
+                        />
+                      )}
+                    </div>
                   ) : null}
                 </div>
 
                 {showActions(message, isLast) && (
                   <ActionButtons
-                    textToCopy={message.content}
+                    textToCopy={displayContent || message.content}
                     embedded
                     showFullView={false}
                     showSidePanel={false}

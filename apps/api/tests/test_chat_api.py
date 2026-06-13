@@ -67,6 +67,25 @@ def test_create_chat_and_stream_message(client, auth_headers):
     assert "[DONE]" in body
 
 
+def test_list_chats_search_matches_title_and_messages(client, auth_headers):
+    res = client.post(
+        "/api/chats/",
+        json={"title": "Thesis planning", "agent_type": "supervisor"},
+        headers=auth_headers,
+    )
+    assert res.status_code == 200, res.text
+    chat_id = res.json()["id"]
+
+    res = client.get("/api/chats/?q=thesis", headers=auth_headers)
+    assert res.status_code == 200, res.text
+    ids = {row["id"] for row in res.json()}
+    assert chat_id in ids
+
+    res = client.get("/api/chats/?q=missing-keyword-xyz", headers=auth_headers)
+    assert res.status_code == 200, res.text
+    assert all(row["id"] != chat_id for row in res.json())
+
+
 def test_health_returns_html(client):
     res = client.get("/health")
     assert res.status_code == 200

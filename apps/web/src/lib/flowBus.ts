@@ -12,12 +12,18 @@ export interface FlowState {
   activeTools: string[];
   modelActive: boolean;
   activeModelId?: string;
+  /** Left input node: input-chat | input-telegram */
+  activeInputId?: string | null;
+  /** Right memory node highlight */
+  memoryActive?: boolean;
 }
 
 const EMPTY: FlowState = {
   activeAgentIds: [],
   activeTools: [],
   modelActive: false,
+  activeInputId: null,
+  memoryActive: false,
 };
 
 let state: FlowState = EMPTY;
@@ -32,8 +38,14 @@ export function emitFlow(partial: Partial<FlowState>): void {
   listeners.forEach((fn) => fn(state));
 }
 
+/** Replace entire flow state (avoids stale keys from partial merges). */
+export function setFlow(next: FlowState): void {
+  state = { ...next };
+  listeners.forEach((fn) => fn(state));
+}
+
 export function resetFlow(): void {
-  state = EMPTY;
+  state = { ...EMPTY };
   listeners.forEach((fn) => fn(state));
 }
 

@@ -46,7 +46,7 @@ def _success_redirect(account, telegram_id: int) -> RedirectResponse:
         "role": account.role,
         "source": "telegram_google",
     })
-    target = f"{frontend_base()}/intelligence/auth/telegram?token={jwt}"
+    target = f"{frontend_base()}/studio/auth/telegram?token={jwt}"
     return RedirectResponse(target, status_code=302)
 
 

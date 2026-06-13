@@ -3,20 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
 
   AUTO_MODEL_ID,
+  DEFAULT_AGENT_MODE,
+  MOBILE_INPUT_WIDTH_CLASS,
+  MOBILE_TASK_PANEL_SHELL_CLASS,
+  MOBILE_TASK_PANEL_WIDTH_CLASS,
   enterOrSkip,
   getHistoryEntry,
   hubApi,
   modeSpring,
+  normalizeAgentMode,
   overlayFade,
+  readLocalMcpServers,
   ROUTES,
   sidebarWidthTransition,
+  hasActivePanelWork,
+  tasksToPanelItems,
+  type AgentMode,
+  type VoiceAttachmentPayload,
 } from "@lib";
-import { useChat, useChatContext, useLocalStorageState } from "@hooks";
+import { useChat, useChatContext, useIsLgUp, useIsMdUp, useLocalStorageState } from "@hooks";
 import {
   ChatHistoryProvider,
   UiAnimationProvider,
@@ -36,7 +46,7 @@ import {
 } from "@features";
 import type { TaskItem } from "@features/TaskPanel/TaskPanel";
 
-import { Routes, Route, Navigate, useSearchParams } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import {
   ModelManagementPage,
   LiveVoicePage,
@@ -49,8 +59,16 @@ import {
   GoogleCallbackPage,
   AccountPage,
   LandingPage,
+  ContactsPage,
+  PricingPage,
   TermsPage,
   PrivacyPage,
+  CopycatAuthPage,
+  ResearchsPage,
+  ResearchPaperPage,
+  ConnectionsPage,
+  StudioResearchPage,
+  StudioConnectionsPage,
 } from "@pages";
 import { ProtectedRoute } from "@auth";
 
@@ -68,7 +86,28 @@ const LEGACY_REDIRECTS: { from: string; to: string }[] = [
   { from: "/model", to: ROUTES.model },
   { from: "/auth/google/callback", to: ROUTES.googleCallback },
   { from: "/auth/telegram", to: ROUTES.telegramAuth },
+  { from: "/studio/researchs", to: ROUTES.research },
 ];
+
+function IntelligenceToStudioRedirect() {
+  const location = useLocation();
+  const target =
+    location.pathname.replace(/^\/intelligence/, ROUTES.home) +
+    location.search +
+    location.hash;
+  return <Navigate to={target} replace />;
+}
+
+function LegacyResearchPaperRedirect() {
+  const { paperId } = useParams<{ paperId: string }>();
+  if (!paperId) return <Navigate to={ROUTES.research} replace />;
+  return (
+    <Navigate
+      to={`${ROUTES.research}/${encodeURIComponent(decodeURIComponent(paperId))}`}
+      replace
+    />
+  );
+}
 
 export default function App() {
   return (
@@ -77,6 +116,8 @@ export default function App() {
       {LEGACY_REDIRECTS.map(({ from, to }) => (
         <Route key={from} path={from} element={<Navigate to={to} replace />} />
       ))}
+      <Route path="/intelligence" element={<Navigate to={ROUTES.home} replace />} />
+      <Route path="/intelligence/*" element={<IntelligenceToStudioRedirect />} />
 
       <Route path={ROUTES.login} element={<LoginPage />} />
       <Route path={ROUTES.register} element={<RegisterPage />} />
@@ -84,6 +125,12 @@ export default function App() {
       <Route path={ROUTES.privacy} element={<PrivacyPage />} />
       <Route path={ROUTES.googleCallback} element={<GoogleCallbackPage />} />
       <Route path={ROUTES.telegramAuth} element={<AuthTelegramPage />} />
+      <Route path={ROUTES.publicResearchs} element={<ResearchsPage />} />
+      <Route path={ROUTES.publicResearchPaper} element={<ResearchPaperPage />} />
+      <Route path={ROUTES.publicConnections} element={<ConnectionsPage />} />
+      <Route path={ROUTES.contacts} element={<ContactsPage />} />
+      <Route path={ROUTES.pricing} element={<PricingPage />} />
+      <Route path="/studio/researchs/:paperId" element={<LegacyResearchPaperRedirect />} />
 
       <Route element={<ProtectedRoute />}>
         <Route
@@ -104,6 +151,10 @@ export default function App() {
         <Route path={ROUTES.computer} element={<ComputerView />} />
         <Route path={ROUTES.guidance} element={<GuidancePage />} />
         <Route path={ROUTES.account} element={<AccountPage />} />
+        <Route path={ROUTES.copycat} element={<CopycatAuthPage />} />
+        <Route path={ROUTES.research} element={<StudioResearchPage />} />
+        <Route path={ROUTES.researchPaper} element={<ResearchPaperPage />} />
+        <Route path={ROUTES.connections} element={<StudioConnectionsPage />} />
       </Route>
     </Routes>
   );
@@ -112,20 +163,26 @@ export default function App() {
 const DASHBOARD_STORAGE_KEYS = {
   sidebarOpen: "di-dashboard-sidebar-open",
   tasksCollapsed: "di-dashboard-tasks-collapsed",
+  mobileTasksCollapsed: "di-dashboard-mobile-tasks-collapsed",
   promptDraft: "di-dashboard-prompt-draft",
-  selectedTools: "di-dashboard-selected-tools",
+  agentMode: "di-dashboard-agent-mode",
 } as const;
 
 /** Horizontal column width — shared by welcome hero and prompt bar. */
 const MAIN_COLUMN = "w-full max-w-xl mx-auto min-w-0";
 
-/** Fills center column below header; pb reserves prompt bar. */
-const MAIN_STAGE =
-  "absolute inset-0 flex items-center justify-center px-3 sm:px-4 pb-[7rem] sm:pb-[8.5rem] pointer-events-none min-w-0";
+const MAIN_STAGE_BASE =
+  "absolute inset-0 flex px-3 sm:px-4 pb-[12.5rem] md:pb-[7rem] lg:pb-[8.5rem] pointer-events-none min-w-0";
 
-/** Prompt bar slot — pinned to bottom of center column. */
-const PROMPT_SLOT =
-  "absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl px-3 sm:px-4 z-30 pointer-events-none min-w-0";
+/** Centered hero / overlay stages. */
+const MAIN_STAGE_CENTER = `${MAIN_STAGE_BASE} items-center justify-center`;
+
+/** Top-aligned conversation + agent visualize stack. */
+const MAIN_STAGE_STACK = `${MAIN_STAGE_BASE} items-stretch justify-start pt-2 sm:pt-3 overflow-hidden`;
+
+/** Task manager + input stacked above the bottom edge (phone flush; desktop centered). */
+const BOTTOM_DOCK =
+  "fixed md:absolute bottom-0 md:bottom-4 lg:bottom-6 inset-x-0 z-30 flex flex-col gap-0 pointer-events-none px-3 sm:px-4 pb-4 md:pb-0";
 
 /** Right rail: chat response + task panel (md+). */
 const RIGHT_RAIL =
@@ -139,29 +196,29 @@ function greetingDisplayName(fullName: string | null | undefined, email: string)
 
 function ChatDashboard() {
   const uiReady = useUiAnimationReady();
+  const isLgUp = useIsLgUp();
+  const isMdUp = useIsMdUp();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     activeHistoryId,
     syncActiveSession,
     selectHistory,
+    activateHistory,
     startNewChat,
     deleteHistory,
     shareHistory,
+    bindChatIdToSession,
   } = useChatHistory();
   const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
     DASHBOARD_STORAGE_KEYS.sidebarOpen,
     true
   );
-  const [searchQuery, setSearchQuery] = useLocalStorageState(
-    "di-dashboard-sidebar-search",
-    ""
-  );
+  const [searchQuery, setSearchQuery] = useState("");
   const [copycatMode, setCopycatMode] = useState(false);
-  const [agentViewOpen, setAgentViewOpen] = useState(false);
-  const [selectedTools, setSelectedTools] = useLocalStorageState<string[]>(
-    DASHBOARD_STORAGE_KEYS.selectedTools,
-    ["Agent"]
+  const [selectedAgentMode, setSelectedAgentMode] = useLocalStorageState<AgentMode>(
+    DASHBOARD_STORAGE_KEYS.agentMode,
+    DEFAULT_AGENT_MODE
   );
   const [prompt, setPrompt] = useLocalStorageState(DASHBOARD_STORAGE_KEYS.promptDraft, "");
   const [selectedModelId] = useLocalStorageState(
@@ -173,28 +230,36 @@ function ChatDashboard() {
     DASHBOARD_STORAGE_KEYS.tasksCollapsed,
     false
   );
+  const [mobileTasksCollapsed, setMobileTasksCollapsed] = useLocalStorageState(
+    DASHBOARD_STORAGE_KEYS.mobileTasksCollapsed,
+    true
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const handledAgentsParam = useRef(false);
   const lastUrlChatRef = useRef<string | null>(searchParams.get("chat"));
-  const [agentLiveTasks, setAgentLiveTasks] = useState<TaskItem[] | null>(null);
+  /** Session id we are navigating to — blocks stale URL effect runs mid-transition. */
+  const pendingSessionRef = useRef<string | null>(null);
+  /** Bumped on every intentional navigation — stale selectHistory callbacks are ignored. */
+  const navigationGenRef = useRef(0);
+  const [agentSimulationOpen, setAgentSimulationOpen] = useState(false);
   const [suggestionSkills, setSuggestionSkills] = useState<{ id: string; name: string }[]>([]);
   const [preferSidePanel, setPreferSidePanel] = useState(false);
+  /** Side-panel chat layout is desktop/tablet (md+) only. */
+  const useSidePanel = preferSidePanel && isMdUp;
 
-  const agentModeActive = selectedTools.includes("Agent") && !copycatMode;
+  const agentModeActive = selectedAgentMode === "Agent" && !copycatMode;
 
-  const handleToggleTool = (tool: string) => {
-    setSelectedTools((prev) => {
-      const next = prev.includes(tool) ? prev.filter((t) => t !== tool) : [...prev, tool];
-      if (tool === "Agent") {
-        setAgentViewOpen(next.includes("Agent"));
-      }
-      return next;
-    });
+  const handleSelectAgentMode = (mode: AgentMode) => {
+    setSelectedAgentMode(mode);
+    if (mode !== "Agent") {
+      setAgentSimulationOpen(false);
+    } else {
+      setAgentSimulationOpen(true);
+    }
   };
 
   const handleCloseAgentView = () => {
-    setAgentViewOpen(false);
-    setSelectedTools((prev) => prev.filter((t) => t !== "Agent"));
+    setAgentSimulationOpen(false);
   };
 
   const initialSession = activeHistoryId ? getHistoryEntry(activeHistoryId) : null;
@@ -203,19 +268,48 @@ function ChatDashboard() {
     messages,
     isStreaming,
     thinkingSteps,
+    agentTasks,
     thinkingText,
     thinkingMs,
     error,
     lastContext,
     send,
     loadSession,
+    truncateFromMessage,
   } = useChat({
     initialChatId: initialSession?.chatId ?? null,
     initialMessages: initialSession?.messages ?? [],
   });
 
+  const loadSessionRef = useRef(loadSession);
+  loadSessionRef.current = loadSession;
+
   const fetchedContext = useChatContext(chatId, messages, prompt, selectedModelId);
-  const chatContext = lastContext ?? fetchedContext;
+  const chatContext = isStreaming && lastContext ? lastContext : fetchedContext;
+
+  useEffect(() => {
+    try {
+      const current = localStorage.getItem(DASHBOARD_STORAGE_KEYS.agentMode);
+      const legacy = localStorage.getItem("di-dashboard-selected-tools");
+      if (current === null && legacy) {
+        setSelectedAgentMode(normalizeAgentMode(JSON.parse(legacy)));
+      }
+    } catch {
+      // ignore invalid legacy storage
+    }
+  }, [setSelectedAgentMode]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
+      setSidebarOpen(false);
+    }
+  }, [setSidebarOpen]);
+
+  useEffect(() => {
+    if (!isMdUp && preferSidePanel) {
+      setPreferSidePanel(false);
+    }
+  }, [isMdUp, preferSidePanel, setPreferSidePanel]);
 
   useEffect(() => {
     hubApi
@@ -230,8 +324,31 @@ function ChatDashboard() {
 
   useEffect(() => {
     if (isStreaming) return;
+    if (pendingSessionRef.current) return;
+    if (activeHistoryId && messages.length > 0) {
+      const stored = getHistoryEntry(activeHistoryId);
+      if (stored && stored.messages.length === 0 && stored.chatId == null) {
+        return;
+      }
+    }
     syncActiveSession(chatId, messages);
-  }, [chatId, messages, isStreaming, syncActiveSession]);
+  }, [chatId, messages, isStreaming, syncActiveSession, activeHistoryId]);
+
+  useEffect(() => {
+    const pending = pendingSessionRef.current;
+    if (!pending) return;
+    if (activeHistoryId === pending && chatId == null && messages.length === 0) {
+      const urlChat = searchParams.get("chat");
+      if (urlChat !== pending) return;
+      pendingSessionRef.current = null;
+    }
+  }, [activeHistoryId, chatId, messages, searchParams]);
+
+  useEffect(() => {
+    if (!activeHistoryId || !chatId || isStreaming) return;
+    if (pendingSessionRef.current) return;
+    bindChatIdToSession(activeHistoryId, chatId);
+  }, [activeHistoryId, chatId, isStreaming, bindChatIdToSession]);
 
   const flushCurrentSession = useCallback(() => {
     if (!isStreaming) {
@@ -244,20 +361,39 @@ function ChatDashboard() {
     const chatParam = searchParams.get("chat");
     if (!chatParam) {
       lastUrlChatRef.current = null;
+      pendingSessionRef.current = null;
       return;
     }
-    if (lastUrlChatRef.current === chatParam) return;
-    lastUrlChatRef.current = chatParam;
 
-    const session = selectHistory(chatParam);
-    loadSession(session.chatId, session.messages);
-  }, [searchParams, selectHistory, loadSession]);
+    const pending = pendingSessionRef.current;
+    if (pending && chatParam !== pending) {
+      return;
+    }
+
+    if (lastUrlChatRef.current === chatParam) {
+      return;
+    }
+    lastUrlChatRef.current = chatParam;
+    const navGen = ++navigationGenRef.current;
+    void selectHistory(chatParam).then((session) => {
+      if (navGen !== navigationGenRef.current) {
+        return;
+      }
+      activateHistory(chatParam);
+      loadSessionRef.current(session.chatId, session.messages);
+    });
+  }, [searchParams, selectHistory, activateHistory]);
 
   // Keep ?chat= in sync with the active sidebar session (no searchParams in deps — avoids loops).
   useEffect(() => {
     const chatParam = searchParams.get("chat");
     if (activeHistoryId) {
       if (chatParam !== activeHistoryId) {
+        const pending = pendingSessionRef.current;
+        if (pending && pending === activeHistoryId && chatParam !== pending) {
+          return;
+        }
+        lastUrlChatRef.current = activeHistoryId;
         setSearchParams(
           (prev) => {
             const next = new URLSearchParams(prev);
@@ -286,10 +422,8 @@ function ChatDashboard() {
     if (searchParams.get("agents") !== "1") return;
 
     handledAgentsParam.current = true;
-    setSelectedTools((prev) =>
-      prev.includes("Agent") ? prev : [...prev, "Agent"]
-    );
-    setAgentViewOpen(true);
+    setSelectedAgentMode("Agent");
+    setAgentSimulationOpen(true);
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -298,24 +432,50 @@ function ChatDashboard() {
       },
       { replace: true }
     );
-  }, [searchParams, setSearchParams, setSelectedTools]);
+  }, [searchParams, setSearchParams, setSelectedAgentMode]);
 
   const handleSelectHistory = (id: string) => {
     if (id === activeHistoryId) return;
+    const navGen = ++navigationGenRef.current;
     flushCurrentSession();
+    activateHistory(id);
+    pendingSessionRef.current = id;
     lastUrlChatRef.current = id;
-    const session = selectHistory(id);
-    loadSession(session.chatId, session.messages);
-    setPrompt("");
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("chat", id);
+        return next;
+      },
+      { replace: true }
+    );
+    void selectHistory(id).then((session) => {
+      if (navGen !== navigationGenRef.current) {
+        return;
+      }
+      loadSessionRef.current(session.chatId, session.messages);
+      setPrompt("");
+      if (!isLgUp) setSidebarOpen(false);
+    });
   };
 
   const handleNewChat = () => {
+    ++navigationGenRef.current;
     flushCurrentSession();
+    loadSession(null, []);
     const session = startNewChat();
+    pendingSessionRef.current = session.sessionId;
     lastUrlChatRef.current = session.sessionId;
-    loadSession(session.chatId, session.messages);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("chat", session.sessionId);
+        return next;
+      },
+      { replace: true }
+    );
     setPrompt("");
-    setAgentViewOpen(false);
+    setAgentSimulationOpen(false);
     setPreferSidePanel(false);
   };
 
@@ -332,26 +492,51 @@ function ChatDashboard() {
   };
 
   const hasMessages = messages.length > 0;
-  const showAgentDashboard = agentModeActive && (hasMessages || agentViewOpen);
+  const showResponsePanel = hasMessages && !copycatMode;
+
   useEffect(() => {
-    if (!showAgentDashboard) {
-      setAgentLiveTasks(null);
-      return;
+    if (agentModeActive && isStreaming) {
+      setAgentSimulationOpen(true);
     }
-    if (!isStreaming || thinkingSteps.length === 0) {
-      setAgentLiveTasks(null);
-      return;
+  }, [agentModeActive, isStreaming]);
+
+  const showAgentDashboard = agentModeActive && agentSimulationOpen;
+  const showMainConversation = showResponsePanel && !useSidePanel;
+  /** Agent + chat split in center — stays mounted after stream ends (no layout swap). */
+  const showSplitAgentAndChat = showAgentDashboard && showMainConversation;
+  /** Full agent canvas when side panel chat or no messages yet. */
+  const showAgentGraph =
+    showAgentDashboard && (useSidePanel || !showResponsePanel);
+
+  const taskPanelLiveTasks = useMemo<TaskItem[] | null>(() => {
+    if (!isStreaming) return null;
+    return tasksToPanelItems(agentTasks);
+  }, [agentTasks, isStreaming]);
+
+  const hasActiveWork = useMemo(
+    () => isStreaming && hasActivePanelWork(agentTasks),
+    [agentTasks, isStreaming]
+  );
+
+  const taskPanelLive = taskPanelLiveTasks !== null;
+
+  /** Only during an active stream with visible agent steps — hidden when idle. */
+  const showTaskPanel = useMemo(
+    () =>
+      !copycatMode &&
+      isStreaming &&
+      (hasActivePanelWork(agentTasks) || (taskPanelLiveTasks?.length ?? 0) > 0),
+    [copycatMode, isStreaming, agentTasks, taskPanelLiveTasks]
+  );
+
+  const prevPanelActiveWorkRef = useRef(false);
+  useEffect(() => {
+    const active = hasActivePanelWork(agentTasks);
+    if (active && !prevPanelActiveWorkRef.current) {
+      setMobileTasksCollapsed(false);
     }
-    setAgentLiveTasks(
-      thinkingSteps.map((step, index) => ({
-        id: step.id,
-        text: step.title,
-        active:
-          step.status === "active" ||
-          (index === thinkingSteps.length - 1 && step.status !== "success"),
-      }))
-    );
-  }, [showAgentDashboard, isStreaming, thinkingSteps]);
+    prevPanelActiveWorkRef.current = active;
+  }, [agentTasks, setMobileTasksCollapsed]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -360,40 +545,91 @@ function ChatDashboard() {
     }
   }, [prompt]);
 
-  const sendPrompt = async (text: string, modelId?: string) => {
-    if (!text.trim()) return;
+  const sendPrompt = async (text: string, modelId?: string, voice?: VoiceAttachmentPayload) => {
+    if (!text.trim() && !voice) return;
 
     if (!activeHistoryId) {
+      loadSession(null, []);
       const session = startNewChat();
+      pendingSessionRef.current = session.sessionId;
       lastUrlChatRef.current = session.sessionId;
-      loadSession(session.chatId, session.messages);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("chat", session.sessionId);
+          return next;
+        },
+        { replace: true }
+      );
+    }
+
+    const mcpServers = readLocalMcpServers();
+    const selectedTools = new Set<string>([selectedAgentMode]);
+    const routineLike =
+      /\b(class routine|class schedule|my routine|daily schedule|section routine)\b/i.test(
+        text
+      );
+    if (
+      selectedAgentMode === "MCP" ||
+      selectedAgentMode === "Agent" ||
+      selectedAgentMode === "Planning" ||
+      routineLike
+    ) {
+      selectedTools.add("MCP");
     }
 
     const chatMetadata: Record<string, unknown> = {
-      selected_tools: selectedTools,
-      section: "64_I",
+      selected_tools: [...selectedTools],
+      channel: "chat",
     };
+    if (user?.department) {
+      chatMetadata.department = user.department;
+    }
     if (user?.student_id) {
       chatMetadata.student_id = user.student_id;
     }
+    if (mcpServers.length > 0) {
+      chatMetadata.mcp_servers = mcpServers.map((server) => ({
+        name: server.name,
+        command: server.command,
+      }));
+    }
 
     setPrompt("");
-    await send(text, modelId, chatMetadata);
+    await send(text, modelId, chatMetadata, voice);
   };
 
-  const handleSend = (modelId: string) => {
-    sendPrompt(prompt, modelId);
+  const handleSend = (modelId: string, voice?: VoiceAttachmentPayload) => {
+    sendPrompt(prompt, modelId, voice);
+  };
+
+  const handleEditUserMessage = (messageId: string, content: string) => {
+    truncateFromMessage(messageId);
+    setPrompt(content);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(content.length, content.length);
+    }, 50);
   };
 
   const displayName = greetingDisplayName(user?.full_name, user?.email ?? "");
-  const showCenterConversation =
-    hasMessages && !preferSidePanel && !showAgentDashboard && !copycatMode;
-  const showWelcomeHero = !showAgentDashboard && !showCenterConversation;
+  const showSideResponse = showResponsePanel && useSidePanel;
+  const showWelcomeHero = !showAgentGraph && !showMainConversation;
+
+  const toggleAgentVisualize = () => {
+    setAgentSimulationOpen((open) => {
+      const next = !open;
+      if (next) {
+        setPreferSidePanel(false);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden relative font-sans">
       <AnimatePresence>
-        {sidebarOpen && (
+        {sidebarOpen && !isLgUp && (
           <motion.div
             key="sidebar-backdrop"
             initial={enterOrSkip(uiReady, { opacity: 0 })}
@@ -401,7 +637,7 @@ function ChatDashboard() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-background/50 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-background/60 z-[65] lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -423,11 +659,15 @@ function ChatDashboard() {
         className="relative flex flex-1 flex-col min-w-0 w-full h-screen overflow-hidden bg-background"
         initial={false}
         animate={{
-          paddingLeft: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,
+          paddingLeft: isLgUp
+            ? sidebarOpen
+              ? SIDEBAR_WIDTH_EXPANDED
+              : SIDEBAR_WIDTH_COLLAPSED
+            : 0,
         }}
         transition={sidebarWidthTransition}
       >
-        <Header />
+        <Header onOpenSidebar={() => setSidebarOpen(true)} />
 
         <div
           className={`relative flex-1 min-h-0 min-w-0 grid grid-cols-1 ${
@@ -450,7 +690,7 @@ function ChatDashboard() {
                 }}
                 exit={{ opacity: 0, y: -8, scale: 0.99 }}
                 transition={overlayFade}
-                className={`${MAIN_STAGE} z-10`}
+                className={`${MAIN_STAGE_CENTER} z-10`}
               >
                 <div
                   className={`${MAIN_COLUMN} text-center ${
@@ -479,60 +719,56 @@ function ChatDashboard() {
             )}
           </AnimatePresence>
 
-          <AnimatePresence>
-            {showCenterConversation && (
-              <motion.div
-                key="center-conversation"
-                initial={enterOrSkip(uiReady, { opacity: 0, y: 10 })}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={overlayFade}
-                className={`${MAIN_STAGE} z-10 items-start justify-center pt-2 sm:pt-4 overflow-hidden`}
+          {showMainConversation && (
+            <motion.div
+              key="main-conversation"
+              initial={false}
+              className={`${MAIN_STAGE_STACK} z-10`}
+            >
+              <div
+                className={`w-full mx-auto min-w-0 h-full min-h-0 max-h-full pointer-events-auto px-1 ${
+                  showSplitAgentAndChat
+                    ? "max-w-4xl grid grid-rows-[minmax(240px,48%)_minmax(0,1fr)] gap-2"
+                    : "max-w-3xl flex flex-col justify-start"
+                }`}
               >
-                <div className="w-full max-w-3xl mx-auto min-w-0 h-full min-h-0 max-h-full flex flex-col px-1">
+                {showSplitAgentAndChat && (
+                  <div className="min-h-0 h-full w-full overflow-hidden rounded-2xl border border-outline-variant/30 shadow-sm bg-[#f4f2ff]">
+                    <AgentDashboard embedded sessionId={chatId ? String(chatId) : null} onClose={handleCloseAgentView} />
+                  </div>
+                )}
+                <div className="min-h-0 overflow-hidden">
                   <ResponseFullView
+                    sessionId={chatId ? String(chatId) : null}
                     messages={messages}
                     isStreaming={isStreaming}
                     thinkingSteps={thinkingSteps}
                     thinkingText={thinkingText}
                     thinkingMs={thinkingMs}
+                    hasActiveWork={hasActiveWork}
                     error={error}
-                    onClose={() => setPreferSidePanel(true)}
+                    onClose={isMdUp ? () => setPreferSidePanel(true) : undefined}
+                    onEditUserMessage={handleEditUserMessage}
                   />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {hasMessages && !showCenterConversation && (
-            <div className={`${MAIN_STAGE} z-0 md:hidden pointer-events-auto justify-start pt-4 sm:pt-6 overflow-y-auto no-scrollbar`}>
-              <div className={`${MAIN_COLUMN} flex flex-col gap-4 min-h-0 max-h-full`}>
-                <AiResponseCard
-                  key={activeHistoryId ?? "active-chat"}
-                  messages={messages}
-                  isStreaming={isStreaming}
-                  thinkingSteps={thinkingSteps}
-                  thinkingText={thinkingText}
-                  thinkingMs={thinkingMs}
-                  error={error}
-                  onFullView={() => setPreferSidePanel(false)}
-                />
               </div>
-            </div>
+            </motion.div>
           )}
 
           <AnimatePresence>
-            {showAgentDashboard && (
+            {showAgentGraph && !showSplitAgentAndChat && (
               <motion.div
                 key="agent-mode-shell"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={overlayFade}
-                className={`${MAIN_STAGE} z-20`}
+                className={`${MAIN_STAGE_STACK} z-20`}
               >
-                <div className="w-full max-w-4xl mx-auto h-[min(480px,calc(100%-0.5rem))] min-h-[220px] sm:min-h-[280px] pointer-events-auto px-1 sm:px-0">
-                  <AgentDashboard embedded onClose={handleCloseAgentView} />
+                <div className="w-full max-w-4xl mx-auto flex-1 min-h-[min(560px,calc(100%-1rem))] h-full max-h-full pointer-events-auto px-1 sm:px-0 pt-2">
+                  <div className="h-full min-h-[320px] overflow-hidden rounded-2xl border border-outline-variant/30 shadow-sm bg-[#f4f2ff]">
+                    <AgentDashboard embedded sessionId={chatId ? String(chatId) : null} onClose={handleCloseAgentView} />
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -551,25 +787,49 @@ function ChatDashboard() {
 
             <AnimatePresence mode="popLayout">
               {!copycatMode && (
-                <div className={PROMPT_SLOT}>
-                  <PromptBar
-                    key="chat-mode-bar"
-                    embedded
-                    uiReady={uiReady}
-                    prompt={prompt}
-                    setPrompt={setPrompt}
-                    isSent={hasMessages}
-                    handleSend={handleSend}
-                    agentMenuOpen={agentMenuOpen}
-                    setAgentMenuOpen={setAgentMenuOpen}
-                    textareaRef={textareaRef}
-                    isStreaming={isStreaming}
-                    context={chatContext}
-                    onCopycatMode={() => setCopycatMode(true)}
-                    copycatActive={copycatMode}
-                    selectedTools={selectedTools}
-                    onToggleTool={handleToggleTool}
-                  />
+                <div className={`${BOTTOM_DOCK} max-md:items-center`}>
+                  <div className="md:contents flex w-full flex-col gap-0 max-md:items-center">
+                    {showTaskPanel && (
+                      <div
+                        className={`pointer-events-auto w-full flex justify-center ${MOBILE_TASK_PANEL_WIDTH_CLASS}`}
+                      >
+                        <div
+                          className={`w-full min-w-0 sm:max-w-xl ${MOBILE_TASK_PANEL_SHELL_CLASS} md:rounded-3xl md:border md:border-outline-variant/40 md:glass-gradient-panel md:shadow-md md:overflow-hidden`}
+                        >
+                          <TaskPanel
+                            inset={!isMdUp}
+                            tasksCollapsed={isMdUp ? tasksCollapsed : mobileTasksCollapsed}
+                            setTasksCollapsed={isMdUp ? setTasksCollapsed : setMobileTasksCollapsed}
+                            uiReady={uiReady}
+                            liveTasks={taskPanelLiveTasks}
+                            agentMode={taskPanelLive || agentModeActive}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="w-full flex justify-center pointer-events-auto max-md:-mt-px">
+                      <PromptBar
+                        key="chat-mode-bar"
+                        embedded
+                        uiReady={uiReady}
+                        prompt={prompt}
+                        setPrompt={setPrompt}
+                        handleSend={handleSend}
+                        agentMenuOpen={agentMenuOpen}
+                        setAgentMenuOpen={setAgentMenuOpen}
+                        textareaRef={textareaRef}
+                        isStreaming={isStreaming}
+                        context={chatContext}
+                        onCopycatMode={() => setCopycatMode(true)}
+                        copycatActive={copycatMode}
+                        selectedAgentMode={selectedAgentMode}
+                        onSelectAgentMode={handleSelectAgentMode}
+                        agentVisualizeOpen={agentSimulationOpen}
+                        onToggleAgentVisualize={toggleAgentVisualize}
+                        shellClassName={hasMessages ? "" : MOBILE_INPUT_WIDTH_CLASS}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </AnimatePresence>
@@ -584,7 +844,7 @@ function ChatDashboard() {
             transition={modeSpring}
           >
             <AnimatePresence>
-              {hasMessages && !showCenterConversation && (
+              {showSideResponse && (
                 <motion.div
                   initial={enterOrSkip(uiReady, { opacity: 0, y: -20, scale: 0.95 })}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -593,43 +853,24 @@ function ChatDashboard() {
                   className="pointer-events-auto flex-1 min-h-0 flex flex-col overflow-hidden"
                 >
                   <AiResponseCard
-                    key={activeHistoryId ?? "active-chat"}
+                    sessionId={chatId ? String(chatId) : null}
                     messages={messages}
                     isStreaming={isStreaming}
                     thinkingSteps={thinkingSteps}
                     thinkingText={thinkingText}
                     thinkingMs={thinkingMs}
+                    hasActiveWork={hasActiveWork}
                     error={error}
                     fillHeight
                     onFullView={() => setPreferSidePanel(false)}
+                    onEditUserMessage={handleEditUserMessage}
                   />
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div className="pointer-events-auto shrink-0 mt-auto">
-              <TaskPanel
-                tasksCollapsed={tasksCollapsed}
-                setTasksCollapsed={setTasksCollapsed}
-                uiReady={uiReady}
-                liveTasks={showAgentDashboard ? agentLiveTasks : null}
-                agentMode={showAgentDashboard}
-              />
-            </div>
           </motion.div>
         )}
-        </div>
-
-        <div className="md:hidden fixed bottom-[7.25rem] sm:bottom-28 left-0 right-0 z-20 flex justify-center px-3 sm:px-4 pointer-events-none">
-          <div className="w-full max-w-md min-w-0 pointer-events-auto">
-            <TaskPanel
-              tasksCollapsed={tasksCollapsed}
-              setTasksCollapsed={setTasksCollapsed}
-              uiReady={uiReady}
-              liveTasks={showAgentDashboard ? agentLiveTasks : null}
-              agentMode={showAgentDashboard}
-            />
-          </div>
         </div>
 
       </motion.main>

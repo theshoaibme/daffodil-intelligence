@@ -4,13 +4,15 @@ export const ICON_SIZE = 48;
 export const ROOT_BORDER = 2;
 export const ROOT_PADDING_Y = 8;
 export const ROOT_ICON_SIZE = ICON_SIZE;
-export const ROOT_LABEL_GAP = 4;
+export const ROOT_LABEL_GAP = 6;
 export const ROOT_LABEL_LINE = 16;
 export const ROOT_CARD_HEIGHT =
   ROOT_BORDER * 2 + ROOT_PADDING_Y * 2 + ROOT_ICON_SIZE + ROOT_LABEL_GAP + ROOT_LABEL_LINE;
 export const ROOT_CARD_CENTER = ROOT_CARD_HEIGHT / 2;
-/** Vertical center of the brain icon — left/right inputs and response connect here. */
+/** Vertical center of the brain icon — left input connects here. */
 export const ROOT_HUB_Y = ROOT_BORDER + ROOT_PADDING_Y + ROOT_ICON_SIZE / 2;
+/** Inset from root card top/bottom when placing right-side output slots. */
+export const ROOT_OUTPUT_SLOT_MARGIN = 10;
 /** Top of the brain icon — AI model nodes connect here. */
 export const ROOT_HUB_TOP = ROOT_BORDER + ROOT_PADDING_Y;
 
@@ -26,15 +28,49 @@ export const CATEGORY_COL_GAP = 168;
 export const AGENT_COL_GAP = 88;
 export const INPUT_ICON_GAP = 96;
 export const ROOT_CARD_MIN_WIDTH = 180;
+/** Rendered root card width — keep in sync with RootNode shell. */
+export const ROOT_CARD_WIDTH = 220;
+export const OUTPUT_NODE_GAP = 12;
+/** Left edge X for memory/response nodes: root right edge + gap. */
+export const outputNodeX = (rootX: number) => rootX + ROOT_CARD_WIDTH + OUTPUT_NODE_GAP;
 export const MODEL_NODE_GAP = 80;
 export const MODEL_EDGE_GAP = 20;
 
 export const FLOW_FIT_OPTIONS = { padding: 0.14, maxZoom: 1.15, duration: 240 } as const;
 
-export function sideNodeY(index: number, total: number, rootY: number): number {
+export function sideNodeY(
+  index: number,
+  total: number,
+  rootY: number,
+  gap: number = INPUT_ICON_GAP
+): number {
   const hubCenterY = rootY + ROOT_HUB_Y;
-  const firstIconCenterY = hubCenterY - ((total - 1) * INPUT_ICON_GAP) / 2;
-  return firstIconCenterY + index * INPUT_ICON_GAP - ICON_SIZE / 2;
+  const firstIconCenterY = hubCenterY - ((total - 1) * gap) / 2;
+  return firstIconCenterY + index * gap - ICON_SIZE / 2;
+}
+
+/**
+ * Connection slot on the root card right edge (px from top of root node).
+ * Memory / Response handles sit symmetrically around the brain icon center.
+ */
+export function rootCardOutputSlotY(index: number, total: number): number {
+  if (total <= 0) return ROOT_HUB_Y;
+  if (total === 1) return ROOT_HUB_Y;
+  const maxOffset = (ROOT_CARD_HEIGHT - ROOT_OUTPUT_SLOT_MARGIN * 2) / 2 - 4;
+  const offset = Math.min(INPUT_ICON_GAP / 2, maxOffset, ROOT_HUB_Y - ROOT_OUTPUT_SLOT_MARGIN);
+  const step = total === 2 ? offset : maxOffset;
+  const start = ROOT_HUB_Y - ((total - 1) * step) / 2;
+  return start + index * step;
+}
+
+/** Canvas Y for a right-side output node (top-left), matched to root card slots. */
+export function rightOutputNodeY(index: number, total: number, rootY: number): number {
+  return rootY + rootCardOutputSlotY(index, total) - ICON_SIZE / 2;
+}
+
+/** Handle Y inside the root node — same slot as the paired output icon center. */
+export function rootOutputHandleY(index: number, total: number): number {
+  return rootCardOutputSlotY(index, total);
 }
 
 export function modelNodeY(rootY: number): number {
@@ -43,7 +79,7 @@ export function modelNodeY(rootY: number): number {
 
 export function modelNodeX(index: number, total: number, rootX: number): number {
   const span = Math.max(total - 1, 0) * MODEL_NODE_GAP;
-  const cardCenterX = rootX + ROOT_CARD_MIN_WIDTH / 2;
+  const cardCenterX = rootX + ROOT_CARD_WIDTH / 2;
   const firstCenterX = cardCenterX - span / 2;
   return firstCenterX + index * MODEL_NODE_GAP - ICON_SIZE / 2;
 }

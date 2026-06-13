@@ -12,9 +12,13 @@ from ..runtime import orchestrator
 from ..tools.registry import get_registry
 from ..core.config import get_settings
 
+from .simulation_layout import router as simulation_layout_router
+
 router = APIRouter(prefix="/agents", tags=["agents"])
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+router.include_router(simulation_layout_router)
 
 
 @router.post("/test-chat")

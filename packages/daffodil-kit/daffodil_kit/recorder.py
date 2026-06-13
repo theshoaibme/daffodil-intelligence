@@ -102,7 +102,7 @@ class ActionRecorder:
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                
+
                 name = data.get("name", path.stem)
                 created_at = data.get("created_at", 0.0)
                 duration = data.get("duration", 0.0)
@@ -117,7 +117,7 @@ class ActionRecorder:
                 )
                 conn.commit()
                 conn.close()
-                
+
                 # Delete migrated JSON file
                 path.unlink()
                 logger.info(f"Successfully migrated legacy JSON recording '{name}' into SQLite.")
@@ -198,11 +198,11 @@ class ActionRecorder:
         logger.info(f"Recording stopped: {recording.name}, {recording.action_count} actions, {recording.duration:.1f}s")
         return recording
 
-    def save(self, recording: Recording, path: Optional[Path] = None) -> Path:
+    def save(self, recording: Recording, _path: Optional[Path] = None) -> Path:
         """Save a recording to the SQLite database."""
         import sqlite3
         actions_str = json.dumps([asdict(a) for a in recording.actions])
-        
+
         with self._lock:
             conn = sqlite3.connect(self.DB_PATH)
             cursor = conn.cursor()

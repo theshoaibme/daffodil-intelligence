@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^@lib$/, replacement: resolve(__dirname, './src/lib/index.ts') },
+      { find: /^@lib\//, replacement: resolve(__dirname, './src/lib') + '/' },
       { find: /^@hooks$/, replacement: resolve(__dirname, './src/hooks/index.ts') },
       { find: /^@context$/, replacement: resolve(__dirname, './src/context/index.ts') },
       { find: /^@styles$/, replacement: resolve(__dirname, './src/styles/index.ts') },
@@ -23,6 +24,8 @@ export default defineConfig({
       { find: /^@layout\//, replacement: resolve(__dirname, './src/components/layout') + '/' },
       { find: /^@features$/, replacement: resolve(__dirname, './src/components/features/index.ts') },
       { find: /^@features\//, replacement: resolve(__dirname, './src/components/features') + '/' },
+      { find: /^@engine$/, replacement: resolve(__dirname, './src/engine/index.ts') },
+      { find: /^@engine\//, replacement: resolve(__dirname, './src/engine') + '/' },
       { find: /^@components\//, replacement: resolve(__dirname, './src/components') + '/' }
     ]
   },

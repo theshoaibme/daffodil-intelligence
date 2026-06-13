@@ -15,6 +15,8 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
         "class routine",
         "class schedule",
         "my routine",
+        "today routine",
+        "daily routine",
         "section routine",
         "tomorrow class",
         "today class",
@@ -115,11 +117,24 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
         "mess",
         "dorm",
     ),
-    "event": (
-        "event",
+    "campus_events": (
         "workshop",
         "seminar",
         "club",
+        "campus event",
+    ),
+    "event": (
+        "event hook",
+        "automation hook",
+        "on_login",
+        "on_schedule",
+        "on_keyword",
+        "trigger",
+        "remind me",
+        "reminder",
+        "schedule event",
+        "notify me",
+        "telegram alert",
     ),
     "complaint": (
         "complaint",
@@ -127,11 +142,11 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
         "feedback",
         "escalate",
     ),
-    "notification": (
-        "notification",
-        "alert",
-        "announcement",
-        "subscribe",
+    "automation": (
+        "automation",
+        "delegate agent",
+        "invoke agent",
+        "parallel agents",
     ),
     "vision": (
         "image",
@@ -156,8 +171,35 @@ AGENT_KEYWORDS: dict[str, Tuple[str, ...]] = {
 }
 
 AGENT_TOOLS: dict[str, List[str]] = {
+    "orchestration": [
+        "list_agents",
+        "invoke_agent",
+        "parallel_invoke_agents",
+    ],
+    "productivity": [
+        "deep_research",
+        "google_web_search",
+        "web_search",
+        "search_papers",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "read_pdf",
+        "run_shell_command",
+        "run_python",
+        "schedule_task",
+        "get_daily_schedule",
+        "create_routine",
+        "list_routines",
+        "send_telegram_message",
+    ],
     "routine": [
         "get_class_routine",
+        "read_pdf",
+        "read_routine_pdf",
+        "read_department_routine_pdf",
+        "recall_notes",
+        "store_note",
         "enable_routine_automation",
         "create_reminder",
         "list_reminders",
@@ -171,9 +213,27 @@ AGENT_TOOLS: dict[str, List[str]] = {
     ],
     "academic": ["get_cgpa", "get_courses", "get_results", "get_attendance"],
     "exam": ["get_exam_schedule"],
-    "library": ["search_books", "get_book_availability"],
+    "library": ["search_books", "get_book_availability", "read_pdf"],
     "transport": ["get_shuttle_schedule"],
     "career": ["search_jobs", "get_internships"],
+    "automation": [
+        "invoke_agent",
+        "parallel_invoke_agents",
+        "list_agents",
+    ],
+    "event": [
+        "create_automation_hook",
+        "list_automation_hooks",
+        "delete_automation_hook",
+        "create_reminder",
+        "list_reminders",
+        "delete_reminder",
+        "schedule_task",
+        "send_telegram_message",
+        "enable_routine_automation",
+        "get_daily_schedule",
+    ],
+    "campus_events": [],
 }
 
 
@@ -195,11 +255,20 @@ class RoutePlan:
             f"- Also consider: {agents}",
             f"- Prefer tools: {tools}",
         ]
+        if self.primary == "routine":
+            lines.append(
+                "- Class schedules: use invoke_agent(agent_type=\"routine\", message=...) or "
+                "get_class_routine(section, day). Data comes from data/routines/*.csv, memory, "
+                "uploads, or MCP PDF tools — never invent subjects or times."
+            )
         if self.section:
-            lines.append(f"- Section detected: `{self.section}` — call get_class_routine(section=\"{self.section}\")")
+            lines.append(
+                f"- Section detected: `{self.section}` — get_class_routine(section=\"{self.section}\", "
+                "day=today|tomorrow|Monday)"
+            )
         elif self.primary == "routine":
             lines.append(
-                "- If section is missing, ask once for section (e.g. 64_I). "
+                "- If section is missing, ask once for the user's section code. "
                 "When user gives a section code, call get_class_routine immediately."
             )
         lines.append("- Do NOT greet again; continue the conversation.")

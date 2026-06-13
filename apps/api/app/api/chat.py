@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
+from sqlalchemy import or_, select
+from typing import List, Optional
 import json
 import asyncio
 import logging
@@ -20,6 +20,9 @@ from ..schemas.user import (
 from ..core.context_usage import compute_chat_context_usage
 from ..memory import memory_service
 from ..runtime.pipeline import run_turn, run_turn_stream
+from ..runtime.event_emitter import TurnEventEmitter, persist_event_log
+from ..voice.chat_voice import resolve_voice_message
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +45,26 @@ async def create_chat(
 
 @router.get("/", response_model=List[ChatResponse])
 async def get_chats(
+    q: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user),
 ):
     user_id = int(user.get("sub"))
-    result = await db.execute(select(Chat).where(Chat.user_id == user_id).order_by(Chat.created_at.desc()))
+    stmt = select(Chat).where(Chat.user_id == user_id)
+    term = (q or "").strip()
+    if term:
+        pattern = f"%{term}%"
+        stmt = (
+            select(Chat)
+            .distinct()
+            .outerjoin(Message, Message.chat_id == Chat.id)
+            .where(
+                Chat.user_id == user_id,
+                or_(Chat.title.ilike(pattern), Message.content.ilike(pattern)),
+            )
+        )
+    stmt = stmt.order_by(Chat.created_at.desc())
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
@@ -115,7 +133,21 @@ async def add_message(
     chat_obj = chat_row.scalar_one_or_none()
     agent_id = chat_obj.agent_type if chat_obj else "main"
 
-    user_message = Message(chat_id=chat_id, role="user", content=message.content, meta=message.metadata)
+    turn_content = message.content
+    turn_metadata = dict(message.metadata or {})
+    try:
+        turn_content, turn_metadata = await resolve_voice_message(turn_content, turn_metadata)
+    except ValueError as voice_err:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail=str(voice_err)) from voice_err
+
+    if not (turn_content or "").strip():
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail="Message content is required")
+
+    user_message = Message(chat_id=chat_id, role="user", content=turn_content, meta=turn_metadata)
     db.add(user_message)
     await db.commit()
     await db.refresh(user_message)
@@ -125,35 +157,40 @@ async def add_message(
     )
     turn_index = len(turn_count_result.scalars().all())
 
-    has_attachments = bool(
-        message.metadata and message.metadata.get("attachments")
-    )
+    has_attachments = bool(turn_metadata.get("attachments"))
 
     async def generate():
         full_response = ""
         tool_calls = []
+        ui_blocks = []
         engine = "antigravity"
         resolved_agent = agent_id
         resolved_model = message.model_id
         model_mode = "manual" if message.model_id and message.model_id != "auto" else "auto"
         model_routing = None
+        turn_id = f"turn-{uuid4().hex[:12]}"
+        emitter = TurnEventEmitter(
+            session_id=str(chat_id),
+            turn_id=turn_id,
+        )
         context_usage = await compute_chat_context_usage(
             db,
             chat_id=chat_id,
             user_id=user_id,
-            draft_message=message.content,
+            draft_message=turn_content,
             model_id=message.model_id,
         )
-        yield f'data: {json.dumps({"type": "context", **context_usage})}\n\n'
+        ctx_envelope = emitter.wrap_legacy({"type": "context", **context_usage})
+        yield emitter.sse_line(ctx_envelope)
         try:
             async for event in run_turn_stream(
-                message.content,
+                turn_content,
                 user_id=user_id,
                 chat_id=chat_id,
                 agent_id=agent_id,
                 model_id=message.model_id,
-                attachments=(message.metadata or {}).get("attachments") if has_attachments else None,
-                metadata=message.metadata,
+                attachments=turn_metadata.get("attachments") if has_attachments else None,
+                metadata=turn_metadata,
             ):
                 if not event:
                     continue
@@ -164,44 +201,35 @@ async def add_message(
                     resolved_model = event.get("model_id", resolved_model)
                     model_mode = event.get("model_mode", model_mode)
                     model_routing = event.get("model_routing")
-                    yield f'data: {json.dumps({"type": "model", "model_id": resolved_model, "model_mode": model_mode, "model_routing": model_routing})}\n\n'
-                    continue
                 if event_type == "content":
                     chunk = event.get("content") or ""
-                    if not chunk:
-                        continue
-                    full_response += chunk
-                    yield f'data: {json.dumps({"type": "content", "content": chunk})}\n\n'
-                elif event_type == "thinking":
-                    thinking = event.get("content") or ""
-                    if thinking:
-                        yield f'data: {json.dumps({"type": "thinking", "content": thinking})}\n\n'
-                elif event_type == "status":
-                    status_msg = event.get("content") or ""
-                    if status_msg:
-                        yield f'data: {json.dumps({"type": "status", "content": status_msg})}\n\n'
+                    if chunk:
+                        full_response += chunk
+                elif event_type == "ui":
+                    block = event.get("block")
+                    if isinstance(block, dict):
+                        ui_blocks.append(block)
                 elif event_type == "tool":
                     tool_name = event.get("name")
-                    if not tool_name:
-                        continue
-                    status = event.get("status", "active")
-                    if status == "active" and tool_name not in tool_calls:
-                        tool_calls.append(tool_name)
-                    yield f'data: {json.dumps({"type": "tool", "name": tool_name, "status": status})}\n\n'
+                    if tool_name:
+                        status = event.get("status", "active")
+                        if status == "active" and tool_name not in tool_calls:
+                            tool_calls.append(tool_name)
                 elif event_type == "agent":
                     resolved_agent = event.get("agent_id", resolved_agent)
-                    yield f'data: {json.dumps({"type": "agent", "agent_id": event.get("agent_id"), "name": event.get("name"), "status": event.get("status", "active")})}\n\n'
-                elif event_type == "subagent":
-                    yield f'data: {json.dumps({"type": "subagent", "name": event.get("name", "delegated"), "status": event.get("status", "active"), "content": event.get("content", "")})}\n\n'
-            if not full_response.strip():
+
+                envelope = emitter.wrap_legacy(event)
+                yield emitter.sse_line(envelope)
+
+            if not full_response.strip() and not ui_blocks and not tool_calls:
                 result = await run_turn(
-                    message.content,
+                    turn_content,
                     user_id=user_id,
                     chat_id=chat_id,
                     agent_id=agent_id,
                     model_id=message.model_id,
-                    attachments=(message.metadata or {}).get("attachments") if has_attachments else None,
-                    metadata=message.metadata,
+                    attachments=turn_metadata.get("attachments") if has_attachments else None,
+                    metadata=turn_metadata,
                 )
                 full_response = result.get("content", "")
                 tool_calls = result.get("tool_calls", [])
@@ -210,12 +238,33 @@ async def add_message(
                 resolved_model = result.get("model_id", resolved_model)
                 model_mode = result.get("model_mode", model_mode)
                 model_routing = result.get("model_routing", model_routing)
+                for block in result.get("ui_blocks") or []:
+                    if isinstance(block, dict):
+                        ui_blocks.append(block)
+                        yield emitter.sse_line(emitter.wrap_legacy({"type": "ui", "block": block}))
                 if full_response:
-                    yield f'data: {json.dumps({"content": full_response})}\n\n'
+                    yield emitter.sse_line(
+                        emitter.wrap_legacy({"type": "content", "content": full_response})
+                    )
         except Exception as e:
             logger.error(f"Error processing turn: {e}")
             full_response = f"I encountered an error while processing your request: {str(e)}"
-            yield f'data: {json.dumps({"content": full_response})}\n\n'
+            yield emitter.sse_line(
+                emitter.wrap_legacy({"type": "content", "content": full_response})
+            )
+
+        from ..runtime.response_validate import validate_assistant_response
+
+        pre_validate_len = len(full_response or "")
+        full_response = validate_assistant_response(full_response, ui_blocks)
+        # #region agent log
+        try:
+            import json as _json, time as _time
+            with open("/home/kali/Desktop/daffodil-intelligence/.cursor/debug-cbde14.log", "a") as _df:
+                _df.write(_json.dumps({"sessionId":"cbde14","runId":"post-fix","hypothesisId":"B","location":"chat.py:validate","message":"assistant response validated","data":{"preLen":pre_validate_len,"postLen":len(full_response or ""),"uiBlocks":len(ui_blocks),"tools":tool_calls[:5]},"timestamp":int(_time.time()*1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
 
         # Save assistant message to the database
         try:
@@ -232,6 +281,7 @@ async def add_message(
             "engine": engine,
             "agent_id": resolved_agent,
             "tools_used": tool_calls,
+            "ui_blocks": ui_blocks,
             "sources": [],
             "model_id": resolved_model,
             "model_mode": model_mode,
@@ -255,7 +305,7 @@ async def add_message(
                     user_id=user_id,
                     agent_id=resolved_agent,
                     chat_id=chat_id,
-                    user_msg=message.content,
+                    user_msg=turn_content,
                     assistant_msg=full_response,
                     turn_index=turn_index,
                 )
@@ -284,7 +334,9 @@ async def add_message(
                 "created_at": None
             }
             yield f"data: {json.dumps(final_payload)}\n\n"
-            
+
+        await persist_event_log(db, emitter.events)
+        yield emitter.done_line()
         yield "data: [DONE]\n\n"
         
     return StreamingResponse(

@@ -111,7 +111,7 @@ async def finish_web_google_oauth(code: str, db: AsyncSession) -> RedirectRespon
     except HTTPException:
         return RedirectResponse(f"{login_url}?google_error=oauth_failed")
 
-    target = f"{frontend_base()}/intelligence/auth/google/callback?{urlencode({'token': token})}"
+    target = f"{frontend_base()}/studio/auth/google/callback?{urlencode({'token': token})}"
     return RedirectResponse(target)
 
 

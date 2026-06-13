@@ -2,6 +2,14 @@
 
 360° Multi-Agent AI Operating System for University
 
+## Documentation
+
+For comprehensive technical specifications, architectural topology, database schemas, and integration guides, see the [Daffodil Intelligence Project Documentation](file:///c:/Users/User/Desktop/daffodil-intelligence/docs/PROJECT_DOCUMENTATION.md).
+
+Key additions documented:
+- **Intercommunication Ecosystem**: Asynchronous agent-to-agent event-driven collaboration, event delegation, Dynamic Agent Registry, and CloudEvents schemas.
+- **Research Community**: Vector similarity matching for thesis advisors, collaborative knowledge vaults (RAG), and thesis milestone tracking.
+
 ## Architecture
 
 ```

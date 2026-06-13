@@ -13,15 +13,18 @@ from .voice import VoiceAgent
 from .exam import ExamAgent
 from .hostel import HostelAgent
 from .transport import TransportAgent
-from .event import EventAgent
+from .event import CampusEventsAgent
+from .automation import AutomationAgent
 from .complaint import ComplaintAgent
-from .notification import NotificationAgent
+from .event_manager import EventAgent
 from .fee_agent import FeeAgent
 from .general import GeneralAgent
 from .computer_use import ComputerUseAgent
 from .copycat import CopyCatAgent
 from .planning import PlanningAgent
 from .routine import RoutineAgent
+from .writing import WritingAgent
+from .tasks import TasksAgent
 
 AGENT_MAP = {
     "academic": AcademicAgent(),
@@ -30,6 +33,8 @@ AGENT_MAP = {
     "career": CareerAgent(),
     "coding": CodingAgent(),
     "research": ResearchAgent(),
+    "writing": WritingAgent(),
+    "tasks": TasksAgent(),
     "wellness": WellnessAgent(),
     "finance": FinanceAgent(),
     "vision": VisionAgent(),
@@ -37,9 +42,10 @@ AGENT_MAP = {
     "exam": ExamAgent(),
     "hostel": HostelAgent(),
     "transport": TransportAgent(),
-    "event": EventAgent(),
+    "campus_events": CampusEventsAgent(),
     "complaint": ComplaintAgent(),
-    "notification": NotificationAgent(),
+    "event": EventAgent(),
+    "automation": AutomationAgent(),
     "fee": FeeAgent(),
     "general": GeneralAgent(),
     "computer_use": ComputerUseAgent(),

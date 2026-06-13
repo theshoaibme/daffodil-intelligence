@@ -1,18 +1,20 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { Agent } from "@hooks";
 import { CATEGORY_LABELS } from "./agentConstants";
-import { DASHBOARD_MODELS, modelNodeId } from "@lib";
+import { isAgentActiveFromTools } from "../../../lib/agentSimulation";
+import { DASHBOARD_MODELS, modelNodeId } from "../../../lib/models";
 import {
   ROOT_DEFAULT_X,
   ROOT_DEFAULT_Y,
   INPUT_OFFSET_X,
-  OUTPUT_OFFSET_X,
+  outputNodeX,
   CATEGORY_ROW_OFFSET_Y,
   AGENT_ROW_OFFSET_Y,
   CATEGORY_COL_GAP,
   AGENT_COL_GAP,
   modelNodeX,
   modelNodeY,
+  rightOutputNodeY,
   sideNodeY,
 } from "./flowLayout";
 import type { SavedPositions } from "./flowLayout";
@@ -20,7 +22,10 @@ import type { SavedPositions } from "./flowLayout";
 export const ROOT_NODE_ID = "daffodil-intelligence";
 
 export const ROOT_INPUT_HANDLE = "input";
+/** Legacy single output — category agents use bottom handles. */
 export const ROOT_OUTPUT_HANDLE = "output";
+export const OUTPUT_MEMORY_HANDLE = "output-memory";
+export const OUTPUT_RESPONSE_HANDLE = "output-response";
 
 export const INPUT_INTEGRATIONS = [
   { id: "input-telegram", label: "Telegram", integration: "telegram" },
@@ -28,6 +33,7 @@ export const INPUT_INTEGRATIONS = [
 ] as const;
 
 export const OUTPUT_INTEGRATIONS = [
+  { id: "output-memory", label: "Memory", integration: "memory" },
   { id: "output-response", label: "Response", integration: "response" },
 ] as const;
 
@@ -51,6 +57,10 @@ export interface SimulationOverlay {
   modelActive?: boolean;
   activeModelId?: string | null;
   engine?: string;
+  memoryActive?: boolean;
+  activeTools?: string[];
+  /** When true, ignore hub poll agent.status (SSE flow bus only). */
+  simulationOnly?: boolean;
 }
 
 export function buildAgentGraph(
@@ -58,10 +68,23 @@ export function buildAgentGraph(
   saved: SavedPositions,
   simulation: SimulationOverlay
 ): { nodes: Node[]; edges: Edge[] } {
-  const { activeAgentIds, activeInputId = null, modelActive = false, activeModelId = null, engine } =
-    simulation;
+  const {
+    activeAgentIds,
+    activeInputId = null,
+    modelActive = false,
+    activeModelId = null,
+    engine,
+    memoryActive = false,
+    activeTools = [],
+    simulationOnly = false,
+  } = simulation;
   const activeSet = new Set(activeAgentIds);
-  const orchestratorActive = modelActive || activeSet.size > 0;
+  const orchestratorActive =
+    modelActive ||
+    activeSet.size > 0 ||
+    memoryActive ||
+    activeTools.length > 0 ||
+    Boolean(activeInputId);
   const grouped = agents.reduce(
     (acc, agent) => {
       const cat = agent.category || "general";
@@ -88,6 +111,7 @@ export function buildAgentGraph(
         inputs: [ROOT_INPUT_HANDLE],
         modelInputs: DASHBOARD_MODELS.map((model) => modelNodeId(model.id)),
         outputHandle: ROOT_OUTPUT_HANDLE,
+        sideOutputs: OUTPUT_INTEGRATIONS.map((o) => o.id),
         outputs: [...CATEGORY_ORDER],
         working: orchestratorActive,
       },
@@ -153,20 +177,23 @@ export function buildAgentGraph(
   });
 
   OUTPUT_INTEGRATIONS.forEach((output, index) => {
-    const responseActive = orchestratorActive && activeSet.size > 0;
+    const isMemory = output.integration === "memory";
+    const outputActive = isMemory
+      ? memoryActive
+      : orchestratorActive && (activeSet.size > 0 || activeTools.length > 0);
 
     nodes.push({
       id: output.id,
-      type: "response",
+      type: isMemory ? "memory" : "response",
       position: pos(
         output.id,
-        rootX + OUTPUT_OFFSET_X,
-        sideNodeY(index, OUTPUT_INTEGRATIONS.length, rootY)
+        outputNodeX(rootX),
+        rightOutputNodeY(index, OUTPUT_INTEGRATIONS.length, rootY)
       ),
       data: {
         label: output.label,
         integration: output.integration,
-        working: responseActive,
+        working: outputActive,
       },
       draggable: true,
     });
@@ -174,10 +201,10 @@ export function buildAgentGraph(
     edges.push({
       id: `e-${ROOT_NODE_ID}-${output.id}`,
       source: ROOT_NODE_ID,
-      sourceHandle: ROOT_OUTPUT_HANDLE,
+      sourceHandle: output.id,
       target: output.id,
       type: "activeBeam",
-      data: { active: responseActive },
+      data: { active: outputActive },
     });
   });
 
@@ -209,8 +236,9 @@ export function buildAgentGraph(
     list.forEach((agent, agentIndex) => {
       const isActive =
         activeSet.has(agent.id) ||
-        agent.status === "executing" ||
-        agent.status === "thinking";
+        isAgentActiveFromTools(agent.id, activeTools) ||
+        (!simulationOnly &&
+          (agent.status === "executing" || agent.status === "thinking"));
 
       nodes.push({
         id: agent.id,

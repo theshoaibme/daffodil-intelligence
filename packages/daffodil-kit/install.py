@@ -22,6 +22,31 @@ import venv
 from pathlib import Path
 from typing import Any, Optional
 
+# Configure stdout/stderr to support UTF-8 if they don't already
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+def safe_print(text: str = "", file=sys.stdout) -> None:
+    try:
+        print(text, file=file)
+    except UnicodeEncodeError:
+        # Fallback to ascii/safe characters
+        safe_text = text.replace("✓", "[OK]").replace("✗", "[FAIL]").replace("·", "*")
+        try:
+            print(safe_text, file=file)
+        except Exception:
+            # Absolute fallback
+            print(safe_text.encode('ascii', errors='ignore').decode('ascii'), file=file)
+
+
 # ─── Config from environment ─────────────────────────────────────────────────
 
 REPO = os.environ.get("DAFFODIL_KIT_REPO", "the-shoaib2/daffodil-intelligence")
@@ -69,44 +94,44 @@ class InstallLogger:
             f.write(json.dumps(line) + "\n")
 
     def banner(self, version: str) -> None:
-        print()
-        print("=" * 58)
-        print("  CopyCat Kit Installer")
-        print(f"  OS: {detect_os()} · target: {version}")
-        print(f"  Log: {self.log_file}")
-        print("=" * 58)
-        print()
+        safe_print()
+        safe_print("=" * 58)
+        safe_print("  CopyCat Kit Installer")
+        safe_print(f"  OS: {detect_os()} · target: {version}")
+        safe_print(f"  Log: {self.log_file}")
+        safe_print("=" * 58)
+        safe_print()
         self._json_log("install.banner", "info", {"version": version, "os": detect_os()})
 
     def step(self, title: str) -> None:
         self.step_num += 1
-        print(f"\033[1;36m[{self.step_num}/{STEP_TOTAL}]\033[0m {title}")
+        safe_print(f"\033[1;36m[{self.step_num}/{STEP_TOTAL}]\033[0m {title}")
         self._json_log("install.step", "info", {"step": self.step_num, "title": title})
 
     def ok(self, msg: str) -> None:
-        print(f"  \033[1;32m✓\033[0m {msg}")
+        safe_print(f"  \033[1;32m✓\033[0m {msg}")
         self._json_log("install.ok", "info", {"message": msg})
 
     def warn(self, msg: str) -> None:
-        print(f"  \033[1;33m!\033[0m {msg}", file=sys.stderr)
+        safe_print(f"  \033[1;33m!\033[0m {msg}", file=sys.stderr)
         self._json_log("install.warn", "warn", {"message": msg})
 
     def info(self, msg: str) -> None:
-        print(f"    · {msg}")
+        safe_print(f"    · {msg}")
         self._json_log("install.info", "info", {"message": msg})
 
     def fail(self, msg: str) -> None:
-        print(f"  \033[1;31m✗\033[0m {msg}", file=sys.stderr)
+        safe_print(f"  \033[1;31m✗\033[0m {msg}", file=sys.stderr)
         self._json_log("install.fail", "error", {"message": msg})
-        print(f"\nInstall failed. Log: {self.log_file}")
+        safe_print(f"\nInstall failed. Log: {self.log_file}")
         sys.exit(1)
 
     def summary(self, ver: str) -> None:
-        print()
-        print("-" * 58)
-        print(f"  Install complete — daffodil-kit {ver}")
-        print(f"  Log: {self.log_file}")
-        print("-" * 58)
+        safe_print()
+        safe_print("-" * 58)
+        safe_print(f"  Install complete — daffodil-kit {ver}")
+        safe_print(f"  Log: {self.log_file}")
+        safe_print("-" * 58)
         self._json_log("install.complete", "info", {"version": ver})
 
 
@@ -273,7 +298,7 @@ def install_background_service(log: InstallLogger, py: Path, os_name: str) -> No
 
 def print_next_steps(version: str) -> None:
     venv_bin = PREFIX / ("daffodil-kit-venv/Scripts" if platform.system() == "Windows" else "daffodil-kit-venv/bin")
-    print(f"""
+    safe_print(f"""
 Next steps:
   1. Pair:   daffodil-kit pair --api http://localhost:8000 --code <6-digit>
   2. Vault:  daffodil-kit vault set '<sudo-password>'   # local only
@@ -285,14 +310,14 @@ Docs: https://github.com/{REPO}/tree/{VERSION}/packages/daffodil-kit
     path_hint = str(venv_bin)
     if path_hint not in os.environ.get("PATH", ""):
         if platform.system() == "Windows":
-            print(f'Add to PATH: $env:PATH = "{path_hint};" + $env:PATH')
+            safe_print(f'Add to PATH: $env:PATH = "{path_hint};" + $env:PATH')
         else:
-            print(f'Add to PATH: export PATH="{path_hint}:$PATH"')
+            safe_print(f'Add to PATH: export PATH="{path_hint}:$PATH"')
 
 
 def main() -> None:
     if sys.version_info < (3, 11):
-        print("CopyCat Kit requires Python 3.11+. Upgrade Python and re-run.", file=sys.stderr)
+        safe_print("CopyCat Kit requires Python 3.11+. Upgrade Python and re-run.", file=sys.stderr)
         sys.exit(1)
 
     log = InstallLogger()

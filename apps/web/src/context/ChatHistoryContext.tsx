@@ -4,20 +4,27 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { ROUTES } from "@lib";
+import { fetchChatMessages, fetchChats } from "@lib";
 import {
+  apiMessagesToStoredMessages,
   createHistorySession,
   deleteHistoryEntry,
   getActiveHistoryId,
   loadChatHistory,
+  mergeServerChats,
   setActiveHistoryId,
+  updateHistoryMessages,
   upsertHistoryEntry,
+  bindChatIdToSession,
   type ChatHistoryEntry,
 } from "@lib";
 import type { ChatMessage } from "@hooks";
+import { useAuth } from "./AuthContext";
 
 export interface ChatSessionState {
   sessionId: string;
@@ -28,12 +35,15 @@ export interface ChatSessionState {
 interface ChatHistoryContextValue {
   histories: ChatHistoryEntry[];
   activeHistoryId: string | null;
-  selectHistory: (id: string) => ChatSessionState;
+  selectHistory: (id: string) => Promise<ChatSessionState>;
+  activateHistory: (id: string | null) => void;
   startNewChat: () => ChatSessionState;
   deleteHistory: (id: string) => void;
   shareHistory: (id: string) => Promise<void>;
   syncActiveSession: (chatId: number | null, messages: ChatMessage[]) => void;
   refreshHistories: () => void;
+  syncFromApi: (search?: string) => Promise<void>;
+  bindChatIdToSession: (sessionId: string, chatId: number) => void;
 }
 
 const ChatHistoryContext = createContext<ChatHistoryContextValue | null>(null);
@@ -51,23 +61,63 @@ function toSessionState(entry: ChatHistoryEntry): ChatSessionState {
 }
 
 export function ChatHistoryProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
   const [histories, setHistories] = useState<ChatHistoryEntry[]>(() => loadChatHistory());
   const [activeHistoryId, setActiveId] = useState<string | null>(() => getActiveHistoryId());
+  const syncRequestRef = useRef(0);
 
   const refreshHistories = useCallback(() => {
     setHistories(loadChatHistory());
     setActiveId(getActiveHistoryId());
   }, []);
 
-  const selectHistory = useCallback((id: string): ChatSessionState => {
-    const entry = loadChatHistory().find((item) => item.id === id);
+  const syncFromApi = useCallback(async (search?: string) => {
+    if (!isAuthenticated) return;
+    const requestId = ++syncRequestRef.current;
+    try {
+      const remote = await fetchChats(search);
+      if (requestId !== syncRequestRef.current) return;
+      setHistories(mergeServerChats(remote));
+    } catch {
+      // Offline or auth errors — keep local history.
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void syncFromApi();
+  }, [isAuthenticated, syncFromApi]);
+
+  const hydrateMessages = useCallback(async (entry: ChatHistoryEntry): Promise<ChatSessionState> => {
+    if (!entry.chatId || entry.messages.length > 0) {
+      return toSessionState(entry);
+    }
+
+    try {
+      const remoteMessages = await fetchChatMessages(entry.chatId);
+      const stored = apiMessagesToStoredMessages(remoteMessages);
+      const next = updateHistoryMessages(entry.id, stored);
+      setHistories(next);
+      const updated = next.find((item) => item.id === entry.id) ?? entry;
+      return toSessionState(updated);
+    } catch {
+      return toSessionState(entry);
+    }
+  }, []);
+
+  const activateHistory = useCallback((id: string | null) => {
     setActiveHistoryId(id);
     setActiveId(id);
+  }, []);
+
+  /** Load session data only — callers must activateHistory after navigation guards pass. */
+  const selectHistory = useCallback(async (id: string): Promise<ChatSessionState> => {
+    const entry = loadChatHistory().find((item) => item.id === id);
     if (!entry) {
       return { sessionId: id, chatId: null, messages: [] };
     }
-    return toSessionState(entry);
-  }, []);
+    return hydrateMessages(entry);
+  }, [hydrateMessages]);
 
   const startNewChat = useCallback((): ChatSessionState => {
     const entry = createHistorySession("New agent");
@@ -107,15 +157,21 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
 
   const syncActiveSession = useCallback(
     (chatId: number | null, messages: ChatMessage[]) => {
-      const { entries, activeId } = upsertHistoryEntry(activeHistoryId, chatId, messages);
+      const resolvedActiveId = getActiveHistoryId() ?? activeHistoryId;
+      const { entries, activeId } = upsertHistoryEntry(resolvedActiveId, chatId, messages);
       setHistories(entries);
-      if (activeId) {
+      if (activeId && activeId !== activeHistoryId) {
         setActiveHistoryId(activeId);
         setActiveId(activeId);
       }
     },
     [activeHistoryId]
   );
+
+  const bindChatIdToActiveSession = useCallback((sessionId: string, chatId: number) => {
+    const next = bindChatIdToSession(sessionId, chatId);
+    setHistories(next);
+  }, []);
 
   useEffect(() => {
     refreshHistories();
@@ -126,21 +182,27 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
       histories,
       activeHistoryId,
       selectHistory,
+      activateHistory,
       startNewChat,
       deleteHistory,
       shareHistory,
       syncActiveSession,
       refreshHistories,
+      syncFromApi,
+      bindChatIdToSession: bindChatIdToActiveSession,
     }),
     [
       histories,
       activeHistoryId,
       selectHistory,
+      activateHistory,
       startNewChat,
       deleteHistory,
       shareHistory,
       syncActiveSession,
       refreshHistories,
+      syncFromApi,
+      bindChatIdToActiveSession,
     ]
   );
 

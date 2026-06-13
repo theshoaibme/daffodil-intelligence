@@ -187,6 +187,8 @@ async def keyboard_press(key: str):
 
 # ─── Live Screen Stream (WebSocket) ──────────────────────────────────────────
 
+active_connections: list[WebSocket] = []
+
 @router.websocket("/screen-stream")
 async def screen_stream_ws(websocket: WebSocket):
     """
@@ -196,10 +198,12 @@ async def screen_stream_ws(websocket: WebSocket):
       {"action": "start", "config": {"max_fps": 30, "focus_mode": true, ...}}
       {"action": "stop"}
       {"action": "configure", "config": {...}}
+      {"action": "chat_action", "command": "redirect"}
     """
     from ..kit.stream_adapter import adaptive_frames
 
     await websocket.accept()
+    active_connections.append(websocket)
     logger.info("Adaptive screen stream connected")
 
     streaming = False
@@ -249,11 +253,24 @@ async def screen_stream_ws(websocket: WebSocket):
             elif action == "configure":
                 stream_config.update(msg.get("config") or {})
 
+            elif action == "chat_action":
+                cmd = msg.get("command")
+                for conn in list(active_connections):
+                    if conn != websocket:
+                        try:
+                            await conn.send_json({"type": "chat_action", "command": cmd})
+                        except Exception as e:
+                            logger.error("Failed to broadcast chat_action: %s", e)
+                            if conn in active_connections:
+                                active_connections.remove(conn)
+
     except WebSocketDisconnect:
         logger.info("Screen stream disconnected")
     except Exception as e:
         logger.error("Screen stream error: %s", e)
     finally:
+        if websocket in active_connections:
+            active_connections.remove(websocket)
         stop_event.set()
         if pump_task:
             pump_task.cancel()

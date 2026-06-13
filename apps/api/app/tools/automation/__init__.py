@@ -8,7 +8,7 @@ from .hooks_tools import (
 )
 from .personal_routines import CreateRoutineTool, DeleteRoutineTool, ListRoutinesTool
 from .reminders import CreateReminderTool, DeleteReminderTool, ListRemindersTool
-from .routine import EnableRoutineAutomationTool, GetClassRoutineTool
+from .routine import EnableRoutineAutomationTool, GetClassRoutineTool, ReadDepartmentRoutinePdfTool
 from .schedule_tools import GetDailyScheduleTool, ScheduleTaskTool
 from .telegram_tool import SendTelegramMessageTool
 
@@ -20,6 +20,7 @@ __all__ = [
     "DeleteReminderTool",
     "SendTelegramMessageTool",
     "GetClassRoutineTool",
+    "ReadDepartmentRoutinePdfTool",
     "EnableRoutineAutomationTool",
     "CreateRoutineTool",
     "ListRoutinesTool",

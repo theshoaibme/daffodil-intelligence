@@ -4,31 +4,37 @@ import type { ThinkingStep } from "./ThinkingProcess";
 import { ConversationThread } from "./ConversationThread";
 
 interface AiResponseCardProps {
+  sessionId?: string | null;
   messages: ChatMessage[];
   isStreaming?: boolean;
   thinkingSteps?: ThinkingStep[];
   thinkingText?: string;
   thinkingMs?: number | null;
+  hasActiveWork?: boolean;
   error?: string | null;
   fillHeight?: boolean;
   onFullView?: () => void;
+  onEditUserMessage?: (messageId: string, content: string) => void;
 }
 
 export function AiResponseCard({
+  sessionId,
   messages,
   isStreaming = false,
   thinkingSteps = [],
   thinkingText = "",
   thinkingMs = null,
+  hasActiveWork = false,
   error,
   fillHeight = false,
   onFullView,
+  onEditUserMessage,
 }: AiResponseCardProps) {
   const hasMessages = messages.length > 0;
 
   return (
     <div
-      className={`w-full glass-gradient-panel border border-outline-variant/40 rounded-[28px] shadow-md text-left relative overflow-hidden flex flex-col min-w-0 select-text ${
+      className={`w-full rounded-2xl bg-surface-container-high/20 text-left relative overflow-hidden flex flex-col min-w-0 select-text ${
         fillHeight
           ? "h-full min-h-[200px] max-h-full p-3 sm:p-4"
           : "max-w-md h-[min(360px,50dvh)] sm:h-[360px] p-3 sm:p-4"
@@ -42,14 +48,17 @@ export function AiResponseCard({
         </div>
       ) : (
         <ConversationThread
+          sessionId={sessionId}
           messages={messages}
           isStreaming={isStreaming}
           thinkingSteps={thinkingSteps}
           thinkingText={thinkingText}
           thinkingMs={thinkingMs}
+          hasActiveWork={hasActiveWork}
           error={error}
           variant="panel"
           onFullView={onFullView}
+          onEditUserMessage={onEditUserMessage}
         />
       )}
     </div>

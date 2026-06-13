@@ -62,11 +62,58 @@ def is_available() -> bool:
     return _ANTIGRAVITY_AVAILABLE and bool(settings.GEMINI_API_KEY)
 
 
+def should_run_antigravity(model: Optional[str] = None) -> bool:
+    """Run Antigravity only for Gemini-routed turns; GLM uses Hugging Face instead."""
+    from ..core.hf_models import is_hf_model
+
+    if not is_available():
+        return False
+    if model and is_hf_model(model):
+        return False
+    return True
+
+
+def glm_orchestration_available() -> bool:
+    """Agent orchestration can run on GLM 5.1 via Hugging Face (no Gemini key change)."""
+    from .hf_chat import is_available as hf_available
+
+    return hf_available()
+
+
 def _get_mcp_servers() -> List[Any]:
     """Best-effort load of MCP server configs for the agent to consume."""
     try:
         from ..mcp.servers import get_mcp_server_configs
-        return get_mcp_server_configs()
+        from ..mcp.user_store import get_user_specs
+        from .tool_context import get_selected_tools, get_turn_mcp_specs, get_user_id
+
+        if not settings.MCP_ENABLED:
+            return []
+
+        selected = get_selected_tools()
+        turn_specs = get_turn_mcp_specs()
+
+        wants_mcp = (
+            not selected
+            or "MCP" in selected
+            or "Agent" in selected
+            or "Planning" in selected
+            or bool(turn_specs)
+        )
+        if not wants_mcp:
+            return []
+
+        extra = turn_specs or get_user_specs(get_user_id())
+        include_self = (
+            "MCP" in selected
+            or "Agent" in selected
+            or "Planning" in selected
+            or not extra
+        )
+        return get_mcp_server_configs(
+            include_self=include_self,
+            extra_specs=extra or None,
+        )
     except Exception as e:
         logger.debug(f"No MCP servers wired: {e}")
         return []

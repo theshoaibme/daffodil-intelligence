@@ -16,14 +16,9 @@ from ..core.security import get_current_user
 from ..models import hub as hub_models
 from ..skills.models import AgentProfile
 from ..skills.repository import HubRepository
-from ..api.status import _AGENT_CATEGORIES
+from ..api.status import _AGENT_CATEGORIES, _HUB_CATEGORIES
 
 router = APIRouter(prefix="/agents/hub", tags=["Agent Hub"])
-
-
-_HUB_CATEGORIES = frozenset(
-    {"orchestration", "computer", "productivity", "university", "ai", "general"}
-)
 
 
 class CapabilityInput(BaseModel):

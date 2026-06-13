@@ -4,6 +4,11 @@ import {
   readStoredToken,
 } from "./authSession";
 import type { ChatContextUsage } from "./chatContext";
+import { coerceUiBlock, mergeUiBlocks } from "./uiBlocks/coerce";
+import type { UiBlock } from "./uiBlocks/types";
+import { parseEnvelope, envelopeToStreamEvent } from "./aiEvents";
+import { eventBus } from "../engine/EventBus";
+import type { AiEventEnvelope } from "../engine/types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -22,9 +27,9 @@ export class ApiError extends Error {
   }
 }
 
-let unauthorizedHandler: (() => void) | null = null;
+let unauthorizedHandler: ((token: string | null) => void) | null = null;
 
-export function registerUnauthorizedHandler(handler: () => void) {
+export function registerUnauthorizedHandler(handler: (token: string | null) => void) {
   unauthorizedHandler = handler;
 }
 
@@ -64,20 +69,22 @@ async function authFetch(
   notifyUnauthorized = true
 ): Promise<Response> {
   let response: Response;
+  const headers = {
+    ...getAuthHeaders(),
+    ...(init?.headers ?? {}),
+  };
   try {
     response = await fetch(url, {
       ...init,
-      headers: {
-        ...getAuthHeaders(),
-        ...(init?.headers ?? {}),
-      },
+      headers,
     });
   } catch {
     throw new ApiError("Unable to reach the server. Check your connection.", 0);
   }
 
   if (notifyUnauthorized && (response.status === 401 || response.status === 403)) {
-    unauthorizedHandler?.();
+    const tokenUsed = (headers as Record<string, string>)["Authorization"]?.replace("Bearer ", "") || null;
+    unauthorizedHandler?.(tokenUsed);
   }
 
   return response;
@@ -253,6 +260,7 @@ export interface ChatResponse {
   id: number;
   title: string;
   agent_type: string;
+  created_at: string;
 }
 
 export async function fetchChatContextUsage(
@@ -280,31 +288,80 @@ export async function createChat(agentType: string): Promise<ChatResponse> {
   return res.json();
 }
 
+export interface ApiMessage {
+  id: number;
+  role: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export async function fetchChats(search?: string): Promise<ChatResponse[]> {
+  const params = new URLSearchParams();
+  const q = search?.trim();
+  if (q) params.set("q", q);
+  const qs = params.toString();
+  const res = await authFetch(apiUrl(`/api/chats/${qs ? `?${qs}` : ""}`));
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
+export async function fetchChatMessages(chatId: number): Promise<ApiMessage[]> {
+  const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`));
+  if (!res.ok) throw new ApiError(await parseError(res), res.status);
+  return res.json();
+}
+
 interface StreamResult {
   content: string;
   metadata?: Record<string, unknown>;
 }
 
 export interface StreamEvent {
-  type: "thinking" | "tool" | "agent" | "subagent" | "status" | "model";
+  type: "thinking" | "tool" | "agent" | "subagent" | "status" | "model" | "memory" | "task" | "ui";
   content?: string;
   name?: string;
   status?: string;
   agent_id?: string;
+  task_id?: string;
+  parent_id?: string;
+  kind?: string;
+  title?: string;
+  short_title?: string;
+  parallel_group?: string;
+  depth?: number;
+  source?: string;
+  mcp_server?: string;
+  tool_name?: string;
+  block?: UiBlock;
+}
+
+export interface SSEStreamOptions {
+  sessionId?: string;
+  onEnvelope?: (envelope: AiEventEnvelope) => void;
+  signal?: AbortSignal;
 }
 
 async function consumeSSEStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onChunk?: (text: string) => void,
   onContext?: (context: ChatContextUsage) => void,
-  onEvent?: (event: StreamEvent) => void
+  onEvent?: (event: StreamEvent) => void,
+  streamOptions?: SSEStreamOptions
 ): Promise<StreamResult> {
   const decoder = new TextDecoder();
   let buffer = "";
   let fullContent = "";
   let metadata: Record<string, unknown> | undefined;
+  const uiBlocks: UiBlock[] = [];
+
+  let currentTurnId = "";
 
   while (true) {
+    if (streamOptions?.signal?.aborted) {
+      reader.cancel().catch(() => undefined);
+      break;
+    }
     const { done, value } = await reader.read();
     if (done) break;
 
@@ -320,7 +377,7 @@ async function consumeSSEStream(
       if (!payload || payload === "[DONE]") continue;
 
       try {
-        const parsed = JSON.parse(payload) as {
+        const parsed = JSON.parse(payload) as Record<string, unknown> & {
           type?: string;
           content?: string;
           id?: number;
@@ -338,14 +395,91 @@ async function consumeSSEStream(
           name?: string;
           status?: string;
           agent_id?: string;
+          source?: string;
+          mcp_server?: string;
+          tool_name?: string;
+          block?: UiBlock;
+          task_id?: string;
+          parent_id?: string;
+          kind?: string;
+          title?: string;
+          short_title?: string;
+          parallel_group?: string;
+          depth?: number;
         };
 
-        if (parsed.type === "context" && parsed.usage_ratio != null) {
+        // Final persisted assistant row — not a streaming chunk.
+        if (parsed.id != null && parsed.role === "assistant") {
+          if (typeof parsed.content === "string") {
+            fullContent = parsed.content;
+          }
+          metadata = {
+            ...metadata,
+            ...parsed.metadata,
+            ui_blocks:
+              (parsed.metadata?.ui_blocks as UiBlock[] | undefined) ??
+              (uiBlocks.length ? uiBlocks : undefined),
+          };
+          continue;
+        }
+
+        const sessionId = streamOptions?.sessionId ?? "0";
+        const envelope = parseEnvelope(parsed, sessionId, currentTurnId || undefined);
+        if (envelope) {
+          if (envelope.turn_id) currentTurnId = envelope.turn_id;
+          streamOptions?.onEnvelope?.(envelope);
+          const streamEv = envelopeToStreamEvent(envelope);
+          if (streamEv) onEvent?.(streamEv);
+          if (envelope.type === "message.chunk") {
+            const chunk = String(envelope.payload.content ?? parsed.content ?? "");
+            if (chunk) {
+              fullContent += chunk;
+              onChunk?.(chunk);
+            }
+            eventBus.publishImmediate(envelope);
+            continue;
+          }
+          eventBus.publish(envelope);
+          if (envelope.type === "context.usage") {
+            const ratio =
+              envelope.payload.usage_ratio != null
+                ? Number(envelope.payload.usage_ratio)
+                : Math.min(1, Math.max(0, Number(envelope.payload.usage_percent ?? 0) / 100));
+            const ctx: ChatContextUsage = {
+              usage_ratio: ratio,
+              used_tokens: Number(envelope.payload.used_tokens ?? 0),
+              max_tokens: Number(envelope.payload.max_tokens ?? 128_000),
+              usage_percent: Number(envelope.payload.usage_percent ?? Math.round(ratio * 100)),
+              breakdown: (envelope.payload.breakdown as ChatContextUsage["breakdown"]) ?? {
+                messages: 0,
+                draft: 0,
+                memory_recall: 0,
+                system_overhead: 0,
+              },
+              message_count: Number(envelope.payload.message_count ?? 0),
+              model_id: envelope.payload.model_id as string | undefined,
+            };
+            metadata = { ...metadata, context_usage: ctx };
+            onContext?.(ctx);
+            continue;
+          }
+          if (envelope.type === "stream.done") continue;
+          continue;
+        }
+
+        if (
+          parsed.type === "context" &&
+          (parsed.usage_ratio != null || parsed.usage_percent != null)
+        ) {
+          const ratio =
+            parsed.usage_ratio != null
+              ? parsed.usage_ratio
+              : Math.min(1, Math.max(0, (parsed.usage_percent ?? 0) / 100));
           const ctx: ChatContextUsage = {
-            usage_ratio: parsed.usage_ratio,
+            usage_ratio: ratio,
             used_tokens: parsed.used_tokens ?? 0,
             max_tokens: parsed.max_tokens ?? 128_000,
-            usage_percent: parsed.usage_percent ?? 0,
+            usage_percent: parsed.usage_percent ?? Math.round(ratio * 100),
             breakdown: parsed.breakdown ?? {
               messages: 0,
               draft: 0,
@@ -385,8 +519,63 @@ async function consumeSSEStream(
           continue;
         }
 
+        if (parsed.type === "content" && typeof parsed.content === "string") {
+          // Skip if already handled via envelope wrapper (has nested envelope field)
+          if (parsed.envelope) continue;
+          if (parsed.content) {
+            fullContent += parsed.content;
+            onChunk?.(parsed.content);
+          }
+          continue;
+        }
+
+        if (parsed.type === "ui" && parsed.block) {
+          const block = coerceUiBlock(parsed.block);
+          if (block) {
+            const merged = mergeUiBlocks(uiBlocks, [block]);
+            uiBlocks.length = 0;
+            uiBlocks.push(...merged);
+            onEvent?.({
+              type: "ui",
+              block,
+              source: parsed.source,
+              tool_name: parsed.tool_name,
+            });
+          }
+          continue;
+        }
+
         if (parsed.type === "tool") {
-          onEvent?.({ type: "tool", name: parsed.name, status: parsed.status });
+          onEvent?.({
+            type: "tool",
+            name: parsed.name,
+            status: parsed.status,
+            agent_id: parsed.agent_id,
+            source: parsed.source,
+            mcp_server: parsed.mcp_server,
+          });
+          continue;
+        }
+
+        if (parsed.type === "memory") {
+          onEvent?.({ type: "memory", name: parsed.name, status: parsed.status });
+          continue;
+        }
+
+        if (parsed.type === "task") {
+          onEvent?.({
+            type: "task",
+            task_id: parsed.task_id,
+            parent_id: parsed.parent_id,
+            kind: parsed.kind,
+            name: parsed.name,
+            title: parsed.title,
+            short_title: parsed.short_title,
+            status: parsed.status,
+            agent_id: parsed.agent_id,
+            parallel_group: parsed.parallel_group,
+            depth: parsed.depth,
+          });
           continue;
         }
 
@@ -403,12 +592,6 @@ async function consumeSSEStream(
 
         if (typeof parsed.content !== "string") continue;
 
-        if (parsed.id != null && parsed.role === "assistant") {
-          fullContent = parsed.content;
-          metadata = parsed.metadata;
-          continue;
-        }
-
         fullContent += parsed.content;
         onChunk?.(parsed.content);
       } catch {
@@ -417,7 +600,39 @@ async function consumeSSEStream(
     }
   }
 
+  if (uiBlocks.length) {
+    metadata = { ...metadata, ui_blocks: uiBlocks };
+  }
+
   return { content: fullContent, metadata };
+}
+
+export interface VoiceAttachmentPayload {
+  data: string;
+  mime_type: string;
+  duration_ms?: number;
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+export async function voiceBlobToPayload(
+  blob: Blob,
+  mimeType: string,
+  durationMs?: number
+): Promise<VoiceAttachmentPayload> {
+  return {
+    data: await blobToBase64(blob),
+    mime_type: mimeType,
+    ...(durationMs != null ? { duration_ms: durationMs } : {}),
+  };
 }
 
 export async function sendMessage(
@@ -427,15 +642,23 @@ export async function sendMessage(
   modelId?: string,
   onContext?: (context: ChatContextUsage) => void,
   metadata?: Record<string, unknown>,
-  onEvent?: (event: StreamEvent) => void
+  onEvent?: (event: StreamEvent) => void,
+  voice?: VoiceAttachmentPayload,
+  streamOptions?: SSEStreamOptions
 ): Promise<{ content: string; metadata?: Record<string, unknown> }> {
+  const mergedMetadata = { ...(metadata ?? {}) };
+  if (voice) {
+    mergedMetadata.voice = voice;
+  }
+
   const res = await authFetch(apiUrl(`/api/chats/${chatId}/messages`), {
     method: "POST",
     body: JSON.stringify({
       content,
       model_id: modelId,
-      metadata: metadata ?? {},
+      metadata: mergedMetadata,
     }),
+    signal: streamOptions?.signal,
   });
   if (!res.ok) throw new ApiError(await parseError(res), res.status);
 
@@ -443,7 +666,10 @@ export async function sendMessage(
   if (contentType.includes("text/event-stream") || contentType.includes("application/x-ndjson")) {
     const reader = res.body?.getReader();
     if (!reader) throw new Error("No response body");
-    return consumeSSEStream(reader, onChunk, onContext, onEvent);
+    return consumeSSEStream(reader, onChunk, onContext, onEvent, {
+      sessionId: String(chatId),
+      ...streamOptions,
+    });
   }
 
   const data = await res.json();

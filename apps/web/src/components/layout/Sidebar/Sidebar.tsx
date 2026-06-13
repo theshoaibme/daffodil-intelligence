@@ -1,10 +1,11 @@
-import { useMemo, type ReactNode } from "react";
-import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { Menu, Search, Settings, Plus, LayoutGrid, Sparkles, FileText, Network, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ROUTES } from "@lib";
+import { ROUTES, filterChatHistories } from "@lib";
 import type { SidebarProps } from "./types";
 import { enterOrSkip, sidebarPanelTransition, sidebarWidthTransition } from "@lib";
+import { useIsLgUp } from "@hooks";
 import { useChatHistory } from "@context";
 import { ChatHistoryItem } from "./ChatHistoryItem";
 
@@ -13,18 +14,14 @@ export const SIDEBAR_WIDTH_EXPANDED = 280;
 export const SIDEBAR_WIDTH_COLLAPSED = 56;
 
 const iconBtn =
-  "shrink-0 p-2 rounded-full transition-colors cursor-pointer flex items-center justify-center border-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+  "shrink-0 p-1.5 rounded-full transition-colors cursor-pointer flex items-center justify-center border-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 
 const SIDEBAR_NAV = [
   { to: ROUTES.agentHub, label: "Agents", icon: LayoutGrid },
   { to: ROUTES.skills, label: "Skills", icon: Sparkles },
+  { to: ROUTES.research, label: "Research", icon: FileText, matchPrefix: ROUTES.research },
+  { to: ROUTES.connections, label: "Connections", icon: Network },
 ] as const;
-
-function matchesSearch(item: { title: string }, query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return true;
-  return item.title.toLowerCase().includes(normalized);
-}
 
 function SidebarNavLink({
   label,
@@ -41,13 +38,13 @@ function SidebarNavLink({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border-0 cursor-pointer text-left ${
+      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] leading-tight font-medium transition-all border-0 cursor-pointer text-left min-h-[32px] ${
         active
           ? "bg-primary text-on-primary"
           : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
       }`}
     >
-      <Icon size={18} />
+      <Icon size={16} className="shrink-0" />
       {label}
     </button>
   );
@@ -93,23 +90,43 @@ export function Sidebar({
   onShareHistory,
   onNewChat,
 }: SidebarProps) {
-  const { histories } = useChatHistory();
+  const { histories, syncFromApi } = useChatHistory();
   const navigate = useNavigate();
   const location = useLocation();
+  const isLgUp = useIsLgUp();
 
   const visibleHistories = useMemo(
-    () => histories.filter((entry) => matchesSearch(entry, searchQuery)),
+    () => filterChatHistories(histories, searchQuery),
     [histories, searchQuery]
   );
 
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    const timer = window.setTimeout(() => {
+      void syncFromApi(trimmed || undefined);
+    }, trimmed ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery, syncFromApi]);
+
   const toggleSidebar = () => setSidebarOpen?.(!sidebarOpen);
+
+  const sidebarWidth = isLgUp
+    ? sidebarOpen
+      ? SIDEBAR_WIDTH_EXPANDED
+      : SIDEBAR_WIDTH_COLLAPSED
+    : sidebarOpen
+      ? SIDEBAR_WIDTH_EXPANDED
+      : 0;
 
   return (
     <motion.aside
-      initial={enterOrSkip(uiReady, { width: SIDEBAR_WIDTH_COLLAPSED })}
-      animate={{ width: sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED }}
+      initial={enterOrSkip(uiReady, { width: isLgUp ? SIDEBAR_WIDTH_COLLAPSED : 0 })}
+      animate={{ width: sidebarWidth }}
       transition={sidebarWidthTransition}
-      className="fixed inset-y-0 left-0 z-50 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width]"
+      className={`fixed inset-y-0 left-0 h-screen overflow-hidden bg-surface-container-low shadow-sm will-change-[width] ${
+        isLgUp ? "z-50" : sidebarOpen ? "z-[70]" : "z-50 pointer-events-none"
+      } max-lg:shadow-xl`}
+      aria-hidden={!isLgUp && !sidebarOpen}
     >
       <div
         className="relative h-full"
@@ -124,15 +141,15 @@ export function Sidebar({
             ...sidebarPanelTransition,
             delay: sidebarOpen ? 0 : 0.06,
           }}
-          className={`absolute inset-y-0 left-0 flex w-[56px] flex-col items-center gap-2 py-4 ${
+          className={`absolute inset-y-0 left-0 hidden lg:flex w-[56px] flex-col items-center gap-1.5 py-3 ${
             sidebarOpen ? "pointer-events-none" : "pointer-events-auto"
           }`}
         >
           <RailButton label="Expand sidebar" onClick={toggleSidebar}>
-            <Menu size={22} />
+            <Menu size={20} />
           </RailButton>
           <RailButton label="New agent" onClick={() => onNewChat?.()}>
-            <Plus size={22} />
+            <Plus size={20} />
           </RailButton>
           <div className="flex-1" />
           <RailButton
@@ -140,7 +157,7 @@ export function Sidebar({
             active={location.pathname === ROUTES.account}
             onClick={() => navigate(ROUTES.account)}
           >
-            <Settings size={22} />
+            <Settings size={20} />
           </RailButton>
         </motion.div>
 
@@ -160,7 +177,7 @@ export function Sidebar({
             sidebarOpen ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
-          <div className="shrink-0 flex items-center gap-2 px-4 pt-4 pb-3">
+          <div className="shrink-0 flex items-center gap-2 px-3 pt-2.5 pb-2">
             <button
               type="button"
               onClick={toggleSidebar}
@@ -168,47 +185,52 @@ export function Sidebar({
               aria-expanded={sidebarOpen}
               className={`${iconBtn} text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface`}
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
             <div className="relative flex-1 min-w-0">
               <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none"
-                size={16}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none"
+                size={15}
               />
               <input
-                type="text"
+                type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search chats..."
+                aria-label="Search chats"
                 tabIndex={sidebarOpen ? 0 : -1}
-                className="w-full bg-surface-container-high/50 rounded pl-9 pr-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:ring-1 focus:ring-primary outline-none transition-all border-0"
+                className="w-full bg-surface-container-high/50 rounded-md pl-8 pr-2.5 py-1.5 text-[13px] text-on-surface placeholder:text-on-surface-variant/70 focus:ring-1 focus:ring-primary outline-none transition-all border-0"
               />
             </div>
           </div>
 
-          <nav className="shrink-0 px-6 pt-5 flex flex-col gap-1.5 mb-5">
+          <nav className="shrink-0 px-3 pt-1 pb-2 flex flex-col gap-0.5">
             {SIDEBAR_NAV.map((item) => (
               <SidebarNavLink
                 key={item.to}
                 label={item.label}
                 icon={item.icon}
-                active={location.pathname === item.to}
+                active={
+                  "matchPrefix" in item && item.matchPrefix
+                    ? location.pathname === item.to || location.pathname.startsWith(`${item.matchPrefix}/`)
+                    : location.pathname === item.to
+                }
                 onClick={() => navigate(item.to)}
               />
             ))}
           </nav>
 
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 pr-4">
-            <div className="mb-4">
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 pr-2">
+            <div className="mb-2">
               <button
                 type="button"
                 onClick={() => onNewChat?.()}
-                className="w-full mb-2 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium text-on-surface-variant bg-surface-container-high/60 hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer border-0"
+                className="w-full mb-1.5 flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-on-surface-variant bg-surface-container-high/60 hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer border-0 min-h-[28px]"
               >
-                <Plus size={15} />
+                <Plus size={14} />
                 New agent
               </button>
-              <h3 className="text-xs text-on-surface-variant font-medium mb-2 px-2">
+              <h3 className="text-[11px] text-on-surface-variant font-medium mb-1 px-1.5">
                 Chat history
               </h3>
               {visibleHistories.length > 0 ? (
@@ -227,28 +249,28 @@ export function Sidebar({
                   ))}
                 </div>
               ) : (
-                <p className="px-2 text-sm text-on-surface-variant">
+                <p className="px-1.5 text-xs text-on-surface-variant">
                   {searchQuery.trim() ? "No chats match your search." : "No chats yet."}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="shrink-0 px-6 py-4 bg-surface-container-low">
+          <div className="shrink-0 px-3 py-2.5 bg-surface-container-low">
             <button
               type="button"
               onClick={() => navigate(ROUTES.account)}
-              className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left w-full border-0 cursor-pointer ${
+              className={`flex items-center gap-2.5 p-2 rounded-lg transition-all text-left w-full border-0 cursor-pointer min-h-[36px] ${
                 location.pathname === ROUTES.account
                   ? "bg-primary/10 text-primary"
                   : "bg-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
               }`}
             >
               <Settings
-                size={20}
+                size={18}
                 className={location.pathname === ROUTES.account ? "text-primary" : "text-secondary"}
               />
-              <span className="text-sm font-semibold">Account</span>
+              <span className="text-[13px] font-semibold">Account</span>
             </button>
           </div>
         </motion.div>

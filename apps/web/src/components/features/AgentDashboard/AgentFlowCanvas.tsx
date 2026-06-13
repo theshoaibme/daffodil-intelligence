@@ -14,19 +14,27 @@ import "./flowTheme.css";
 import type { Agent } from "@hooks";
 import { useRuntimeStatus } from "@hooks";
 import { subscribeFlow, type FlowState } from "@lib";
+import { useEventStore } from "../../../engine/stores/eventStore";
 import { ActiveBeamEdge } from "./ActiveBeamEdge";
 import { AgentHoverCard, type HoverAnchor } from "./AgentHoverCard";
 import { FlowZoomControls } from "./FlowZoomControls";
 import { flowNodeTypes } from "./FlowNodes";
 import { FitViewOnUpdate } from "./FitViewOnUpdate";
 import { buildAgentGraph } from "./graphBuilder";
-import { loadLayout, saveLayout } from "./layoutStorage";
+import {
+  loadLayout,
+  saveLayout,
+  saveLayoutBundle,
+  subscribeLayoutRevision,
+  getLayoutRevision,
+  hydrateLayoutFromBackend,
+} from "./layoutStorage";
 const edgeTypes = { activeBeam: ActiveBeamEdge };
 
 const IDLE_OVERLAY = {
   activeAgentIds: [] as string[],
-  activeInputId: "input-telegram",
-  activeModelId: "gemini-2.0-flash",
+  activeInputId: null as string | null,
+  activeModelId: null as string | null,
   modelActive: false,
 };
 
@@ -37,10 +45,14 @@ interface AgentFlowCanvasProps {
   editing: boolean;
   onSave: () => void;
   saveSignal: number;
+  /** Chat session id for event-store driven highlights */
+  sessionId?: string | null;
   /** When false, defer fit-to-view until the graph has finished loading. */
   graphReady?: boolean;
   /** Offset controls below a page header (agent hub flow view). */
   belowHeader?: boolean;
+  /** Chat-embedded simulation: only highlight from live SSE flow, not hub poll status. */
+  simulationOnly?: boolean;
 }
 
 export function AgentFlowCanvas({
@@ -50,16 +62,52 @@ export function AgentFlowCanvas({
   saveSignal,
   graphReady = true,
   belowHeader = false,
+  simulationOnly = false,
+  sessionId = null,
 }: AgentFlowCanvasProps) {
-  const savedLayout = useMemo(() => loadLayout(agents), [agents]);
+  const [layoutRevision, setLayoutRevision] = useState(getLayoutRevision());
+  const savedLayout = useMemo(
+    () => loadLayout(agents),
+    [agents, layoutRevision]
+  );
   const { runtime } = useRuntimeStatus();
   const [flow, setFlow] = useState<FlowState>({
     activeAgentIds: [],
     activeTools: [],
     modelActive: false,
+    activeInputId: null,
+    memoryActive: false,
   });
 
+  useEffect(() => subscribeLayoutRevision(() => setLayoutRevision(getLayoutRevision())), []);
+
+  useEffect(() => {
+    void (async () => {
+      const hydrated = await hydrateLayoutFromBackend();
+      if (!hydrated) {
+        const { syncLocalLayoutToBackend } = await import("./layoutStorage");
+        await syncLocalLayoutToBackend().catch(() => undefined);
+      }
+    })();
+  }, []);
+
   useEffect(() => subscribeFlow(setFlow), []);
+
+  const storeGraph = useEventStore((s) =>
+    sessionId ? s.sessions[sessionId]?.agentGraph : undefined
+  );
+
+  useEffect(() => {
+    if (!sessionId || !storeGraph) return;
+    setFlow({
+      activeAgentIds: storeGraph.activeAgentIds,
+      activeTools: storeGraph.activeTools,
+      modelActive: storeGraph.modelActive,
+      activeInputId: storeGraph.activeInputId ?? undefined,
+      activeModelId: storeGraph.activeModelId ?? undefined,
+      memoryActive: storeGraph.memoryActive,
+    });
+  }, [sessionId, storeGraph]);
   const [fitTrigger, setFitTrigger] = useState(0);
   const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null);
   const [hoverAnchor, setHoverAnchor] = useState<HoverAnchor | null>(null);
@@ -69,17 +117,38 @@ export function AgentFlowCanvas({
   const hoverLeaveTimer = useRef<number | null>(null);
   const resizeTimer = useRef<number | null>(null);
 
-  const live = flow.modelActive || flow.activeAgentIds.length > 0;
+  const live =
+    flow.modelActive ||
+    flow.activeAgentIds.length > 0 ||
+    flow.activeTools.length > 0 ||
+    flow.memoryActive ||
+    flow.activeInputId != null;
   const graph = useMemo(
     () =>
       buildAgentGraph(agents, savedLayout, {
         activeAgentIds: live ? flow.activeAgentIds : IDLE_OVERLAY.activeAgentIds,
-        activeInputId: IDLE_OVERLAY.activeInputId,
+        activeInputId: live ? flow.activeInputId : IDLE_OVERLAY.activeInputId,
         modelActive: live ? flow.modelActive : IDLE_OVERLAY.modelActive,
-        activeModelId: runtime.model || IDLE_OVERLAY.activeModelId,
+        activeModelId: live ? flow.activeModelId ?? runtime.model : runtime.model,
         engine: runtime.engine,
+        memoryActive: live ? flow.memoryActive : false,
+        activeTools: live ? flow.activeTools : [],
+        simulationOnly,
       }),
-    [agents, savedLayout, runtime.engine, runtime.model, live, flow.activeAgentIds, flow.modelActive]
+    [
+      agents,
+      savedLayout,
+      runtime.engine,
+      runtime.model,
+      live,
+      flow.activeAgentIds,
+      flow.activeInputId,
+      flow.activeTools,
+      flow.memoryActive,
+      flow.modelActive,
+      flow.activeModelId,
+      simulationOnly,
+    ]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
@@ -103,7 +172,7 @@ export function AgentFlowCanvas({
 
   useEffect(() => {
     if (saveSignal === 0) return;
-    saveLayout(nodesRef.current);
+    saveLayoutBundle(nodesRef.current);
     onSave();
   }, [saveSignal, onSave]);
 
