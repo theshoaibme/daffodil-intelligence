@@ -67,10 +67,7 @@ async def seed_research_from_arxiv(
             progress(log_msg)
         return {"inserted": 0, "skipped": 0, "total_in_db": current_total}
 
-    remaining = min_total - current_total
     categories = list(RESEARCH_CATEGORIES) or list(CATEGORY_ARXIV_QUERIES.keys())
-    per_category = max(1, (remaining + len(categories) - 1) // len(categories))
-
     seen_ids: set[str] = set()
     inserted = 0
     skipped = 0
@@ -80,42 +77,71 @@ async def seed_research_from_arxiv(
         if progress:
             progress(msg)
 
-    log(f"Seeding {remaining} more papers (~{per_category} per category)...")
+    log(f"Seeding until at least {min_total} papers exist (currently {current_total})...")
 
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        for category in categories:
-            query = CATEGORY_ARXIV_QUERIES.get(category)
-            if not query:
-                log(f"Skipping {category}: no arXiv query configured")
-                continue
+        round_num = 0
+        while True:
+            async with session_maker() as session:
+                from sqlalchemy import func, select
 
-            log(f"Fetching {category} (target {per_category} papers)...")
-            batch_rows: list[dict] = []
-            category_count = 0
+                current_total = (
+                    await session.execute(select(func.count()).select_from(ResearchPaper))
+                ).scalar_one()
 
-            async for paper in iter_category_papers(
-                category,
-                query,
-                limit=per_category,
-                seen_ids=seen_ids,
-                client=client,
-            ):
-                batch_rows.append(_paper_to_row(paper))
-                category_count += 1
+            if current_total >= min_total:
+                break
 
-                if len(batch_rows) >= batch_size:
+            remaining = min_total - current_total
+            per_category = max(50, (remaining + len(categories) - 1) // len(categories))
+            round_num += 1
+            log(f"Round {round_num}: need {remaining} more (~{per_category} per category)")
+
+            for category in categories:
+                async with session_maker() as session:
+                    from sqlalchemy import func, select
+
+                    current_total = (
+                        await session.execute(select(func.count()).select_from(ResearchPaper))
+                    ).scalar_one()
+                if current_total >= min_total:
+                    break
+
+                query = CATEGORY_ARXIV_QUERIES.get(category)
+                if not query:
+                    continue
+
+                batch_rows: list[dict] = []
+                category_count = 0
+                fetch_limit = min(per_category, remaining)
+
+                async for paper in iter_category_papers(
+                    category,
+                    query,
+                    limit=fetch_limit,
+                    seen_ids=seen_ids,
+                    client=client,
+                ):
+                    batch_rows.append(_paper_to_row(paper))
+                    category_count += 1
+
+                    if len(batch_rows) >= batch_size:
+                        n = await _insert_batch(session_maker, batch_rows)
+                        inserted += n
+                        skipped += len(batch_rows) - n
+                        batch_rows.clear()
+
+                if batch_rows:
                     n = await _insert_batch(session_maker, batch_rows)
                     inserted += n
                     skipped += len(batch_rows) - n
-                    batch_rows.clear()
-                    log(f"  {category}: {category_count} fetched, {inserted} inserted total")
 
-            if batch_rows:
-                n = await _insert_batch(session_maker, batch_rows)
-                inserted += n
-                skipped += len(batch_rows) - n
+                if category_count:
+                    log(f"  {category}: +{category_count} fetched this round")
 
-            log(f"  Done {category}: {category_count} papers")
+            if round_num >= 5:
+                log("Stopping after 5 rounds to avoid excessive API usage.")
+                break
 
     async with session_maker() as session:
         from sqlalchemy import func, select
