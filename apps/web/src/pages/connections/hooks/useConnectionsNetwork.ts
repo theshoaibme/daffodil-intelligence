@@ -4,6 +4,8 @@ import type { ConnectionMessage, ConnectionStatus, ResearchConnection } from "..
 
 export type ResearchConnectionWithStatus = ResearchConnection & { status: ConnectionStatus };
 
+const NETWORK_PAGE_LIMIT = 200;
+
 interface NetworkStats {
   researchers: number;
   institutions: number;
@@ -24,11 +26,25 @@ export function useConnectionsNetwork(isAuthenticated: boolean) {
     setError(null);
 
     try {
-      const res = await connectionsApi.listNetwork({ limit: 500 });
-      if (requestId !== requestIdRef.current) return;
+      const items: ResearchConnectionWithStatus[] = [];
+      let page = 1;
+      let totalPages = 1;
+      let networkStats: NetworkStats = { researchers: 0, institutions: 0, connected: 0 };
 
-      setConnections(res.items.map(mapNetworkConnection));
-      setStats(res.stats);
+      while (page <= totalPages) {
+        const res = await connectionsApi.listNetwork({ limit: NETWORK_PAGE_LIMIT, page });
+        if (requestId !== requestIdRef.current) return;
+
+        items.push(...res.items.map(mapNetworkConnection));
+        networkStats = res.stats;
+        totalPages = Math.max(1, res.total_pages ?? 1);
+
+        if (page >= totalPages || !res.items.length) break;
+        page += 1;
+      }
+
+      setConnections(items);
+      setStats(networkStats);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
       setConnections([]);
