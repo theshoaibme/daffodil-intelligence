@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..connections.auto_reply import build_auto_reply
 from ..connections.build_network import NetworkNode, build_network_from_papers
 from ..core.database import get_db
 from ..core.security import decode_token, get_current_user, security
@@ -57,11 +58,12 @@ class NetworkListResponse(BaseModel):
 
 
 class CorrespondenceCreate(BaseModel):
-    subject: str = Field(..., min_length=1, max_length=512)
+    subject: str = Field(default="", max_length=512)
     salutation: str = Field(default="", max_length=255)
     body: str = Field(..., min_length=1)
     closing: str = Field(default="", max_length=2000)
     purpose: Optional[str] = Field(default=None, max_length=64)
+    message_type: Literal["chat", "formal"] = "formal"
 
 
 class CorrespondenceResponse(BaseModel):
@@ -73,7 +75,125 @@ class CorrespondenceResponse(BaseModel):
     closing: str
     purpose: Optional[str] = None
     sent_at: str
-    direction: Literal["outgoing"] = "outgoing"
+    direction: Literal["outgoing", "incoming"] = "outgoing"
+    sender_name: Optional[str] = None
+    message_type: Literal["chat", "formal"] = "formal"
+
+
+class ConversationPreviewResponse(BaseModel):
+    target_id: str
+    kind: ConnectionKind
+    name: str
+    subtitle: str
+    focus: str
+    status: ConnectionStatus
+    last_message: Optional[CorrespondenceResponse] = None
+    message_count: int = 0
+
+
+def _correspondence_to_response(row: ConnectionCorrespondence) -> CorrespondenceResponse:
+    return CorrespondenceResponse(
+        id=row.id,
+        connection_id=row.target_id,
+        subject=row.subject,
+        salutation=row.salutation,
+        body=row.body,
+        closing=row.closing,
+        purpose=row.purpose,
+        sent_at=row.created_at.isoformat(),
+        direction=row.direction,  # type: ignore[arg-type]
+        sender_name=row.sender_name,
+        message_type=row.message_type,  # type: ignore[arg-type]
+    )
+
+
+def _normalize_outgoing_payload(
+    body: CorrespondenceCreate,
+    node: NetworkNode,
+    sender_name: str,
+) -> dict[str, str]:
+    message_type = body.message_type
+    text = body.body.strip()
+
+    if message_type == "chat":
+        return {
+            "subject": body.subject.strip() or f"Chat with {node.name}",
+            "salutation": "",
+            "body": text,
+            "closing": "",
+            "purpose": body.purpose,
+            "message_type": "chat",
+            "sender_name": sender_name,
+        }
+
+    return {
+        "subject": body.subject.strip() or f"Correspondence — {node.name}",
+        "salutation": body.salutation.strip(),
+        "body": text,
+        "closing": body.closing.strip(),
+        "purpose": body.purpose,
+        "message_type": "formal",
+        "sender_name": sender_name,
+    }
+
+
+async def _require_connected_connection(
+    db: AsyncSession,
+    user_id: int,
+    target_id: str,
+) -> UserResearchConnection:
+    row = (
+        await db.execute(
+            select(UserResearchConnection).where(
+                UserResearchConnection.user_id == user_id,
+                UserResearchConnection.target_id == target_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None or row.status != "connected":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must be connected before sending messages",
+        )
+    return row
+
+
+async def _maybe_add_auto_reply(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    node: NetworkNode,
+    purpose: Optional[str],
+    user_body: str,
+) -> ConnectionCorrespondence | None:
+    row = (
+        await db.execute(
+            select(UserResearchConnection).where(
+                UserResearchConnection.user_id == user_id,
+                UserResearchConnection.target_id == node.id,
+                UserResearchConnection.status == "connected",
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return None
+
+    subject, reply_body = build_auto_reply(node, purpose=purpose, user_body=user_body)
+    incoming = ConnectionCorrespondence(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        target_id=node.id,
+        subject=subject,
+        salutation="Dear Colleague,",
+        body=reply_body,
+        closing="",
+        purpose=purpose,
+        direction="incoming",
+        sender_name=node.name,
+        message_type="chat",
+    )
+    db.add(incoming)
+    return incoming
 
 
 class ConnectionActionResponse(BaseModel):
@@ -220,6 +340,66 @@ async def list_network(
     )
 
 
+@router.get("/conversations", response_model=List[ConversationPreviewResponse])
+async def list_conversations(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    user_id = _user_id(user)
+    papers = await _load_public_papers(db, limit=500)
+    nodes = {node.id: node for node in build_network_from_papers(papers)}
+
+    connection_rows = (
+        await db.execute(
+            select(UserResearchConnection)
+            .where(
+                UserResearchConnection.user_id == user_id,
+                UserResearchConnection.status == "connected",
+            )
+            .order_by(UserResearchConnection.updated_at.desc())
+        )
+    ).scalars().all()
+
+    previews: list[ConversationPreviewResponse] = []
+    for conn in connection_rows:
+        node = nodes.get(conn.target_id)
+        if node is None:
+            continue
+
+        message_rows = (
+            await db.execute(
+                select(ConnectionCorrespondence)
+                .where(
+                    ConnectionCorrespondence.user_id == user_id,
+                    ConnectionCorrespondence.target_id == conn.target_id,
+                )
+                .order_by(ConnectionCorrespondence.created_at.desc())
+            )
+        ).scalars().all()
+
+        last_message = (
+            _correspondence_to_response(message_rows[0]) if message_rows else None
+        )
+        previews.append(
+            ConversationPreviewResponse(
+                target_id=conn.target_id,
+                kind=node.kind,  # type: ignore[arg-type]
+                name=node.name,
+                subtitle=node.subtitle,
+                focus=node.focus,
+                status="connected",
+                last_message=last_message,
+                message_count=len(message_rows),
+            )
+        )
+
+    previews.sort(
+        key=lambda item: item.last_message.sent_at if item.last_message else "",
+        reverse=True,
+    )
+    return previews
+
+
 @router.post("/{target_id}/request", response_model=ConnectionActionResponse)
 async def request_connection(
     target_id: str,
@@ -321,6 +501,7 @@ async def list_messages(
 ):
     user_id = _user_id(user)
     await _get_target_node(db, target_id)
+    await _require_connected_connection(db, user_id, target_id)
 
     rows = (
         await db.execute(
@@ -333,22 +514,10 @@ async def list_messages(
         )
     ).scalars().all()
 
-    return [
-        CorrespondenceResponse(
-            id=row.id,
-            connection_id=row.target_id,
-            subject=row.subject,
-            salutation=row.salutation,
-            body=row.body,
-            closing=row.closing,
-            purpose=row.purpose,
-            sent_at=row.created_at.isoformat(),
-        )
-        for row in rows
-    ]
+    return [_correspondence_to_response(row) for row in rows]
 
 
-@router.post("/{target_id}/messages", response_model=CorrespondenceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{target_id}/messages", response_model=List[CorrespondenceResponse], status_code=status.HTTP_201_CREATED)
 async def send_message(
     target_id: str,
     body: CorrespondenceCreate,
@@ -357,54 +526,45 @@ async def send_message(
 ):
     user_id = _user_id(user)
     node = await _get_target_node(db, target_id)
+    await _require_connected_connection(db, user_id, target_id)
+
+    sender_name = (
+        (user.get("full_name") or "").strip()
+        or (user.get("email") or "").split("@")[0]
+        or "Research Scholar"
+    )
+    payload = _normalize_outgoing_payload(body, node, sender_name)
 
     row = ConnectionCorrespondence(
         id=str(uuid.uuid4()),
         user_id=user_id,
         target_id=target_id,
-        subject=body.subject.strip(),
-        salutation=body.salutation.strip(),
-        body=body.body.strip(),
-        closing=body.closing.strip(),
-        purpose=body.purpose,
+        subject=payload["subject"],
+        salutation=payload["salutation"],
+        body=payload["body"],
+        closing=payload["closing"],
+        purpose=payload.get("purpose"),
+        direction="outgoing",
+        sender_name=payload["sender_name"],
+        message_type=payload["message_type"],
     )
     db.add(row)
 
-    conn = (
-        await db.execute(
-            select(UserResearchConnection).where(
-                UserResearchConnection.user_id == user_id,
-                UserResearchConnection.target_id == target_id,
-            )
-        )
-    ).scalar_one_or_none()
-
-    if conn is None:
-        db.add(
-            UserResearchConnection(
-                id=str(uuid.uuid4()),
-                user_id=user_id,
-                target_id=target_id,
-                target_kind=node.kind,
-                status="pending",
-            )
-        )
-    elif conn.status != "connected":
-        conn.status = "pending"
+    incoming = await _maybe_add_auto_reply(
+        db,
+        user_id=user_id,
+        node=node,
+        purpose=body.purpose,
+        user_body=payload["body"],
+    )
 
     await db.commit()
     await db.refresh(row)
-
-    return CorrespondenceResponse(
-        id=row.id,
-        connection_id=row.target_id,
-        subject=row.subject,
-        salutation=row.salutation,
-        body=row.body,
-        closing=row.closing,
-        purpose=row.purpose,
-        sent_at=row.created_at.isoformat(),
-    )
+    created = [_correspondence_to_response(row)]
+    if incoming is not None:
+        await db.refresh(incoming)
+        created.append(_correspondence_to_response(incoming))
+    return created
 
 
 @router.get("/me/summary", response_model=NetworkStatsResponse)

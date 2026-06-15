@@ -105,10 +105,18 @@ export function ConnectionCard({
           <button
             type="button"
             onClick={onMessage}
-            className="inline-flex items-center gap-1 rounded-full border-0 bg-transparent px-2 py-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+            disabled={status !== "connected"}
+            title={
+              status === "connected"
+                ? "Open chat"
+                : status === "pending"
+                  ? "Accept the connection to chat"
+                  : "Connect first to start chatting"
+            }
+            className="inline-flex items-center gap-1 rounded-full border-0 bg-transparent px-2 py-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
           >
             <MessageSquare size={12} />
-            Correspond
+            {status === "connected" ? "Chat" : "Chat locked"}
           </button>
         </div>
       </div>
