@@ -1,5 +1,12 @@
 import { getAuthHeaders } from "./api";
-import type { ConnectionKind, ConnectionMessage, ConnectionStatus, ResearchConnection } from "../pages/connections/types";
+import type {
+  ConnectionConversation,
+  ConnectionKind,
+  ConnectionMessage,
+  ConnectionStatus,
+  MessageType,
+  ResearchConnection,
+} from "../pages/connections/types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -49,15 +56,29 @@ export interface ApiCorrespondence {
   closing: string;
   purpose?: string | null;
   sent_at: string;
-  direction: "outgoing";
+  direction: "outgoing" | "incoming";
+  sender_name?: string | null;
+  message_type: MessageType;
+}
+
+export interface ApiConversationPreview {
+  target_id: string;
+  kind: ConnectionKind;
+  name: string;
+  subtitle: string;
+  focus: string;
+  status: ConnectionStatus;
+  last_message?: ApiCorrespondence | null;
+  message_count: number;
 }
 
 export interface CorrespondenceInput {
-  subject: string;
-  salutation: string;
+  subject?: string;
+  salutation?: string;
   body: string;
-  closing: string;
+  closing?: string;
   purpose?: string;
+  message_type?: MessageType;
 }
 
 export function mapNetworkConnection(item: ApiNetworkConnection): ResearchConnection & { status: ConnectionStatus } {
@@ -87,18 +108,23 @@ export function mapCorrespondence(item: ApiCorrespondence): ConnectionMessage {
     closing: item.closing,
     purpose: item.purpose ?? undefined,
     sentAt: item.sent_at,
-    direction: "outgoing",
+    direction: item.direction,
+    senderName: item.sender_name ?? undefined,
+    messageType: item.message_type,
   };
 }
 
-async function publicRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), init);
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || `Request failed: ${res.status}`);
-  }
-  if (res.status === 204) return {} as T;
-  return res.json();
+export function mapConversation(item: ApiConversationPreview): ConnectionConversation {
+  return {
+    targetId: item.target_id,
+    kind: item.kind,
+    name: item.name,
+    subtitle: item.subtitle,
+    focus: item.focus,
+    status: item.status,
+    lastMessage: item.last_message ? mapCorrespondence(item.last_message) : undefined,
+    messageCount: item.message_count,
+  };
 }
 
 async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -142,6 +168,10 @@ export const connectionsApi = {
     return optionalAuthRequest<ApiNetworkListResponse>(`/api/connections/network${q ? `?${q}` : ""}`);
   },
 
+  listConversations() {
+    return authRequest<ApiConversationPreview[]>("/api/connections/conversations");
+  },
+
   requestConnection(targetId: string) {
     return authRequest<{ target_id: string; status: ConnectionStatus }>(
       `/api/connections/${encodeURIComponent(targetId)}/request`,
@@ -167,7 +197,7 @@ export const connectionsApi = {
   },
 
   sendMessage(targetId: string, payload: CorrespondenceInput) {
-    return authRequest<ApiCorrespondence>(
+    return authRequest<ApiCorrespondence[]>(
       `/api/connections/${encodeURIComponent(targetId)}/messages`,
       {
         method: "POST",

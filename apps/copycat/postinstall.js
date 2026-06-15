@@ -2,6 +2,16 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+// Desktop Kit install requires OS packages + venv — skip on CI/Vercel (web-only deploys).
+if (
+  process.env.VERCEL === '1' ||
+  process.env.CI === 'true' ||
+  process.env.SKIP_DAFFODIL_KIT_INSTALL === '1'
+) {
+  console.log('[copycat] Skipping Daffodil Kit install (CI/Vercel).');
+  process.exit(0);
+}
+
 console.log('[copycat] Running post-install hook to install Daffodil Kit...');
 
 // Determine root directory (assuming structure is apps/copycat/postinstall.js)

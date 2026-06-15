@@ -52,24 +52,36 @@ def test_request_and_message_connection(client, auth_headers):
     res = client.post(
         f"/api/connections/{target_id}/messages",
         headers=auth_headers,
-        json={
-            "subject": "Collaboration inquiry",
-            "salutation": "Dear Colleague,",
-            "body": "I would like to discuss shared research interests.",
-            "closing": "Sincerely,\nTest User",
-            "purpose": "collaboration",
-        },
+        json={"body": "Hello there"},
     )
-    assert res.status_code == 201
-    assert res.json()["subject"] == "Collaboration inquiry"
-
-    res = client.get(f"/api/connections/{target_id}/messages", headers=auth_headers)
-    assert res.status_code == 200
-    assert len(res.json()) == 1
+    assert res.status_code == 403
 
     res = client.post(f"/api/connections/{target_id}/accept", headers=auth_headers)
     assert res.status_code == 200
     assert res.json()["status"] == "connected"
+
+    res = client.post(
+        f"/api/connections/{target_id}/messages",
+        headers=auth_headers,
+        json={
+            "body": "I would like to discuss shared research interests.",
+            "message_type": "chat",
+        },
+    )
+    assert res.status_code == 201
+    created = res.json()
+    assert len(created) == 2
+    assert created[0]["direction"] == "outgoing"
+    assert created[1]["direction"] == "incoming"
+
+    res = client.get(f"/api/connections/{target_id}/messages", headers=auth_headers)
+    assert res.status_code == 200
+    assert len(res.json()) == 2
+
+    res = client.get("/api/connections/conversations", headers=auth_headers)
+    assert res.status_code == 200
+    conversations = res.json()
+    assert any(item["target_id"] == target_id for item in conversations)
 
     summary = client.get("/api/connections/me/summary", headers=auth_headers).json()
     assert summary["connected"] >= 1

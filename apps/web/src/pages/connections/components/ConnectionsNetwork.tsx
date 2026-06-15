@@ -11,10 +11,10 @@ import {
 import { Loader } from "@ui";
 import { ROUTES } from "@lib";
 import { useAuth } from "@context";
-import { useConnectionsNetwork } from "../hooks/useConnectionsNetwork";
+import { useConnectionsNetwork, type ConnectionsNetworkState } from "../hooks/useConnectionsNetwork";
 import type { ConnectionKind, ResearchConnection } from "../types";
 import { ConnectionCard } from "./ConnectionCard";
-import { ConnectionMessageDialog } from "./ConnectionMessageDialog";
+import { ConnectionChatDialog } from "./ConnectionChatDialog";
 import { ResearchPagination } from "../../research/components/ResearchPagination";
 
 type FilterType = "all" | ConnectionKind | "connected";
@@ -22,11 +22,13 @@ const ITEMS_PER_PAGE = 9;
 
 interface ConnectionsNetworkProps {
   workspace?: boolean;
+  network?: ConnectionsNetworkState;
 }
 
-export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProps) {
+export function ConnectionsNetwork({ workspace = false, network: externalNetwork }: ConnectionsNetworkProps) {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const internalNetwork = useConnectionsNetwork(isAuthenticated);
   const {
     connections,
     stats,
@@ -40,7 +42,7 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
     loadMessages,
     getMessages,
     connectedCount,
-  } = useConnectionsNetwork(isAuthenticated);
+  } = externalNetwork ?? internalNetwork;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
@@ -92,6 +94,10 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
   const handleMessage = (item: ResearchConnection) => {
     if (!isAuthenticated) {
       navigate(ROUTES.login);
+      return;
+    }
+    const status = getStatus(item.id);
+    if (status !== "connected") {
       return;
     }
     requireAuth(() => {
@@ -263,13 +269,12 @@ export function ConnectionsNetwork({ workspace = false }: ConnectionsNetworkProp
       )}
 
       {activeMessage && (
-        <ConnectionMessageDialog
+        <ConnectionChatDialog
           connection={activeMessage}
+          status={getStatus(activeMessage.id)}
           messages={getMessages(activeMessage.id)}
           onClose={() => setActiveMessage(null)}
-          onSend={(payload) => {
-            void sendMessage(activeMessage.id, payload);
-          }}
+          onSend={(payload) => sendMessage(activeMessage.id, payload)}
         />
       )}
     </div>

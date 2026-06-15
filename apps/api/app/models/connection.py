@@ -46,6 +46,9 @@ class ConnectionCorrespondence(Base):
     body = Column(Text, nullable=False)
     closing = Column(Text, nullable=False, default="")
     purpose = Column(String(64), nullable=True)
+    direction = Column(String(16), nullable=False, default="outgoing")
+    sender_name = Column(String(255), nullable=True)
+    message_type = Column(String(16), nullable=False, default="formal")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
