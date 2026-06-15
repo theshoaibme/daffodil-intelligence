@@ -87,6 +87,13 @@ def _pick_focus(categories: set[str]) -> str:
     return " · ".join(unique)
 
 
+def _paper_value(paper, field: str, default=""):
+    """Read a field from a ResearchPaper ORM row or dict-like object."""
+    if isinstance(paper, dict):
+        return paper.get(field, default)
+    return getattr(paper, field, default)
+
+
 def build_network_from_papers(papers: list) -> list[NetworkNode]:
     """Build connection nodes from ResearchPaper ORM rows or dict-like objects."""
 
@@ -94,12 +101,12 @@ def build_network_from_papers(papers: list) -> list[NetworkNode]:
     institutions: dict[str, _InstitutionAgg] = {}
 
     for paper in papers:
-        title = getattr(paper, "title", paper.get("title", ""))
-        paper_id = getattr(paper, "id", paper.get("id", ""))
-        authors = getattr(paper, "authors", paper.get("authors", ""))
-        source = (getattr(paper, "source", paper.get("source", "")) or "Research network").strip()
-        category = getattr(paper, "category", paper.get("category", ""))
-        citations = int(getattr(paper, "citations", paper.get("citations", 0)) or 0)
+        title = _paper_value(paper, "title", "")
+        paper_id = _paper_value(paper, "id", "")
+        authors = _paper_value(paper, "authors", "")
+        source = (_paper_value(paper, "source", "") or "Research network").strip()
+        category = _paper_value(paper, "category", "")
+        citations = int(_paper_value(paper, "citations", 0) or 0)
 
         inst_id = f"inst-{_slugify(source)}"
         institution = institutions.get(inst_id)
