@@ -13,5 +13,4 @@
     "db:migrate": "../../.venv/bin/alembic upgrade head",
     "research:seed": "../../.venv/bin/python scripts/seed_research_papers.py --min-total 10000"
   }
-  
 }
