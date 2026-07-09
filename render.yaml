@@ -1,0 +1,35 @@
+services:
+  # ──────────────────────────────────────────────────────────────
+  # Frontend — Static Site (free tier, global CDN, auto HTTPS)
+  # ──────────────────────────────────────────────────────────────
+  - type: web
+    name: daffodil-intelligence-web
+    runtime: static
+    repo: https://github.com/the-shoaib2/daffodil-intelligence
+    branch: main
+    rootDir: apps/web
+    buildCommand: cd ../.. && npm install -g pnpm@9.0.0 && pnpm install --frozen-lockfile --filter daffodil-web... && pnpm --filter daffodil-web build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: VITE_API_URL
+        # Update this after deploying your FastAPI backend
+        value: https://daffodil-intelligence-api.onrender.com
+      - key: VITE_WS_URL
+        value: wss://daffodil-intelligence-api.onrender.com
