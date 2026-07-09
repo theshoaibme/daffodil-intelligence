@@ -30,13 +30,13 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 try:
-    from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig, GeminiConfig
+    # pyrefly: ignore [missing-import]
+    from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig
     _ANTIGRAVITY_AVAILABLE = True
 except Exception as e:  # pragma: no cover - import guard
     Agent = None  # type: ignore
     LocalAgentConfig = None  # type: ignore
     CapabilitiesConfig = None  # type: ignore
-    GeminiConfig = None  # type: ignore
     _ANTIGRAVITY_AVAILABLE = False
     logger.error(f"google-antigravity SDK unavailable: {e}")
 
@@ -176,7 +176,7 @@ def build_agent(
         "capabilities": capabilities,
         "tools": tools,
         "policies": policies,
-        "gemini_config": GeminiConfig(api_key=settings.GEMINI_API_KEY),
+        "api_key": settings.GEMINI_API_KEY,
         "model": model or settings.ANTIGRAVITY_MODEL,
         "save_dir": get_save_dir(),
     }
