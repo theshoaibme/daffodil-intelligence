@@ -26,7 +26,7 @@
   "devDependencies": {
     "@eslint/js": "8.57.1",
     "run-script-os": "^1.1.6",
-    "turbo": "^2.0.0"
+    "turbo": "^2.11.10"
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {
