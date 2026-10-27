@@ -50,3 +50,7 @@ duckduckgo-search>=6.0.0
 
 # === NEW: Worker Monitoring ===
 flower>=2.0.0
+
+# === NEW: MongoDB Support ===
+motor>=3.3.0
+pymongo>=4.6.0

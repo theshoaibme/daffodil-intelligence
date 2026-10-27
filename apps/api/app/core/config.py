@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     MINIO_USE_SSL: bool = False
     MINIO_CONSOLE_URL: str = "http://localhost:9001"
     
+    MONGO_URL: str = ""
+    
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = ""
     OPENAI_MODEL_NAME: str = "gpt-4-turbo-preview"

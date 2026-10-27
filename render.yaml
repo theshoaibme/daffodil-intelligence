@@ -33,3 +33,27 @@ services:
         value: https://daffodil-intelligence-api.onrender.com
       - key: VITE_WS_URL
         value: wss://daffodil-intelligence-api.onrender.com
+
+  # ──────────────────────────────────────────────────────────────
+  # Backend — Web Service (Docker runtime)
+  # ──────────────────────────────────────────────────────────────
+  - type: web
+    name: daffodil-intelligence-api
+    runtime: docker
+    repo: https://github.com/the-shoaib2/daffodil-intelligence
+    branch: main
+    rootDir: apps/api
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        generateValue: true 
+      - key: APP_SECRET_KEY
+        generateValue: true  # Generates a random secure secret
+      - key: JWT_SECRET
+        generateValue: true
+      - key: USE_MOCK_DATA
+        value: "false"
+      - key: REDIS_URL
+        value: ""  # Keeps Redis disabled, falling back to memory queue
+
